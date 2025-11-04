@@ -1,5 +1,11 @@
 # @ephemera/shared
 
+## 1.0.6
+
+### Patch Changes
+
+- fix crawlee data folder
+
 ## 1.0.5
 
 ### Patch Changes
