@@ -60,9 +60,8 @@ fi
 echo "Setting up directories..."
 mkdir -p /app/data /app/downloads /app/ingest /app/.crawlee
 
-# Fix ownership of app directories to match PUID/PGID
-echo "Fixing permissions..."
-chown -R nodejs:nodejs /app
+# Note: We don't chown mounted volumes - they inherit permissions from the host
+# The PUID/PGID should match your host user, so the nodejs user can already access them
 
 # Run database migrations as nodejs user
 echo "Running database migrations..."
