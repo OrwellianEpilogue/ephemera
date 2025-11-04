@@ -1,6 +1,6 @@
 {
   "name": "@ephemera/shared",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Shared types, schemas, and utilities for Ephemera monorepo",
   "type": "module",
   "main": "./dist/index.js",
