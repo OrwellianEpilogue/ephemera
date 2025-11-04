@@ -1,6 +1,6 @@
 {
   "name": "@ephemera/root",
-  "version": "1.0.4",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,12 +20,11 @@
     "db:studio": "pnpm --filter @ephemera/api db:studio",
     "changeset": "changeset",
     "changeset:status": "changeset status --verbose",
-    "version": "changeset version",
+    "version": "changeset version && git add . && git commit -m 'chore: version packages'",
     "version:check": "changeset status",
-    "release": "pnpm run release:version && pnpm run release:tag && pnpm run release:push",
-    "release:version": "changeset version",
-    "release:tag": "git add . && git commit -m 'chore: version packages' && git tag v$(node -p \"require('./package.json').version\")",
-    "release:push": "git push && git push --tags"
+    "release": "pnpm run version && pnpm run tag && pnpm run push",
+    "tag": "git tag v$(node -p \"require('./packages/api/package.json').version\")",
+    "push": "git push && git push --tags"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
