@@ -1,5 +1,11 @@
 # @ephemera/shared
 
+## 1.1.0
+
+### Minor Changes
+
+- use flaresolverr for slow downloads
+
 ## 1.0.7
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @ephemera/web
 
+## 1.1.0
+
+### Minor Changes
+
+- use flaresolverr for slow downloads
+
+### Patch Changes
+
+- Updated dependencies
+  - @ephemera/shared@1.1.0
+
 ## 1.0.7
 
 ### Patch Changes
