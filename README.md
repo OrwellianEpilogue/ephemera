@@ -17,8 +17,6 @@ Search and download books from your girl's favorite archive. Supports auto-move 
 ### Setup the container using the Docker Compose template below:
 
 ```yaml
-version: '3.8'
-
 services:
   ephemera:
     image: ghcr.io/orwellianepilogue/ephemera:latest
@@ -30,8 +28,11 @@ services:
 
     environment:
       # Required:
-      AA_API_KEY:
       AA_BASE_URL:
+
+      # Optional
+      AA_API_KEY:
+      FLARESOLVERR_URL: http://flaresolverr:8191
 
     volumes:
       - ./data:/app/data
@@ -56,6 +57,27 @@ services:
       interval: 30s
       timeout: 10s
       start_period: 40s
+      retries: 3
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+
+    ports:
+      - '8191:8191'
+
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=Europe/Berlin
+
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8191/health']
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
       retries: 3
 ```
 

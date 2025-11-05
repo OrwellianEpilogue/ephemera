@@ -5,6 +5,7 @@ import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import { logger } from '../utils/logger.js';
 import { downloadTracker } from './download-tracker.js';
+import { slowDownloader } from './slow-downloader.js';
 
 const AA_API_KEY = process.env.AA_API_KEY;
 const AA_BASE_URL = process.env.AA_BASE_URL;
@@ -85,6 +86,12 @@ export class Downloader {
       // Ensure temp folder exists
       await mkdir(TEMP_FOLDER, { recursive: true });
 
+      // Check if API key is available - if not, use slow download
+      if (!AA_API_KEY) {
+        logger.info(`No AA_API_KEY configured - using slow download fallback for ${md5}`);
+        return await this.downloadViaSlowServer(md5, onProgress);
+      }
+
       // Get download URL from AA API
       logger.info(`Getting download URL for ${md5}...`);
       const apiResponse = await this.getDownloadUrl(md5, pathIndex, domainIndex);
@@ -106,12 +113,10 @@ export class Downloader {
 
         logger.info(`Quota: ${quota.downloads_left}/${quota.downloads_per_day} downloads remaining`);
 
-        // Check if quota is exhausted
+        // Check if quota is exhausted - fall back to slow download
         if (quota.downloads_left === 0) {
-          const error = `Account quota exhausted (0/${quota.downloads_per_day} downloads remaining). Will retry when quota resets.`;
-          logger.error(error);
-          // Don't call markError - let queue manager handle status update to 'delayed'
-          return { success: false, error, isQuotaError: true };
+          logger.warn(`Quota exhausted (0/${quota.downloads_per_day} downloads remaining) - falling back to slow download for ${md5}`);
+          return await this.downloadViaSlowServer(md5, onProgress);
         }
       } else {
         logger.warn('No quota info in API response, will check error message');
@@ -133,9 +138,8 @@ export class Downloader {
         );
 
         if (isQuotaError) {
-          logger.error('Detected quota error from error message');
-          // Don't call markError - let queue manager handle status update to 'delayed'
-          return { success: false, error, isQuotaError: true };
+          logger.warn('Detected quota error from error message - falling back to slow download');
+          return await this.downloadViaSlowServer(md5, onProgress);
         }
 
         return { success: false, error };
@@ -311,6 +315,40 @@ export class Downloader {
       return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
     } else {
       return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    }
+  }
+
+  /**
+   * Download via slow download servers as fallback
+   * Used when API key is missing or quota exhausted
+   */
+  private async downloadViaSlowServer(md5: string, onProgress?: (downloaded: number, total: number, speed: string, eta: number) => void): Promise<DownloadResult> {
+    logger.info(`Using slow download fallback for ${md5}`);
+
+    try {
+      // Use slow downloader with progress mapping
+      const result = await slowDownloader.downloadWithRetry(md5, (progressInfo) => {
+        // Map slow download progress to the format expected by onProgress callback
+        if (progressInfo.status === 'downloading' && onProgress && progressInfo.downloaded && progressInfo.total) {
+          onProgress(
+            progressInfo.downloaded,
+            progressInfo.total,
+            progressInfo.speed || '0 B/s',
+            progressInfo.eta || 0
+          );
+        }
+      });
+
+      if (result.success && result.filePath) {
+        return { success: true, filePath: result.filePath };
+      } else {
+        return { success: false, error: result.error || 'Slow download failed' };
+      }
+    } catch (error: any) {
+      const errorMsg = error.message || 'Slow download error';
+      logger.error(`Slow download failed for ${md5}:`, errorMsg);
+      await downloadTracker.markError(md5, errorMsg);
+      return { success: false, error: errorMsg };
     }
   }
 }
