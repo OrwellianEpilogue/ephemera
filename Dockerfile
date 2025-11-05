@@ -80,9 +80,6 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Create required directories with proper permissions
-RUN mkdir -p /app/data /app/downloads /app/ingest /app/.crawlee && \
-    chown -R nodejs:nodejs /app
 
 # Note: Container starts as root to allow PUID/PGID modification
 # Entrypoint script will drop privileges to nodejs user via su-exec
