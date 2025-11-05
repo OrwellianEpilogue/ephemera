@@ -5,12 +5,6 @@ echo "==================================="
 echo "ephemera — book downloader"
 echo "==================================="
 
-# Validate required environment variables
-if [ -z "$AA_API_KEY" ]; then
-  echo "ERROR: AA_API_KEY is required but not set"
-  exit 1
-fi
-
 if [ -z "$AA_BASE_URL" ]; then
   echo "ERROR: AA_BASE_URL is required but not set"
   exit 1
