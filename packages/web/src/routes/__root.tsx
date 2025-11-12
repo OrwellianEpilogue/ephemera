@@ -10,6 +10,7 @@ import {
   useMantineColorScheme,
   useComputedColorScheme,
   Badge,
+  Stack,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -22,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueue } from '../hooks/useQueue';
 import { useRequestStats } from '../hooks/useRequests';
+import { VersionFooter } from '../components/VersionFooter';
 
 function RootComponent() {
   const [opened, { toggle }] = useDisclosure();
@@ -73,48 +75,51 @@ function RootComponent() {
       </AppShell.Header>
 
       <AppShell.Navbar p="md">
-        <NavLink
-          component={Link}
-          to="/search"
-          label="Search"
-          leftSection={<IconSearch size={20} />}
-          onClick={() => toggle()}
-        />
-        <NavLink
-          component={Link}
-          to="/queue"
-          label="Queue"
-          leftSection={<IconDownload size={20} />}
-          rightSection={
-            totalActiveCount > 0 ? (
-              <Badge size="sm" variant="filled" color="blue" circle>
-                {totalActiveCount}
-              </Badge>
-            ) : null
-          }
-          onClick={() => toggle()}
-        />
-        <NavLink
-          component={Link}
-          to="/requests"
-          label="Requests"
-          leftSection={<IconBookmark size={20} />}
-          rightSection={
-            fulfilledCount > 0 ? (
-              <Badge size="sm" variant="filled" color="green" circle>
-                {fulfilledCount}
-              </Badge>
-            ) : null
-          }
-          onClick={() => toggle()}
-        />
-        <NavLink
-          component={Link}
-          to="/settings"
-          label="Settings"
-          leftSection={<IconSettings size={20} />}
-          onClick={() => toggle()}
-        />
+        <Stack h="100%" gap={0} style={{ overflow: 'hidden' }}>
+          <NavLink
+            component={Link}
+            to="/search"
+            label="Search"
+            leftSection={<IconSearch size={20} />}
+            onClick={() => toggle()}
+          />
+          <NavLink
+            component={Link}
+            to="/queue"
+            label="Queue"
+            leftSection={<IconDownload size={20} />}
+            rightSection={
+              totalActiveCount > 0 ? (
+                <Badge size="sm" variant="filled" color="blue" circle>
+                  {totalActiveCount}
+                </Badge>
+              ) : null
+            }
+            onClick={() => toggle()}
+          />
+          <NavLink
+            component={Link}
+            to="/requests"
+            label="Requests"
+            leftSection={<IconBookmark size={20} />}
+            rightSection={
+              fulfilledCount > 0 ? (
+                <Badge size="sm" variant="filled" color="green" circle>
+                  {fulfilledCount}
+                </Badge>
+              ) : null
+            }
+            onClick={() => toggle()}
+          />
+          <NavLink
+            component={Link}
+            to="/settings"
+            label="Settings"
+            leftSection={<IconSettings size={20} />}
+            onClick={() => toggle()}
+          />
+          <VersionFooter />
+        </Stack>
       </AppShell.Navbar>
 
       <AppShell.Main>

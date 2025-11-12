@@ -195,7 +195,7 @@ serve(
     logger.info(`
 ╔═══════════════════════════════════════════════════╗
 ║                                                   ║
-║       Image Proxy Server is running!         ║
+║       Image Proxy Server is running!              ║
 ║                                                   ║
 ║   Health:  http://0.0.0.0:${PORT}/health       ║
 ║   Proxy:   http://0.0.0.0:${PORT}/api/proxy  ║

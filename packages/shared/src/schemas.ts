@@ -354,3 +354,13 @@ export const updateAppSettingsSchema = z.object({
 });
 
 export type UpdateAppSettings = z.infer<typeof updateAppSettingsSchema>;
+
+// Version info schema
+export const versionInfoSchema = z.object({
+  currentVersion: z.string().describe('Current application version'),
+  latestVersion: z.string().nullable().describe('Latest available version from GitHub'),
+  updateAvailable: z.boolean().describe('Whether an update is available'),
+  releaseUrl: z.string().url().nullable().describe('URL to the latest release on GitHub'),
+});
+
+export type VersionInfo = z.infer<typeof versionInfoSchema>;

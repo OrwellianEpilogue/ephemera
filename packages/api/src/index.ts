@@ -16,6 +16,7 @@ import { bookloreSettingsService } from './services/booklore-settings.js';
 import { bookloreTokenRefresher } from './services/booklore-token-refresher.js';
 import { bookCleanupService } from './services/book-cleanup.js';
 import { requestCheckerService } from './services/request-checker.js';
+import { versionService } from './services/version.js';
 import searchRoutes from './routes/search.js';
 import downloadRoutes from './routes/download.js';
 import queueRoutes from './routes/queue.js';
@@ -23,6 +24,7 @@ import bookloreRoutes from './routes/booklore.js';
 import settingsRoutes from './routes/settings.js';
 import imageProxyRoutes from './routes/image-proxy.js';
 import requestsRoutes from './routes/requests.js';
+import versionRoutes from './routes/version.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -73,6 +75,9 @@ if (cleanedUp > 0) {
   logger.info(`Cleaned up ${cleanedUp} expired cache entries`);
 }
 
+// Get current version immediately (doesn't require network)
+const versionInfo = await versionService.getVersionInfo();
+
 // Create Hono app with OpenAPI
 const app = new OpenAPIHono();
 
@@ -117,6 +122,7 @@ app.get('/api', (c) => {
       requests: '/api/requests',
       booklore: '/api/booklore/*',
       imageProxy: '/api/proxy/image',
+      version: '/api/version',
       docs: '/api/docs',
       openapi: '/api/openapi.json',
     },
@@ -131,6 +137,7 @@ app.route('/api', settingsRoutes);
 app.route('/api', bookloreRoutes);
 app.route('/api', imageProxyRoutes);
 app.route('/api', requestsRoutes);
+app.route('/api', versionRoutes);
 
 // OpenAPI documentation
 app.doc('/api/openapi.json', {
@@ -177,6 +184,10 @@ app.doc('/api/openapi.json', {
     {
       name: 'Image Proxy',
       description: 'Proxy images from AA to protect client IP addresses',
+    },
+    {
+      name: 'Version',
+      description: 'Application version information and update checks',
     },
   ],
 });
@@ -308,10 +319,9 @@ const servingStatic = existsSync(webDistPath);
 logger.success(`
 ╔═══════════════════════════════════════════════════╗
 ║                                                   ║
-║   Ephemera is running!                            ║
+║   Ephemera v${versionInfo.currentVersion} is running!${' '.repeat(25 - versionInfo.currentVersion.length)}║
 ║                                                   ║
-${servingStatic ? `║   Web:     http://${host}:${port}/                   ║` : ''}
-║   API:     http://${host}:${port}/api                ║
+${versionInfo.updateAvailable && versionInfo.latestVersion ? `║   📦 Update available: ${versionInfo.latestVersion}${' '.repeat(23 - versionInfo.latestVersion.length)}║\n║                                                   ║\n` : ''}${servingStatic ? `║   Web:     http://${host}:${port}/                   ║\n` : ''}║   API:     http://${host}:${port}/api                ║
 ║   Docs:    http://${host}:${port}/api/docs           ║
 ║   Health:  http://${host}:${port}/health             ║
 ║                                                   ║
@@ -323,6 +333,24 @@ const server = serve({
   port,
   hostname: host,
 });
+
+// Check for updates in background (non-blocking)
+// This doesn't delay server startup since it runs asynchronously
+(async () => {
+  try {
+    // Force a fresh check (bypassing any stale cache from initialization)
+    const freshVersionInfo = await versionService.getVersionInfo();
+    logger.info(`Current version: v${freshVersionInfo.currentVersion}`);
+
+    if (freshVersionInfo.updateAvailable && freshVersionInfo.latestVersion) {
+      logger.warn(`Update available: ${freshVersionInfo.latestVersion}`);
+      logger.info(`Download: ${freshVersionInfo.releaseUrl}`);
+    }
+  } catch (error) {
+    // Silently fail - version checks shouldn't break the app
+    logger.debug('Failed to check for updates:', error);
+  }
+})();
 
 // Graceful shutdown
 const shutdown = async (signal: string) => {
