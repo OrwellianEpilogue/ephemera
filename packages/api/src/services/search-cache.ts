@@ -1,6 +1,6 @@
 import { eq, lt } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { searchCache, type SearchCache, type NewSearchCache } from '../db/schema.js';
+import { searchCache, type NewSearchCache } from '../db/schema.js';
 import type { SearchQuery, SearchResponse } from '@ephemera/shared';
 import { logger } from '../utils/logger.js';
 import { createHash } from 'crypto';
@@ -53,7 +53,9 @@ export class SearchCacheManager {
       logger.info(`Cache hit for query: ${query.q} (${entry.results.length} results)`);
 
       return {
-        results: entry.results as any[],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        results: entry.results as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pagination: entry.pagination as any,
       };
     } catch (error) {
@@ -69,9 +71,9 @@ export class SearchCacheManager {
 
       const cacheEntry: NewSearchCache = {
         queryHash: hash,
-        query: query as any,
-        results: results.results as any,
-        pagination: results.pagination as any,
+        query: query as Record<string, unknown>,
+        results: results.results as Array<Record<string, unknown>>,
+        pagination: results.pagination as Record<string, unknown>,
         cachedAt: now,
         expiresAt: now + CACHE_TTL,
       };

@@ -12,9 +12,15 @@ export class FileManager {
   private async moveFile(source: string, destination: string): Promise<void> {
     try {
       await rename(source, destination);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // EXDEV error means crossing filesystem boundaries
-      if (error?.code === 'EXDEV') {
+      const isExdevError =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === 'EXDEV';
+
+      if (isExdevError) {
         logger.info('Cross-filesystem move detected, using copy+delete');
         await copyFile(source, destination);
         await unlink(source);

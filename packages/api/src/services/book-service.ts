@@ -178,11 +178,11 @@ export class BookService {
     let query = db.select().from(books);
 
     if (limit !== undefined) {
-      query = query.limit(limit) as any;
+      query = query.limit(limit) as typeof query;
     }
 
     if (offset !== undefined) {
-      query = query.offset(offset) as any;
+      query = query.offset(offset) as typeof query;
     }
 
     return await query.all();

@@ -1,6 +1,6 @@
 import { createWriteStream } from 'fs';
 import { mkdir } from 'fs/promises';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import { logger } from '../utils/logger.js';
@@ -70,11 +70,11 @@ export class Downloader {
       const data = await response.json();
 
       return data as AAResponse;
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error(`Failed to get download URL for ${md5}:`, error);
       return {
         download_url: null,
-        error: error.message || 'Failed to get download URL',
+        error: error instanceof Error ? error.message : 'Failed to get download URL',
       };
     }
   }
@@ -209,7 +209,7 @@ export class Downloader {
           filename = `${baseName}.${extension}`;
           logger.info(`Cleaned filename from URL: ${filename}`);
         }
-      } catch (e) {
+      } catch (_e) {
         logger.warn('Could not extract filename from URL');
       }
 
@@ -249,6 +249,7 @@ export class Downloader {
         return { success: false, error: 'No response body' };
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const readable = Readable.fromWeb(response.body as any);
 
       readable.on('data', (chunk: Buffer) => {
@@ -286,8 +287,8 @@ export class Downloader {
       await downloadTracker.markCompleted(md5);
 
       return { success: true, filePath };
-    } catch (error: any) {
-      const errorMsg = error.message || 'Unknown download error';
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown download error';
       logger.error(`Download failed for ${md5}:`, errorMsg);
 
       await downloadTracker.markError(md5, errorMsg);
@@ -344,8 +345,8 @@ export class Downloader {
       } else {
         return { success: false, error: result.error || 'Slow download failed' };
       }
-    } catch (error: any) {
-      const errorMsg = error.message || 'Slow download error';
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Slow download error';
       logger.error(`Slow download failed for ${md5}:`, errorMsg);
       await downloadTracker.markError(md5, errorMsg);
       return { success: false, error: errorMsg };

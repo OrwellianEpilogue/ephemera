@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '@ephemera/shared';
+import { apiFetch, getErrorMessage } from '@ephemera/shared';
 import type { AppSettings, UpdateAppSettings, BookloreSettingsResponse, UpdateBookloreSettings, BookloreTestResponse } from '@ephemera/shared';
 import { notifications } from '@mantine/notifications';
 
@@ -31,10 +31,10 @@ export const useUpdateAppSettings = () => {
         color: 'green',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       notifications.show({
         title: 'Update Failed',
-        message: error.message || 'Failed to update app settings',
+        message: getErrorMessage(error) || 'Failed to update app settings',
         color: 'red',
       });
     },
@@ -69,25 +69,12 @@ export const useUpdateBookloreSettings = () => {
         color: 'green',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('[Booklore Settings] Update error:', error);
-
-      // Try to extract meaningful error message
-      let errorMessage = 'Failed to update Booklore settings';
-
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      } else if (error.details) {
-        errorMessage = error.details;
-      } else if (error.error) {
-        errorMessage = error.error;
-      }
 
       notifications.show({
         title: 'Update Failed',
-        message: errorMessage,
+        message: getErrorMessage(error) || 'Failed to update Booklore settings',
         color: 'red',
       });
     },
@@ -117,10 +104,10 @@ export const useTestBookloreConnection = () => {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       notifications.show({
         title: 'Connection Test Failed',
-        message: error.message || 'Failed to test connection',
+        message: getErrorMessage(error) || 'Failed to test connection',
         color: 'red',
       });
     },

@@ -14,6 +14,8 @@
     "build:api": "pnpm --filter @ephemera/api build",
     "build:web": "pnpm --filter @ephemera/web build",
     "type-check": "pnpm -r type-check",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
     "clean": "pnpm -r clean",
     "db:generate": "pnpm --filter @ephemera/api db:generate",
     "db:migrate": "pnpm --filter @ephemera/api db:migrate",
@@ -24,14 +26,27 @@
     "version:check": "changeset status",
     "release": "pnpm run version && pnpm run tag && pnpm run push",
     "tag": "git tag v$(node -p \"require('./packages/api/package.json').version\")",
-    "push": "git push && git push --tags"
+    "push": "git push && git push --tags",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
+    "@eslint/js": "^9.39.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.4",
+    "@typescript-eslint/parser": "^8.46.4",
+    "eslint": "^9.39.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "typescript": "^5.7.2"
   },
   "engines": {
     "node": ">=22.0.0",
     "pnpm": ">=9.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings 0",
+      "bash -c 'pnpm type-check'"
+    ]
   }
 }

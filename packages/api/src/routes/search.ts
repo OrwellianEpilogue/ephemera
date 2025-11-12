@@ -1,7 +1,7 @@
-import { createRoute, z } from '@hono/zod-openapi';
+import { createRoute } from '@hono/zod-openapi';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { aaScraper } from '../services/scraper.js';
-import { searchQuerySchema, searchResponseSchema, errorResponseSchema } from '@ephemera/shared';
+import { searchQuerySchema, searchResponseSchema, errorResponseSchema, getErrorMessage } from '@ephemera/shared';
 import { logger } from '../utils/logger.js';
 import { downloadTracker } from '../services/download-tracker.js';
 import { bookService } from '../services/book-service.js';
@@ -99,14 +99,14 @@ app.openapi(searchRoute, async (c) => {
       },
       200
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     const totalDuration = Date.now() - startTime;
     logger.error(`[${requestId}] ❌ Search error after ${totalDuration}ms:`, error);
 
     return c.json(
       {
         error: 'Failed to perform search',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );

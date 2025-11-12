@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import dotenv from 'dotenv';
+import { getErrorMessage } from '@ephemera/shared';
 
 // Load environment variables
 dotenv.config();
@@ -12,7 +13,7 @@ const app = new Hono();
 const logger = {
   info: (msg: string) => console.log(`\x1b[36m[INFO]\x1b[0m ${new Date().toISOString()} ${msg}`),
   warn: (msg: string) => console.log(`\x1b[33m[WARN]\x1b[0m ${new Date().toISOString()} ${msg}`),
-  error: (msg: string, error?: any) => console.log(`\x1b[31m[ERROR]\x1b[0m ${new Date().toISOString()} ${msg}`, error || ''),
+  error: (msg: string, error?: unknown) => console.log(`\x1b[31m[ERROR]\x1b[0m ${new Date().toISOString()} ${msg}`, error || ''),
 };
 
 // Simple semaphore to limit concurrent image fetches
@@ -70,7 +71,7 @@ app.get('/api/proxy', async (c) => {
     let imageUrl: string;
     try {
       imageUrl = Buffer.from(encodedUrl, 'base64').toString('utf-8');
-    } catch (decodeError) {
+    } catch (_decodeError) {
       logger.warn(`Failed to decode image URL: ${encodedUrl}`);
       return c.json(
         {
@@ -84,7 +85,7 @@ app.get('/api/proxy', async (c) => {
     // Validate that we got a proper URL
     try {
       new URL(imageUrl);
-    } catch (urlError) {
+    } catch (_urlError) {
       logger.warn(`Invalid URL after decoding: ${imageUrl}`);
       return c.json(
         {
@@ -154,12 +155,12 @@ app.get('/api/proxy', async (c) => {
           'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
         },
       });
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
       clearTimeout(timeoutId);
       imageFetchSemaphore.release();
 
       // Handle timeout
-      if (fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         logger.warn(`Image fetch timeout: ${imageUrl}`);
         return c.json(
           {
@@ -172,12 +173,12 @@ app.get('/api/proxy', async (c) => {
 
       throw fetchError;
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Image proxy error:', error);
     return c.json(
       {
         error: 'Failed to proxy image',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -190,7 +191,7 @@ serve(
     fetch: app.fetch,
     port: PORT,
   },
-  (info) => {
+  (_info) => {
     logger.info(`
 ╔═══════════════════════════════════════════════════╗
 ║                                                   ║

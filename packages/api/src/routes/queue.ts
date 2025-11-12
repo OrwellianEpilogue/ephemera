@@ -4,13 +4,13 @@ import { streamSSE } from 'hono/streaming';
 import { queueManager } from '../services/queue-manager.js';
 import { downloadTracker } from '../services/download-tracker.js';
 import { downloader } from '../services/downloader.js';
-import { bookService } from '../services/book-service.js';
 import {
   queueResponseSchema,
   queueItemSchema,
   statsResponseSchema,
   errorResponseSchema,
   type QueueResponse,
+  getErrorMessage,
 } from '@ephemera/shared';
 import { logger } from '../utils/logger.js';
 
@@ -47,13 +47,13 @@ app.openapi(queueStatusRoute, async (c) => {
   try {
     const status = await queueManager.getQueueStatus();
     return c.json(status, 200);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Queue status error:', error);
 
     return c.json(
       {
         error: 'Failed to get queue status',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -212,13 +212,13 @@ app.openapi(downloadStatusRoute, async (c) => {
     }
 
     return c.json(status, 200);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Download status error:', error);
 
     return c.json(
       {
         error: 'Failed to get download status',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -275,7 +275,7 @@ app.openapi(statsRoute, async (c) => {
           failed: failed.length,
         };
       }
-    } catch (error) {
+    } catch (_error) {
       // Upload stats are optional, ignore errors
     }
 
@@ -292,13 +292,13 @@ app.openapi(statsRoute, async (c) => {
       },
       200
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Stats error:', error);
 
     return c.json(
       {
         error: 'Failed to get statistics',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );

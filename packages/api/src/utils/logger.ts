@@ -13,12 +13,16 @@ function formatTimestamp(): string {
   return new Date().toISOString();
 }
 
-function log(level: LogLevel, message: string, ...args: any[]) {
+function log(level: LogLevel, message: string, metadata?: unknown) {
   const color = colors[level];
   const timestamp = formatTimestamp();
   const prefix = `${color}[${level.toUpperCase()}]${colors.reset} ${timestamp}`;
 
-  console.log(`${prefix} ${message}`, ...args);
+  if (metadata !== undefined) {
+    console.log(`${prefix} ${message}`, metadata);
+  } else {
+    console.log(`${prefix} ${message}`);
+  }
 }
 
 /**
@@ -38,9 +42,9 @@ export function getErrorMessage(error: unknown, fallback = 'Unknown error'): str
 }
 
 export const logger = {
-  info: (message: string, ...args: any[]) => log('info', message, ...args),
-  warn: (message: string, ...args: any[]) => log('warn', message, ...args),
-  error: (message: string, ...args: any[]) => log('error', message, ...args),
-  success: (message: string, ...args: any[]) => log('success', message, ...args),
-  debug: (message: string, ...args: any[]) => log('debug', message, ...args),
+  info: (message: string, metadata?: unknown) => log('info', message, metadata),
+  warn: (message: string, metadata?: unknown) => log('warn', message, metadata),
+  error: (message: string, metadata?: unknown) => log('error', message, metadata),
+  success: (message: string, metadata?: unknown) => log('success', message, metadata),
+  debug: (message: string, metadata?: unknown) => log('debug', message, metadata),
 };

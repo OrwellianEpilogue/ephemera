@@ -20,7 +20,7 @@ import {
 import { IconSearch, IconFilter, IconBookmark } from '@tabler/icons-react';
 import { useSearch } from '../hooks/useSearch';
 import { BookCard } from '../components/BookCard';
-import type { SearchQuery } from '@ephemera/shared';
+import type { SearchQuery, SavedRequestWithBook } from '@ephemera/shared';
 import { SORT_OPTIONS, FILE_FORMATS, CONTENT_TYPES, LANGUAGES, apiFetch } from '@ephemera/shared';
 import { useCreateRequest } from '../hooks/useRequests';
 
@@ -50,6 +50,9 @@ function SearchPage() {
 
   const handleSaveRequest = () => {
     // Build the query params object to save
+    // Ensure q is defined before creating request
+    if (!urlParams.q) return;
+
     const requestParams = {
       q: urlParams.q,
       sort: urlParams.sort,
@@ -65,7 +68,7 @@ function SearchPage() {
   // Use JSON.stringify for array dependencies to compare values, not references
   const queryParams: Omit<SearchQuery, 'page'> = useMemo(() => ({
     q: urlParams.q || '',
-    sort: (urlParams.sort as any) || 'relevant',
+    sort: (urlParams.sort as 'relevant' | 'newest' | 'oldest') || 'relevant',
     content: urlParams.content && urlParams.content.length > 0 ? urlParams.content : undefined,
     ext: urlParams.ext && urlParams.ext.length > 0 ? urlParams.ext : undefined,
     lang: urlParams.lang && urlParams.lang.length > 0 ? urlParams.lang : undefined,
@@ -165,7 +168,7 @@ function SearchPage() {
             replace: true,
           });
         }
-      } catch (e) {
+      } catch (_e) {
         // On parse error, apply default filters
         navigate({
           to: '/search',
@@ -199,22 +202,29 @@ function SearchPage() {
       }
 
       try {
-        const activeRequests = await apiFetch<any[]>('/requests?status=active');
+        const activeRequests = await apiFetch<SavedRequestWithBook[]>('/requests?status=active');
 
         // Helper to normalize and compare query params
-        const normalizeParams = (params: any) => {
+        // Handles both SearchQuery (with optional sort union) and RequestQueryParams (with optional string)
+        const normalizeParams = (params: Partial<SearchQuery> | { q?: string; sort?: string; content?: string | string[]; ext?: string | string[]; lang?: string | string[]; desc?: boolean }) => {
+          // Normalize arrays from string | string[] to string[]
+          const normalizeArray = (val: string | string[] | undefined): string[] => {
+            if (!val) return [];
+            return Array.isArray(val) ? val : [val];
+          };
+
           return JSON.stringify({
             q: params.q || '',
             sort: params.sort || 'relevant',
-            content: params.content || [],
-            ext: params.ext || [],
-            lang: params.lang || [],
+            content: normalizeArray(params.content as string | string[] | undefined),
+            ext: normalizeArray(params.ext as string | string[] | undefined),
+            lang: normalizeArray(params.lang as string | string[] | undefined),
             desc: params.desc || false,
           });
         };
 
         const currentParamsNormalized = normalizeParams(urlParams);
-        const matchingRequest = activeRequests?.find((request: any) => {
+        const matchingRequest = activeRequests?.find((request) => {
           const requestParamsNormalized = normalizeParams(request.queryParams);
           return currentParamsNormalized === requestParamsNormalized;
         });

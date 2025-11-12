@@ -99,9 +99,9 @@ export const appSettings = sqliteTable('app_settings', {
 export const searchCache = sqliteTable('search_cache', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   queryHash: text('query_hash').notNull().unique(),
-  query: text('query', { mode: 'json' }).notNull().$type<Record<string, any>>(),
-  results: text('results', { mode: 'json' }).notNull().$type<any[]>(),
-  pagination: text('pagination', { mode: 'json' }).notNull().$type<Record<string, any>>(),
+  query: text('query', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
+  results: text('results', { mode: 'json' }).notNull().$type<Array<Record<string, unknown>>>(),
+  pagination: text('pagination', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
   cachedAt: integer('cached_at').notNull(),
   expiresAt: integer('expires_at').notNull(),
 });

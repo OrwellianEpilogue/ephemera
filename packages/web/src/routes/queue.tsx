@@ -14,6 +14,7 @@ import {
 import { useQueue } from '../hooks/useQueue';
 import { DownloadItem } from '../components/DownloadItem';
 import { useState, useMemo, useCallback } from 'react';
+import type { QueueItem } from '@ephemera/shared';
 
 function QueuePage() {
   // 1. Call ALL hooks first (before any conditional returns)
@@ -30,7 +31,7 @@ function QueuePage() {
   const cancelled = Object.values(queue?.cancelled || {});
 
   // 3. Define all callbacks and memos
-  const filterDownloads = useCallback((items: any[]) => {
+  const filterDownloads = useCallback((items: QueueItem[]) => {
     if (!searchQuery.trim()) return items;
     const query = searchQuery.toLowerCase();
     return items.filter((item) => {
@@ -64,7 +65,12 @@ function QueuePage() {
       ...filteredDelayed,
       ...filteredError,
       ...filteredCancelled,
-    ].sort((a, b) => (b.queuedAt || 0) - (a.queuedAt || 0));
+    ].sort((a, b) => {
+      // queuedAt is a string (datetime), convert to timestamp for comparison
+      const timeA = a.queuedAt ? new Date(a.queuedAt).getTime() : 0;
+      const timeB = b.queuedAt ? new Date(b.queuedAt).getTime() : 0;
+      return timeB - timeA;
+    });
   }, [filteredDownloading, filteredQueued, filteredAvailable, filteredDone, filteredDelayed, filteredError, filteredCancelled]);
 
   const totalActive = downloading.length + queued.length + delayed.length;

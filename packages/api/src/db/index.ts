@@ -34,7 +34,7 @@ export async function initializeDatabase() {
           updatedAt: Date.now(),
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // Non-critical: Booklore settings are optional
       console.warn('Note: Booklore settings initialization skipped (table may not exist yet)');
     }

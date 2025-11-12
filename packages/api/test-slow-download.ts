@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { slowDownloader } from './src/services/slow-downloader.js';
 import { logger } from './src/utils/logger.js';
+import { getErrorMessage, getErrorStack } from '@ephemera/shared';
 
 // Test MD5 - using a real book from Anna's Archive
 const TEST_MD5 = '8efbf8e9f8b4592c7b0dbedec9c0ec05';
@@ -31,9 +32,13 @@ async function testSlowDownload() {
     } else {
       logger.error(`❌ Failed: ${result.error}`);
     }
-  } catch (error: any) {
-    logger.error('Test failed with error:', error.message);
-    logger.error(error.stack);
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    const stack = getErrorStack(error);
+    logger.error(`Test failed with error: ${message}`);
+    if (stack) {
+      logger.error(stack);
+    }
   }
 }
 

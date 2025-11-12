@@ -75,7 +75,6 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
   };
 
   const canCancel = ['queued', 'downloading', 'delayed'].includes(item.status);
-  const canRetry = item.status === 'error';
   const showProgress = item.status === 'downloading';
 
   // Use settings for date/time formatting, fall back to defaults

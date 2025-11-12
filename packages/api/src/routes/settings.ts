@@ -1,10 +1,11 @@
-import { createRoute, z } from '@hono/zod-openapi';
+import { createRoute } from '@hono/zod-openapi';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { appSettingsService } from '../services/app-settings.js';
 import {
   appSettingsSchema,
   updateAppSettingsSchema,
   errorResponseSchema,
+  getErrorMessage,
 } from '@ephemera/shared';
 import { logger } from '../utils/logger.js';
 import { startRequestChecker } from '../index.js';
@@ -42,12 +43,12 @@ app.openapi(getSettingsRoute, async (c) => {
   try {
     const settings = await appSettingsService.getSettingsForResponse();
     return c.json(settings, 200);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Settings API] Get settings error:', error);
     return c.json(
       {
         error: 'Failed to get application settings',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -106,7 +107,7 @@ app.openapi(updateSettingsRoute, async (c) => {
 
     // Get current settings to compare
     const currentSettings = await appSettingsService.getSettings();
-    const updatedSettings = await appSettingsService.updateSettings(updates);
+    await appSettingsService.updateSettings(updates);
     const response = await appSettingsService.getSettingsForResponse();
 
     // Restart request checker only if interval actually changed
@@ -118,15 +119,16 @@ app.openapi(updateSettingsRoute, async (c) => {
     logger.success('[Settings API] Settings updated successfully');
 
     return c.json(response, 200);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Settings API] Update settings error:', error);
 
-    const status = error.message?.includes('Invalid') ? 400 : 500;
+    const errorMessage = getErrorMessage(error);
+    const status = errorMessage.includes('Invalid') ? 400 : 500;
 
     return c.json(
       {
         error: 'Failed to update settings',
-        details: error.message,
+        details: errorMessage,
       },
       status
     );

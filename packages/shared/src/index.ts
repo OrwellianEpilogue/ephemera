@@ -1,6 +1,9 @@
 // Export all schemas and types
 export * from './schemas.js';
 
+// Export shared type utilities
+export * from './types/index.js';
+
 // Export constants
 export * from './constants.js';
 

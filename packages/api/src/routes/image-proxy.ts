@@ -1,6 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { logger } from '../utils/logger.js';
+import { getErrorMessage } from '@ephemera/shared';
 
 const app = new OpenAPIHono();
 
@@ -105,7 +106,7 @@ app.openapi(imageProxyRoute, async (c) => {
     let imageUrl: string;
     try {
       imageUrl = Buffer.from(encodedUrl, 'base64').toString('utf-8');
-    } catch (decodeError) {
+    } catch (_decodeError) {
       logger.warn('Failed to decode image URL:', encodedUrl);
       return c.json(
         {
@@ -119,7 +120,7 @@ app.openapi(imageProxyRoute, async (c) => {
     // Validate that we got a proper URL
     try {
       new URL(imageUrl);
-    } catch (urlError) {
+    } catch (_urlError) {
       logger.warn('Invalid URL after decoding:', imageUrl);
       return c.json(
         {
@@ -189,12 +190,12 @@ app.openapi(imageProxyRoute, async (c) => {
           'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
         },
       });
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
       clearTimeout(timeoutId);
       imageFetchSemaphore.release(); // Release on error
 
       // Handle timeout
-      if (fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         logger.warn(`Image fetch timeout: ${imageUrl}`);
         return c.json(
           {
@@ -207,13 +208,13 @@ app.openapi(imageProxyRoute, async (c) => {
 
       throw fetchError; // Re-throw non-timeout errors
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Image proxy error:', error);
 
     return c.json(
       {
         error: 'Failed to proxy image',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );

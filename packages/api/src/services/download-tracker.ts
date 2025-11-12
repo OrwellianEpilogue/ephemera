@@ -227,7 +227,7 @@ export class DownloadTracker {
 
       // Apply status filter
       if (status) {
-        query = query.where(eq(downloads.status, status)) as any;
+        query = query.where(eq(downloads.status, status)) as typeof query;
       }
 
       // Apply search filter
@@ -239,7 +239,7 @@ export class DownloadTracker {
             like(downloads.author, searchPattern),
             like(downloads.filename, searchPattern)
           )
-        ) as any;
+        ) as typeof query;
       }
 
       // Apply pagination

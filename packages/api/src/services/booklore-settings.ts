@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { bookloreSettings, type BookloreSettings } from '../db/schema.js';
 import { login as bookloreLogin, type BookloreTokens } from './booklore-auth.js';
+import { type BookloreSettingsResponse } from '@ephemera/shared';
 
 /**
  * Booklore settings with tokens
@@ -309,7 +310,7 @@ class BookloreSettingsService {
   /**
    * Get settings for API response (shows connection status)
    */
-  async getSettingsForResponse(): Promise<any> {
+  async getSettingsForResponse(): Promise<BookloreSettingsResponse | null> {
     const settings = await this.getSettings();
     if (!settings) {
       return null;

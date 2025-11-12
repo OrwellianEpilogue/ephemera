@@ -8,6 +8,7 @@ import { bookloreUploader } from './booklore-uploader.js';
 import { appSettingsService } from './app-settings.js';
 import { bookService } from './book-service.js';
 import type { QueueResponse, QueueItem } from '@ephemera/shared';
+import { getErrorMessage } from '@ephemera/shared';
 import type { Download } from '../db/schema.js';
 
 const MAX_RETRY_ATTEMPTS = parseInt(process.env.RETRY_ATTEMPTS || '3');
@@ -358,10 +359,11 @@ export class QueueManager extends EventEmitter {
               await downloadTracker.markError(md5, `Upload failed: ${uploadResult.error}`);
               this.emitQueueUpdate();
             }
-          } catch (bookloreError: any) {
+          } catch (bookloreError: unknown) {
+            const errorMsg = getErrorMessage(bookloreError);
             logger.error(`[Booklore] Upload error:`, bookloreError);
-            await downloadTracker.markUploadFailed(md5, bookloreError.message || 'Unknown error');
-            await downloadTracker.markError(md5, `Upload error: ${bookloreError.message}`);
+            await downloadTracker.markUploadFailed(md5, errorMsg);
+            await downloadTracker.markError(md5, `Upload error: ${errorMsg}`);
             this.emitQueueUpdate();
           }
           break;
@@ -396,10 +398,10 @@ export class QueueManager extends EventEmitter {
             } else {
               logger.warn(`[Booklore] Skipping upload for ${title} - Booklore is not enabled or not fully configured (baseUrl, token, libraryId, pathId required)`);
             }
-          } catch (bookloreError: any) {
+          } catch (bookloreError: unknown) {
             // Log but don't fail the download
             logger.error(`[Booklore] Upload error (non-critical):`, bookloreError);
-            await downloadTracker.markUploadFailed(md5, bookloreError.message || 'Unknown error').catch(() => {});
+            await downloadTracker.markUploadFailed(md5, getErrorMessage(bookloreError)).catch(() => {});
           }
           break;
         }
@@ -410,9 +412,10 @@ export class QueueManager extends EventEmitter {
           this.emitQueueUpdate();
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMsg = getErrorMessage(error);
       logger.error(`Failed to complete post-download action:`, error);
-      await downloadTracker.markError(md5, `Post-download error: ${error.message}`);
+      await downloadTracker.markError(md5, `Post-download error: ${errorMsg}`);
       this.emitQueueUpdate();
     }
   }

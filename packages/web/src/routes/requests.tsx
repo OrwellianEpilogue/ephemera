@@ -23,9 +23,10 @@ import {
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { useRequests, useRequestStats, useDeleteRequest } from '../hooks/useRequests';
+import type { SavedRequestWithBook } from '@ephemera/shared';
 
 // Request card component
-function RequestCard({ request }: { request: any }) {
+function RequestCard({ request }: { request: SavedRequestWithBook }) {
   const deleteRequest = useDeleteRequest();
 
   const handleDelete = () => {
@@ -38,15 +39,27 @@ function RequestCard({ request }: { request: any }) {
   const params = request.queryParams || {};
   const filters = [];
 
-  if (params.ext && params.ext.length > 0) {
-    filters.push(`Format: ${params.ext.join(', ')}`);
+  // Helper to normalize string | string[] to string[]
+  const toArray = (val: string | string[] | undefined): string[] => {
+    if (!val) return [];
+    return Array.isArray(val) ? val : [val];
+  };
+
+  const extArray = toArray(params.ext);
+  if (extArray.length > 0) {
+    filters.push(`Format: ${extArray.join(', ')}`);
   }
-  if (params.lang && params.lang.length > 0) {
-    filters.push(`Language: ${params.lang.join(', ')}`);
+
+  const langArray = toArray(params.lang);
+  if (langArray.length > 0) {
+    filters.push(`Language: ${langArray.join(', ')}`);
   }
-  if (params.content && params.content.length > 0) {
-    filters.push(`Content: ${params.content.join(', ')}`);
+
+  const contentArray = toArray(params.content);
+  if (contentArray.length > 0) {
+    filters.push(`Content: ${contentArray.join(', ')}`);
   }
+
   if (params.sort) {
     filters.push(`Sort: ${params.sort}`);
   }
@@ -261,7 +274,7 @@ function RequestsPage() {
           <Tabs.Panel value={activeTab} pt="md">
             {requests && requests.length > 0 ? (
               <Stack gap="md">
-                {requests.map((request: any) => (
+                {requests.map((request) => (
                   <RequestCard
                     key={request.id}
                     request={request}

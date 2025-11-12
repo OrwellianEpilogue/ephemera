@@ -1,5 +1,6 @@
 import { CheerioCrawler, type CheerioRoot } from 'crawlee';
 import type { SearchQuery, Book, SearchResponse } from '@ephemera/shared';
+import { getErrorMessage } from '@ephemera/shared';
 import { logger } from '../utils/logger.js';
 import { searchCacheManager } from './search-cache.js';
 
@@ -55,7 +56,7 @@ export class AAScraper {
         },
       ],
 
-      requestHandler: async ({ $, request, log }) => {
+      requestHandler: async ({ $, _request, _log }) => {
         logger.info(`[${crawlId}] HTTP response received, parsing HTML...`);
 
         // Parse the page
@@ -103,17 +104,19 @@ export class AAScraper {
       const crawlerStart = Date.now();
       await crawler.run([uniqueUrl]);
       logger.info(`[${crawlId}] Crawler completed in ${Date.now() - crawlerStart}ms`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log unexpected errors (socket/network errors are expected from AA)
-      const isNetworkError = error.message?.includes('terminated') ||
-                            error.message?.includes('socket') ||
-                            error.message?.includes('ECONNREFUSED') ||
-                            error.code === 'UND_ERR_SOCKET';
+      const errorMessage = getErrorMessage(error);
+      const errorCode = typeof error === 'object' && error !== null && 'code' in error ? (error as { code: unknown }).code : undefined;
+      const isNetworkError = errorMessage.includes('terminated') ||
+                            errorMessage.includes('socket') ||
+                            errorMessage.includes('ECONNREFUSED') ||
+                            errorCode === 'UND_ERR_SOCKET';
 
       if (!isNetworkError) {
-        logger.warn(`[${crawlId}] Crawler error for ${url}:`, error.message);
+        logger.warn(`[${crawlId}] Crawler error for ${url}:`, errorMessage);
       } else {
-        logger.warn(`[${crawlId}] Network error (expected): ${error.message}`);
+        logger.warn(`[${crawlId}] Network error (expected): ${errorMessage}`);
       }
 
       // Return empty result if crawler completely fails
@@ -219,7 +222,7 @@ export class AAScraper {
       const contentType = contentTypeMatch ? contentTypeMatch[2] : undefined;
 
       // Extract source(s) - can be multiple sources separated by slashes (e.g., "lgli/zlib")
-      const sourceMatch = containerText.match(/🚀\/([a-z\/]+)/);
+      const sourceMatch = containerText.match(/🚀\/([a-z/]+)/);
       const source = sourceMatch ? sourceMatch[1] : undefined;
 
       // Extract stats from DOM (downloads, lists, issues)

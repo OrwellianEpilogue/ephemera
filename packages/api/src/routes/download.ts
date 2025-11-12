@@ -1,7 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { queueManager } from '../services/queue-manager.js';
-import { errorResponseSchema } from '@ephemera/shared';
+import { errorResponseSchema, getErrorMessage } from '@ephemera/shared';
 import { logger } from '../utils/logger.js';
 
 const app = new OpenAPIHono();
@@ -91,13 +91,13 @@ app.openapi(downloadRoute, async (c) => {
       },
       200
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Download queue error:', error);
 
     return c.json(
       {
         error: 'Failed to queue download',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -153,13 +153,13 @@ app.openapi(cancelRoute, async (c) => {
       },
       200
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Cancel error:', error);
 
     return c.json(
       {
         error: 'Failed to cancel download',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -227,15 +227,16 @@ app.openapi(retryRoute, async (c) => {
       },
       200
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Retry error:', error);
 
+    const errorMessage = getErrorMessage(error);
     // Check if it's a validation error (wrong status)
-    if (error.message.includes('Cannot retry') || error.message.includes('not found')) {
+    if (errorMessage.includes('Cannot retry') || errorMessage.includes('not found')) {
       return c.json(
         {
           error: 'Invalid retry request',
-          details: error.message,
+          details: errorMessage,
         },
         400
       );
@@ -244,7 +245,7 @@ app.openapi(retryRoute, async (c) => {
     return c.json(
       {
         error: 'Failed to retry download',
-        details: error.message,
+        details: errorMessage,
       },
       500
     );

@@ -149,7 +149,7 @@ class AppSettingsService {
   /**
    * Get settings for API response
    */
-  async getSettingsForResponse(): Promise<any> {
+  async getSettingsForResponse(): Promise<Omit<AppSettings, 'updatedAt'> & { updatedAt: string }> {
     const settings = await this.getSettings();
     return {
       ...settings,

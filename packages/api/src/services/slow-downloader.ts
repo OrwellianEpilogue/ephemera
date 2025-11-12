@@ -80,8 +80,8 @@ export class SlowDownloader {
         }
 
         logger.warn(`[${downloadId}] Server #${serverIndex} failed: ${result.error}`);
-      } catch (error: any) {
-        logger.error(`[${downloadId}] Server #${serverIndex} error:`, error.message);
+      } catch (error: unknown) {
+        logger.error(`[${downloadId}] Server #${serverIndex} error:`, error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -99,7 +99,8 @@ export class SlowDownloader {
     downloadId: string;
     onProgress?: (info: ProgressInfo) => void;
   }): Promise<SlowDownloadResult> {
-    const { md5, serverIndex, downloadId, onProgress } = options;
+    const { md5, serverIndex, onProgress } = options;
+    const downloadId = options.downloadId;
     let sessionId: string | null = null;
 
     try {
@@ -169,8 +170,8 @@ export class SlowDownloader {
         filePath,
         serverIndex,
       };
-    } catch (error: any) {
-      const errorMsg = error.message || 'Unknown error';
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`[${downloadId}] Download failed:`, errorMsg);
       return {
         success: false,
@@ -188,7 +189,7 @@ export class SlowDownloader {
   /**
    * Create a FlareSolverr session
    */
-  private async createSession(downloadId: string): Promise<string> {
+  private async createSession(_downloadId: string): Promise<string> {
     const response = await this.flaresolverrRequest({
       cmd: 'sessions.create',
     });
@@ -382,7 +383,7 @@ export class SlowDownloader {
         filename = `${baseName}.${extension}`;
         logger.info(`[${downloadId}] Extracted filename: ${filename}`);
       }
-    } catch (e) {
+    } catch (_e) {
       logger.warn(`[${downloadId}] Could not extract filename from URL`);
     }
 
@@ -411,6 +412,7 @@ export class SlowDownloader {
       throw new Error('No response body');
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const readable = Readable.fromWeb(response.body as any);
 
     readable.on('data', (chunk: Buffer) => {
@@ -465,8 +467,8 @@ export class SlowDownloader {
         session: sessionId,
       });
       logger.info(`[${downloadId}] Destroyed FlareSolverr session: ${sessionId}`);
-    } catch (error: any) {
-      logger.warn(`[${downloadId}] Failed to destroy session:`, error.message);
+    } catch (error: unknown) {
+      logger.warn(`[${downloadId}] Failed to destroy session:`, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -491,9 +493,10 @@ export class SlowDownloader {
 
       const data = await response.json() as FlareSolverrResponse;
       return data;
-    } catch (error: any) {
-      logger.error('FlareSolverr request failed:', error.message);
-      throw new Error(`FlareSolverr unavailable: ${error.message}. Make sure FlareSolverr is running at ${FLARESOLVERR_URL}`);
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      logger.error('FlareSolverr request failed:', errorMsg);
+      throw new Error(`FlareSolverr unavailable: ${errorMsg}. Make sure FlareSolverr is running at ${FLARESOLVERR_URL}`);
     }
   }
 

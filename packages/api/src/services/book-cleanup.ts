@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { books, downloads } from '../db/schema.js';
-import { lt, notInArray, sql, and, or } from 'drizzle-orm';
+import { lt, sql, and } from 'drizzle-orm';
 import { logger } from '../utils/logger.js';
 import { appSettingsService } from './app-settings.js';
 

@@ -29,21 +29,30 @@ const __dirname = dirname(__filename);
 
 // Filter out undici socket errors from stderr
 const originalStderrWrite = process.stderr.write.bind(process.stderr);
-process.stderr.write = ((chunk: any, encoding?: any, callback?: any): boolean => {
+process.stderr.write = ((
+  chunk: string | Uint8Array,
+  encodingOrCallback?: BufferEncoding | ((err?: Error | null) => void),
+  callback?: (err?: Error | null) => void
+): boolean => {
   const output = chunk.toString();
   // Filter out known network errors from AA
   if (output.includes('TypeError: terminated') ||
       output.includes('SocketError: other side closed') ||
       output.includes('UND_ERR_SOCKET')) {
     // Silently ignore these errors
-    if (typeof encoding === 'function') {
-      encoding();
+    if (typeof encodingOrCallback === 'function') {
+      encodingOrCallback();
     } else if (callback) {
       callback();
     }
     return true;
   }
-  return originalStderrWrite(chunk, encoding, callback);
+
+  if (typeof encodingOrCallback === 'function') {
+    return originalStderrWrite(chunk, encodingOrCallback);
+  } else {
+    return originalStderrWrite(chunk, encodingOrCallback, callback);
+  }
 }) as typeof process.stderr.write;
 
 // Initialize database
@@ -343,7 +352,7 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 // Handle unhandled promise rejections (e.g., socket errors from AA)
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   // Only log non-network errors
   const errorMessage = String(reason);
   const isNetworkError = errorMessage.includes('terminated') ||

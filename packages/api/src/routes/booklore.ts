@@ -10,13 +10,14 @@ import {
   bookloreTestResponseSchema,
   errorResponseSchema,
   queueItemSchema,
+  getErrorMessage,
 } from '@ephemera/shared';
 import { logger } from '../utils/logger.js';
 
 const app = new OpenAPIHono();
 
 // Add validation error logging middleware
-app.onError((err, c) => {
+app.onError((err, _c) => {
   logger.error('[Booklore Routes] Error:', err);
   logger.error('[Booklore Routes] Error details:', JSON.stringify(err, null, 2));
 
@@ -55,12 +56,12 @@ app.openapi(getSettingsRoute, async (c) => {
   try {
     const settings = await bookloreSettingsService.getSettingsForResponse();
     return c.json(settings, 200);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Booklore API] Get settings error:', error);
     return c.json(
       {
         error: 'Failed to get Booklore settings',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -88,7 +89,7 @@ const updateSettingsRoute = createRoute({
       description: 'Settings updated successfully',
       content: {
         'application/json': {
-          schema: bookloreSettingsResponseSchema,
+          schema: bookloreSettingsResponseSchema.nullable(),
         },
       },
     },
@@ -117,21 +118,22 @@ app.openapi(updateSettingsRoute, async (c) => {
 
     logger.info('[Booklore API] Updating settings (credentials redacted)');
 
-    const updated = await bookloreSettingsService.updateSettings(updates);
+    await bookloreSettingsService.updateSettings(updates);
 
     // Return response via getSettingsForResponse (handles masking credentials)
     const response = await bookloreSettingsService.getSettingsForResponse();
 
     logger.info('[Booklore API] Settings updated successfully');
     return c.json(response, 200);
-  } catch (error: any) {
-    logger.error('[Booklore API] Update settings error:', error.message);
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error);
+    logger.error('[Booklore API] Update settings error:', errorMessage);
     return c.json(
       {
         error: 'Failed to update Booklore settings',
-        details: error.message,
+        details: errorMessage,
       },
-      error.message.includes('required') ? 400 : 500
+      errorMessage.includes('required') ? 400 : 500
     );
   }
 });
@@ -163,12 +165,12 @@ app.openapi(disableRoute, async (c) => {
     await bookloreSettingsService.disable();
     logger.info('[Booklore API] Booklore disabled');
     return c.body(null, 204);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Booklore API] Disable error:', error);
     return c.json(
       {
         error: 'Failed to disable Booklore',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -231,12 +233,12 @@ app.openapi(testConnectionRoute, async (c) => {
       },
       200
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Booklore API] Test connection error:', error);
     return c.json(
       {
         error: 'Connection test failed',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -356,12 +358,12 @@ app.openapi(uploadRoute, async (c) => {
         500
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Booklore API] Upload error:', error);
     return c.json(
       {
         error: 'Upload failed',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -432,12 +434,12 @@ app.openapi(getUploadsRoute, async (c) => {
       },
       200
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Booklore API] Get uploads error:', error);
     return c.json(
       {
         error: 'Failed to get uploads',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );
@@ -545,12 +547,12 @@ app.openapi(retryUploadRoute, async (c) => {
         500
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('[Booklore API] Retry upload error:', error);
     return c.json(
       {
         error: 'Retry failed',
-        details: error.message,
+        details: getErrorMessage(error),
       },
       500
     );

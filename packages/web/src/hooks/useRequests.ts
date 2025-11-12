@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '@ephemera/shared';
+import { apiFetch, getErrorMessage } from '@ephemera/shared';
+import type { SavedRequestWithBook, RequestQueryParams } from '@ephemera/shared';
 import { notifications } from '@mantine/notifications';
 
 // Fetch requests with optional status filter
@@ -8,7 +9,7 @@ export const useRequests = (status?: 'active' | 'fulfilled' | 'cancelled') => {
     queryKey: ['requests', status],
     queryFn: async () => {
       const url = status ? `/requests?status=${status}` : '/requests';
-      return apiFetch<any[]>(url);
+      return apiFetch<SavedRequestWithBook[]>(url);
     },
     refetchInterval: 30000, // Refetch every 30 seconds
   });
@@ -28,7 +29,7 @@ export const useCreateRequest = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (queryParams: Record<string, any>) => {
+    mutationFn: async (queryParams: RequestQueryParams) => {
       return apiFetch('/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -44,8 +45,9 @@ export const useCreateRequest = () => {
         color: 'green',
       });
     },
-    onError: (error: any) => {
-      const isDuplicate = error.status === 409;
+    onError: (error: unknown) => {
+      const errorMessage = getErrorMessage(error);
+      const isDuplicate = errorMessage.includes('409') || errorMessage.toLowerCase().includes('duplicate');
       const message = isDuplicate
         ? 'You already have an active request for this search'
         : 'Failed to save request. Please try again.';

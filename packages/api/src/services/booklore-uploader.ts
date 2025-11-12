@@ -90,7 +90,7 @@ class BookloreUploader {
       // Check if file exists
       try {
         statSync(filePath);
-      } catch (error) {
+      } catch (_error) {
         return {
           success: false,
           error: `File not found: ${filePath}`,
@@ -107,11 +107,11 @@ class BookloreUploader {
       );
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Booklore Uploader] Upload error:', error);
       return {
         success: false,
-        error: error.message || 'Unknown upload error',
+        error: error instanceof Error ? error.message : 'Unknown upload error',
       };
     }
   }
@@ -154,7 +154,7 @@ class BookloreUploader {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-        body: formData as any,
+        body: formData as BodyInit,
       });
 
       if (response.ok) {
@@ -168,20 +168,23 @@ class BookloreUploader {
           error: `Upload failed: ${response.status} ${response.statusText}`,
         };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Booklore Uploader] Perform upload error:', error);
 
       // Provide more detailed error messages
-      let errorMsg = error.message || 'Unknown error during upload';
+      let errorMsg = error instanceof Error ? error.message : 'Unknown error during upload';
 
-      if (error.code === 'ECONNREFUSED') {
-        errorMsg = `Connection refused. Is Booklore running at ${baseUrl}?`;
-      } else if (error.code === 'ENOTFOUND') {
-        errorMsg = `Cannot resolve hostname: ${baseUrl}`;
-      } else if (error.code === 'ETIMEDOUT') {
-        errorMsg = `Upload timeout. Booklore server not responding at ${baseUrl}`;
-      } else if (error.message?.includes('certificate')) {
-        errorMsg = `SSL certificate error: ${error.message}`;
+      if (error instanceof Error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        if (nodeError.code === 'ECONNREFUSED') {
+          errorMsg = `Connection refused. Is Booklore running at ${baseUrl}?`;
+        } else if (nodeError.code === 'ENOTFOUND') {
+          errorMsg = `Cannot resolve hostname: ${baseUrl}`;
+        } else if (nodeError.code === 'ETIMEDOUT') {
+          errorMsg = `Upload timeout. Booklore server not responding at ${baseUrl}`;
+        } else if (error.message.includes('certificate')) {
+          errorMsg = `SSL certificate error: ${error.message}`;
+        }
       }
 
       return {
@@ -238,22 +241,25 @@ class BookloreUploader {
           message: `Connection failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText.substring(0, 100)}` : ''}`,
         };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Booklore Uploader] Test connection error:', error);
 
       // Provide more detailed error messages for common issues
-      let message = error.message || 'Failed to connect to Booklore';
+      let message = error instanceof Error ? error.message : 'Failed to connect to Booklore';
 
-      if (error.code === 'ECONNREFUSED') {
-        message = `Connection refused. Is Booklore running at ${settings.baseUrl}? Check the URL and port.`;
-      } else if (error.code === 'ENOTFOUND' || error.code === 'EAI_AGAIN') {
-        message = `Cannot resolve hostname. Check the baseUrl: ${settings.baseUrl}`;
-      } else if (error.code === 'CERT_HAS_EXPIRED' || error.code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || error.message?.includes('certificate')) {
-        message = `SSL/TLS certificate error. If using HTTPS with self-signed cert, you may need to set NODE_TLS_REJECT_UNAUTHORIZED=0 (not recommended for production). Error: ${error.message}`;
-      } else if (error.code === 'ETIMEDOUT' || error.message?.includes('timeout')) {
-        message = `Connection timeout. Booklore server at ${settings.baseUrl} is not responding.`;
-      } else if (error.cause) {
-        message = `${error.message} (Cause: ${error.cause.message || error.cause})`;
+      if (error instanceof Error) {
+        const nodeError = error as NodeJS.ErrnoException & { cause?: { message?: string } };
+        if (nodeError.code === 'ECONNREFUSED') {
+          message = `Connection refused. Is Booklore running at ${settings.baseUrl}? Check the URL and port.`;
+        } else if (nodeError.code === 'ENOTFOUND' || nodeError.code === 'EAI_AGAIN') {
+          message = `Cannot resolve hostname. Check the baseUrl: ${settings.baseUrl}`;
+        } else if (nodeError.code === 'CERT_HAS_EXPIRED' || nodeError.code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || error.message.includes('certificate')) {
+          message = `SSL/TLS certificate error. If using HTTPS with self-signed cert, you may need to set NODE_TLS_REJECT_UNAUTHORIZED=0 (not recommended for production). Error: ${error.message}`;
+        } else if (nodeError.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+          message = `Connection timeout. Booklore server at ${settings.baseUrl} is not responding.`;
+        } else if (nodeError.cause) {
+          message = `${error.message} (Cause: ${nodeError.cause.message || nodeError.cause})`;
+        }
       }
 
       return {
