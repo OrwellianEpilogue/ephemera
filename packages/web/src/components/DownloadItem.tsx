@@ -10,6 +10,7 @@ import {
   Image,
   Box,
   Button,
+  Modal,
 } from "@mantine/core";
 import {
   IconX,
@@ -17,10 +18,15 @@ import {
   IconClock,
   IconCheck,
   IconAlertCircle,
+  IconTrash,
 } from "@tabler/icons-react";
 import type { QueueItem } from "@ephemera/shared";
 import { formatDate, formatTime as formatTimeOfDay } from "@ephemera/shared";
-import { useCancelDownload, useRetryDownload } from "../hooks/useDownload";
+import {
+  useCancelDownload,
+  useRetryDownload,
+  useDeleteDownload,
+} from "../hooks/useDownload";
 import { useAppSettings } from "../hooks/useSettings";
 import { useState, useEffect, memo } from "react";
 
@@ -118,7 +124,9 @@ const getStatusIcon = (status: string) => {
 export const DownloadItem = ({ item }: DownloadItemProps) => {
   const cancelDownload = useCancelDownload();
   const retryDownload = useRetryDownload();
+  const deleteDownload = useDeleteDownload();
   const { data: settings } = useAppSettings();
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
 
   const handleCancel = () => {
     cancelDownload.mutate({ md5: item.md5, title: item.title });
@@ -128,7 +136,15 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
     retryDownload.mutate({ md5: item.md5, title: item.title });
   };
 
+  const handleDelete = () => {
+    deleteDownload.mutate({ md5: item.md5, title: item.title });
+    setDeleteModalOpened(false);
+  };
+
   const canCancel = ["queued", "downloading", "delayed"].includes(item.status);
+  const canDelete = ["done", "available", "error", "cancelled"].includes(
+    item.status,
+  );
   const showProgress = item.status === "downloading";
 
   // Use settings for date/time formatting, fall back to defaults
@@ -167,18 +183,32 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
                 </Text>
               )}
             </div>
-            {canCancel && (
-              <Tooltip label="Cancel download">
-                <ActionIcon
-                  color="red"
-                  variant="subtle"
-                  onClick={handleCancel}
-                  loading={cancelDownload.isPending}
-                >
-                  <IconX size={16} />
-                </ActionIcon>
-              </Tooltip>
-            )}
+            <Group gap="xs">
+              {canCancel && (
+                <Tooltip label="Cancel download">
+                  <ActionIcon
+                    color="red"
+                    variant="subtle"
+                    onClick={handleCancel}
+                    loading={cancelDownload.isPending}
+                  >
+                    <IconX size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {canDelete && (
+                <Tooltip label="Delete download">
+                  <ActionIcon
+                    color="red"
+                    variant="subtle"
+                    onClick={() => setDeleteModalOpened(true)}
+                    loading={deleteDownload.isPending}
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </Group>
           </Group>
 
           {/* Badges */}
@@ -310,6 +340,52 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
           </Group>
         </Stack>
       </Group>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteModalOpened}
+        onClose={() => setDeleteModalOpened(false)}
+        title="Delete Download"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            Are you sure you want to delete this download record?
+          </Text>
+          <Stack gap="xs">
+            <Text size="sm" fw={500}>
+              {item.title}
+            </Text>
+            {item.authors && item.authors.length > 0 && (
+              <Text size="xs" c="dimmed">
+                by {item.authors.join(", ")}
+              </Text>
+            )}
+            <Text size="xs" c="dimmed">
+              Status: {item.status.toUpperCase()}
+            </Text>
+          </Stack>
+          <Text size="xs" c="dimmed" fs="italic">
+            Note: This will only remove the download record. The downloaded file
+            (if any) will remain on disk.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="default"
+              onClick={() => setDeleteModalOpened(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleDelete}
+              loading={deleteDownload.isPending}
+            >
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Card>
   );
 };

@@ -590,6 +590,25 @@ export class QueueManager extends EventEmitter {
     return false;
   }
 
+  async deleteDownload(md5: string): Promise<boolean> {
+    // Remove from in-memory queue if present
+    const index = this.queue.findIndex((q) => q.md5 === md5);
+    if (index >= 0) {
+      this.queue.splice(index, 1);
+    }
+
+    // Delete from database
+    const deleted = await downloadTracker.delete(md5);
+
+    if (deleted) {
+      await this.emitQueueUpdate();
+      logger.info(`Deleted download: ${md5}`);
+      return true;
+    }
+
+    return false;
+  }
+
   async retryDownload(
     md5: string,
   ): Promise<{ status: string; position?: number }> {

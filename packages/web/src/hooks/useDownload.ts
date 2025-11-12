@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@ephemera/shared";
 import { notifications } from "@mantine/notifications";
 
@@ -87,6 +87,39 @@ export const useRetryDownload = () => {
       notifications.show({
         title: "Retry Failed",
         message: error.message || `Failed to retry "${title}"`,
+        color: "red",
+      });
+    },
+  });
+};
+
+interface DeleteDownloadParams {
+  md5: string;
+  title: string;
+}
+
+export const useDeleteDownload = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ md5 }: DeleteDownloadParams) => {
+      return apiFetch(`/download/${md5}/permanent`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: (_, { title }) => {
+      notifications.show({
+        title: "Download Deleted",
+        message: `"${title}" has been removed from the queue`,
+        color: "green",
+      });
+      // Invalidate queue to trigger refetch (backup in case SSE is delayed)
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+    onError: (error: Error, { title }) => {
+      notifications.show({
+        title: "Delete Failed",
+        message: error.message || `Failed to delete "${title}"`,
         color: "red",
       });
     },

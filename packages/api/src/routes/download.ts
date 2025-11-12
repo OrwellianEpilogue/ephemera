@@ -175,6 +175,77 @@ app.openapi(cancelRoute, async (c) => {
   }
 });
 
+const deleteRoute = createRoute({
+  method: "delete",
+  path: "/download/{md5}/permanent",
+  tags: ["Download"],
+  summary: "Delete a download record",
+  description:
+    "Permanently delete a download record from the database. The downloaded file will not be deleted from disk.",
+  request: {
+    params: z.object({
+      md5: z
+        .string()
+        .regex(/^[a-f0-9]{32}$/)
+        .openapi({
+          description: "MD5 hash of the book",
+          example: "5d41402abc4b2a76b9719d911017c592",
+        }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Download deleted successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    500: {
+      description: "Server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(deleteRoute, async (c) => {
+  try {
+    const { md5 } = c.req.valid("param");
+
+    logger.info(`Delete request for: ${md5}`);
+
+    const success = await queueManager.deleteDownload(md5);
+
+    return c.json(
+      {
+        success,
+        message: success
+          ? "Download deleted successfully"
+          : "Download not found",
+      },
+      200,
+    );
+  } catch (error: unknown) {
+    logger.error("Delete error:", error);
+
+    return c.json(
+      {
+        error: "Failed to delete download",
+        details: getErrorMessage(error),
+      },
+      500,
+    );
+  }
+});
+
 const retryRoute = createRoute({
   method: "post",
   path: "/download/{md5}/retry",

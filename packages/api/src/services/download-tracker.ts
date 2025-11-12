@@ -130,6 +130,26 @@ export class DownloadTracker {
     });
   }
 
+  async delete(md5: string): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(downloads)
+        .where(eq(downloads.md5, md5))
+        .returning();
+
+      if (result.length > 0) {
+        logger.info(`Deleted download record: ${md5}`);
+        return true;
+      }
+
+      logger.warn(`Download record not found for deletion: ${md5}`);
+      return false;
+    } catch (error) {
+      logger.error(`Failed to delete download ${md5}:`, error);
+      throw error;
+    }
+  }
+
   // Quota tracking methods
   async updateQuotaInfo(
     md5: string,
