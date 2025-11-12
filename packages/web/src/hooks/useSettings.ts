@@ -6,6 +6,7 @@ import type {
   BookloreSettingsResponse,
   UpdateBookloreSettings,
   BookloreTestResponse,
+  BookloreLibrariesResponse,
   AppriseSettings,
   UpdateAppriseSettings,
   AppriseTestResponse,
@@ -121,6 +122,17 @@ export const useTestBookloreConnection = () => {
         color: "red",
       });
     },
+  });
+};
+
+// Fetch Booklore libraries
+export const useBookloreLibraries = (enabled: boolean) => {
+  return useQuery({
+    queryKey: ["bookloreLibraries"],
+    queryFn: () => apiFetch<BookloreLibrariesResponse>("/booklore/libraries"),
+    enabled, // Only fetch when enabled (after authentication)
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false, // Don't retry if not authenticated
   });
 };
 

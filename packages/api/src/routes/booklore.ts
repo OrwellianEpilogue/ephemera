@@ -13,6 +13,7 @@ import {
   getErrorMessage,
 } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
+import { fetchLibraries } from "../services/booklore-client.js";
 
 const app = new OpenAPIHono();
 
@@ -244,6 +245,96 @@ app.openapi(testConnectionRoute, async (c) => {
     return c.json(
       {
         error: "Connection test failed",
+        details: getErrorMessage(error),
+      },
+      500,
+    );
+  }
+});
+
+// Get libraries from Booklore
+const getLibrariesRoute = createRoute({
+  method: "get",
+  path: "/booklore/libraries",
+  tags: ["Booklore"],
+  summary: "Get Booklore libraries",
+  description:
+    "Fetch all available libraries and their paths from Booklore API",
+  responses: {
+    200: {
+      description: "List of libraries with their paths",
+      content: {
+        "application/json": {
+          schema: z.object({
+            libraries: z.array(
+              z.object({
+                id: z.number(),
+                name: z.string(),
+                icon: z.string(),
+                watch: z.boolean(),
+                paths: z.array(
+                  z.object({
+                    id: z.number(),
+                    path: z.string(),
+                  }),
+                ),
+                scanMode: z.string(),
+                defaultBookFormat: z.string().optional(),
+              }),
+            ),
+          }),
+        },
+      },
+    },
+    400: {
+      description: "Booklore not configured",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(getLibrariesRoute, async (c) => {
+  try {
+    const settings = await bookloreSettingsService.getSettings();
+    if (!settings || !settings.baseUrl || !settings.accessToken) {
+      return c.json(
+        {
+          error: "Booklore is not configured",
+          details: "Please configure and authenticate with Booklore first",
+        },
+        400,
+      );
+    }
+
+    logger.info("[Booklore API] Fetching libraries");
+    const libraries = await fetchLibraries(
+      settings.baseUrl,
+      settings.accessToken,
+    );
+
+    return c.json(
+      {
+        libraries,
+      },
+      200,
+    );
+  } catch (error: unknown) {
+    logger.error("[Booklore API] Get libraries error:", error);
+    return c.json(
+      {
+        error: "Failed to fetch libraries",
         details: getErrorMessage(error),
       },
       500,

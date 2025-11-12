@@ -35,6 +35,7 @@ import {
   useBookloreSettings,
   useUpdateBookloreSettings,
   useTestBookloreConnection,
+  useBookloreLibraries,
   useAppriseSettings,
   useUpdateAppriseSettings,
   useTestAppriseNotification,
@@ -46,6 +47,8 @@ import type {
   DateFormat,
   RequestCheckInterval,
   LibraryLinkLocation,
+  BookloreLibrary,
+  BooklorePath,
 } from "@ephemera/shared";
 import { formatDate } from "@ephemera/shared";
 import { z } from "zod";
@@ -80,6 +83,10 @@ function SettingsComponent() {
   const updateApprise = useUpdateAppriseSettings();
   const testConnection = useTestBookloreConnection();
   const testApprise = useTestAppriseNotification();
+
+  // Fetch libraries after authentication
+  const { data: librariesData, isLoading: loadingLibraries } =
+    useBookloreLibraries(!!bookloreSettings?.connected);
 
   // App settings state
   const [postDownloadAction, setPostDownloadAction] =
@@ -156,6 +163,13 @@ function SettingsComponent() {
       setPassword("");
     }
   }, [bookloreSettings]);
+
+  // Invalidate libraries query when authentication changes to refetch
+  useEffect(() => {
+    if (bookloreSettings?.connected && !librariesData) {
+      // Libraries will be fetched automatically by the hook
+    }
+  }, [bookloreSettings?.connected, librariesData]);
 
   useEffect(() => {
     if (appriseSettings) {
@@ -250,13 +264,8 @@ function SettingsComponent() {
       bookloreSettings.pathId !== pathId ||
       // Enable save if user has entered credentials (for auth/re-auth)
       (showAuthForm && username !== "" && password !== "")
-    : // New setup: enable save button if user has entered all required values
-      bookloreEnabled &&
-      baseUrl !== "" &&
-      username !== "" &&
-      password !== "" &&
-      libraryId !== "" &&
-      pathId !== "";
+    : // New setup: enable save button for initial authentication
+      bookloreEnabled && baseUrl !== "" && username !== "" && password !== "";
 
   const hasAppriseChanges = appriseSettings
     ? appriseSettings.enabled !== appriseEnabled ||
@@ -836,23 +845,55 @@ function SettingsComponent() {
                         required
                       />
 
-                      <NumberInput
-                        label="Library ID"
-                        placeholder="e.g., 1"
-                        value={libraryId}
-                        onChange={(value) => setLibraryId(value as number | "")}
-                        min={1}
-                        required
-                      />
+                      {/* Show library/path dropdowns only after authentication */}
+                      {bookloreSettings?.connected && librariesData ? (
+                        <>
+                          <Select
+                            label="Library"
+                            placeholder="Select a library"
+                            value={libraryId ? String(libraryId) : null}
+                            onChange={(value) =>
+                              setLibraryId(value ? Number(value) : "")
+                            }
+                            data={librariesData.libraries.map(
+                              (lib: BookloreLibrary) => ({
+                                value: String(lib.id),
+                                label: lib.name,
+                              }),
+                            )}
+                            disabled={loadingLibraries}
+                            required
+                          />
 
-                      <NumberInput
-                        label="Path ID"
-                        placeholder="e.g., 1"
-                        value={pathId}
-                        onChange={(value) => setPathId(value as number | "")}
-                        min={1}
-                        required
-                      />
+                          <Select
+                            label="Path"
+                            placeholder="Select a path"
+                            value={pathId ? String(pathId) : null}
+                            onChange={(value) =>
+                              setPathId(value ? Number(value) : "")
+                            }
+                            data={
+                              libraryId
+                                ? librariesData.libraries
+                                    .find(
+                                      (lib: BookloreLibrary) =>
+                                        lib.id === libraryId,
+                                    )
+                                    ?.paths.map((p: BooklorePath) => ({
+                                      value: String(p.id),
+                                      label: p.path,
+                                    })) || []
+                                : []
+                            }
+                            disabled={!libraryId || loadingLibraries}
+                            required
+                          />
+                        </>
+                      ) : bookloreSettings?.connected && loadingLibraries ? (
+                        <Alert icon={<IconInfoCircle size={16} />} color="blue">
+                          <Text size="sm">Loading libraries...</Text>
+                        </Alert>
+                      ) : null}
 
                       {/* Show connection status if connected */}
                       {bookloreSettings?.connected && !showAuthForm && (
@@ -947,9 +988,12 @@ function SettingsComponent() {
                           disabled={!hasBookloreChanges}
                           loading={updateBooklore.isPending}
                         >
-                          {bookloreSettings?.connected
-                            ? "Save Changes"
-                            : "Save & Authenticate"}
+                          {!bookloreSettings?.connected && username && password
+                            ? "Authenticate"
+                            : bookloreSettings?.connected &&
+                                (libraryId || pathId)
+                              ? "Save Library Settings"
+                              : "Save Changes"}
                         </Button>
                       </Group>
                     </Stack>

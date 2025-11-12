@@ -6,6 +6,7 @@ import {
   type BookloreTokens,
 } from "./booklore-auth.js";
 import { type BookloreSettingsResponse } from "@ephemera/shared";
+import { validateLibraryAndPath } from "./booklore-client.js";
 
 /**
  * Booklore settings with tokens
@@ -113,25 +114,25 @@ class BookloreSettingsService {
   /**
    * Validate that all required settings are present
    * Returns error message if invalid, null if valid
+   * Note: libraryId and pathId are optional for authentication-only step
    */
   validateConfiguration(
     settings: UpdateBookloreSettingsRequest,
+    requireLibraryAndPath: boolean = false,
   ): string | null {
     if (settings.enabled) {
       if (!settings.baseUrl) {
         return "Base URL is required when Booklore is enabled";
       }
-      if (!settings.username) {
-        return "Username is required when Booklore is enabled";
-      }
-      if (!settings.password) {
-        return "Password is required when Booklore is enabled";
-      }
-      if (!settings.libraryId || settings.libraryId <= 0) {
-        return "Valid library ID is required when Booklore is enabled";
-      }
-      if (!settings.pathId || settings.pathId <= 0) {
-        return "Valid path ID is required when Booklore is enabled";
+      // For two-step flow: username/password only required for initial auth
+      // libraryId/pathId can be set later
+      if (requireLibraryAndPath) {
+        if (!settings.libraryId || settings.libraryId <= 0) {
+          return "Valid library ID is required when Booklore is enabled";
+        }
+        if (!settings.pathId || settings.pathId <= 0) {
+          return "Valid path ID is required when Booklore is enabled";
+        }
       }
     }
 
@@ -159,8 +160,16 @@ class BookloreSettingsService {
         autoUpload: updates.autoUpload ?? existing?.autoUpload ?? true,
       };
 
+      // Determine if library/path validation is needed
+      const hasLibraryAndPath = !!(
+        mergedUpdates.libraryId && mergedUpdates.pathId
+      );
+
       // Validate configuration
-      const validationError = this.validateConfiguration(mergedUpdates);
+      const validationError = this.validateConfiguration(
+        mergedUpdates,
+        hasLibraryAndPath,
+      );
       if (validationError) {
         throw new Error(validationError);
       }
@@ -186,6 +195,54 @@ class BookloreSettingsService {
         }
 
         tokens = loginResult.tokens!;
+
+        // Auto-select first library and path if not provided
+        if (!mergedUpdates.libraryId || !mergedUpdates.pathId) {
+          try {
+            const { fetchLibraries } = await import("./booklore-client.js");
+            const libraries = await fetchLibraries(
+              mergedUpdates.baseUrl,
+              tokens.accessToken,
+            );
+
+            if (libraries.length > 0 && libraries[0].paths.length > 0) {
+              console.log(
+                `[Booklore Settings] Auto-selecting first library (${libraries[0].name}) and path (${libraries[0].paths[0].path})`,
+              );
+              mergedUpdates.libraryId = libraries[0].id;
+              mergedUpdates.pathId = libraries[0].paths[0].id;
+            }
+          } catch (error) {
+            console.error(
+              "[Booklore Settings] Failed to fetch libraries for auto-selection:",
+              error,
+            );
+            // Continue without auto-selection - user can select manually later
+          }
+        }
+      }
+
+      // Validate library and path IDs against Booklore API if provided
+      // Use newly acquired tokens or existing ones
+      if (mergedUpdates.enabled && mergedUpdates.baseUrl && hasLibraryAndPath) {
+        const accessToken = tokens?.accessToken ?? existing?.accessToken;
+        if (accessToken) {
+          try {
+            console.log(
+              `[Booklore Settings] Validating library ${mergedUpdates.libraryId} and path ${mergedUpdates.pathId}`,
+            );
+            await validateLibraryAndPath(
+              mergedUpdates.baseUrl,
+              accessToken,
+              mergedUpdates.libraryId!,
+              mergedUpdates.pathId!,
+            );
+          } catch (error) {
+            throw new Error(
+              `Library/path validation failed: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
       }
 
       // Prepare settings data - NO CREDENTIALS STORED

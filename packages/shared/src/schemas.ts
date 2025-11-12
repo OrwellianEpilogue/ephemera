@@ -534,6 +534,36 @@ export const bookloreTestResponseSchema = z.object({
 
 export type BookloreTestResponse = z.infer<typeof bookloreTestResponseSchema>;
 
+// Booklore library path schema
+export const booklorePathSchema = z.object({
+  id: z.number().describe("Path ID"),
+  path: z.string().describe("File system path"),
+});
+
+export type BooklorePath = z.infer<typeof booklorePathSchema>;
+
+// Booklore library schema
+export const bookloreLibrarySchema = z.object({
+  id: z.number().describe("Library ID"),
+  name: z.string().describe("Library name"),
+  icon: z.string().describe("Library icon"),
+  watch: z.boolean().describe("Whether library is watched"),
+  paths: z.array(booklorePathSchema).describe("Library paths"),
+  scanMode: z.string().describe("Scan mode"),
+  defaultBookFormat: z.string().optional().describe("Default book format"),
+});
+
+export type BookloreLibrary = z.infer<typeof bookloreLibrarySchema>;
+
+// Booklore libraries response schema
+export const bookloreLibrariesResponseSchema = z.object({
+  libraries: z.array(bookloreLibrarySchema).describe("List of libraries"),
+});
+
+export type BookloreLibrariesResponse = z.infer<
+  typeof bookloreLibrariesResponseSchema
+>;
+
 // Post-download action enum
 export const postDownloadActionSchema = z.enum([
   "move_only",
