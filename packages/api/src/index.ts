@@ -13,6 +13,7 @@ import { logger } from './utils/logger.js';
 import { searchCacheManager } from './services/search-cache.js';
 import { appSettingsService } from './services/app-settings.js';
 import { bookloreSettingsService } from './services/booklore-settings.js';
+import { appriseService } from './services/apprise.js';
 import { bookloreTokenRefresher } from './services/booklore-token-refresher.js';
 import { bookCleanupService } from './services/book-cleanup.js';
 import { requestCheckerService } from './services/request-checker.js';
@@ -25,6 +26,7 @@ import settingsRoutes from './routes/settings.js';
 import imageProxyRoutes from './routes/image-proxy.js';
 import requestsRoutes from './routes/requests.js';
 import versionRoutes from './routes/version.js';
+import appriseRoutes from './routes/apprise.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -65,6 +67,9 @@ await appSettingsService.initializeDefaults();
 
 // Initialize Booklore settings with defaults
 await bookloreSettingsService.initializeDefaults();
+
+// Initialize Apprise settings with defaults
+await appriseService.initializeDefaults();
 
 // Start Booklore token refresher service
 bookloreTokenRefresher.start();
@@ -121,6 +126,7 @@ app.get('/api', (c) => {
       settings: '/api/settings',
       requests: '/api/requests',
       booklore: '/api/booklore/*',
+      apprise: '/api/apprise/*',
       imageProxy: '/api/proxy/image',
       version: '/api/version',
       docs: '/api/docs',
@@ -135,6 +141,7 @@ app.route('/api', downloadRoutes);
 app.route('/api', queueRoutes);
 app.route('/api', settingsRoutes);
 app.route('/api', bookloreRoutes);
+app.route('/api', appriseRoutes);
 app.route('/api', imageProxyRoutes);
 app.route('/api', requestsRoutes);
 app.route('/api', versionRoutes);
@@ -345,6 +352,13 @@ const server = serve({
     if (freshVersionInfo.updateAvailable && freshVersionInfo.latestVersion) {
       logger.warn(`Update available: ${freshVersionInfo.latestVersion}`);
       logger.info(`Download: ${freshVersionInfo.releaseUrl}`);
+
+      // Send Apprise notification if enabled
+      await appriseService.send('update_available', {
+        currentVersion: freshVersionInfo.currentVersion,
+        latestVersion: freshVersionInfo.latestVersion,
+        releaseUrl: freshVersionInfo.releaseUrl,
+      });
     }
   } catch (error) {
     // Silently fail - version checks shouldn't break the app

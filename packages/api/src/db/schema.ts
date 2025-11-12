@@ -158,6 +158,24 @@ export const downloadRequests = sqliteTable('download_requests', {
   fulfilledBookMd5: text('fulfilled_book_md5'),
 });
 
+export const appriseSettings = sqliteTable('apprise_settings', {
+  id: integer('id').primaryKey().default(1),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+  serverUrl: text('server_url'),
+  customHeaders: text('custom_headers', { mode: 'json' }).$type<Record<string, string>>(),
+
+  // Notification toggles
+  notifyOnNewRequest: integer('notify_on_new_request', { mode: 'boolean' }).notNull().default(true),
+  notifyOnDownloadError: integer('notify_on_download_error', { mode: 'boolean' }).notNull().default(true),
+  notifyOnAvailable: integer('notify_on_available', { mode: 'boolean' }).notNull().default(true),
+  notifyOnDelayed: integer('notify_on_delayed', { mode: 'boolean' }).notNull().default(true),
+  notifyOnUpdateAvailable: integer('notify_on_update_available', { mode: 'boolean' }).notNull().default(true),
+  notifyOnRequestFulfilled: integer('notify_on_request_fulfilled', { mode: 'boolean' }).notNull().default(true),
+  notifyOnBookQueued: integer('notify_on_book_queued', { mode: 'boolean' }).notNull().default(false),
+
+  updatedAt: integer('updated_at').notNull(),
+});
+
 // Relations
 export const booksRelations = relations(books, ({ many }) => ({
   downloads: many(downloads),
@@ -190,3 +208,5 @@ export type Book = typeof books.$inferSelect;
 export type NewBook = typeof books.$inferInsert;
 export type DownloadRequest = typeof downloadRequests.$inferSelect;
 export type NewDownloadRequest = typeof downloadRequests.$inferInsert;
+export type AppriseSettings = typeof appriseSettings.$inferSelect;
+export type NewAppriseSettings = typeof appriseSettings.$inferInsert;

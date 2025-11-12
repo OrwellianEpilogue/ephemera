@@ -24,7 +24,7 @@ export function VersionFooter() {
     <Box pt="md" style={{ marginLeft: 15 }}>
       <Group justify="space-between" gap="xs">
         <Text size="xs" c="dimmed">
-          v{versionInfo.currentVersion}
+          Ephemera v{versionInfo.currentVersion}
         </Text>
         {versionInfo.updateAvailable && versionInfo.releaseUrl && (
           <Anchor

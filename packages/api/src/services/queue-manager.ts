@@ -6,6 +6,7 @@ import { logger } from '../utils/logger.js';
 import { bookloreSettingsService } from './booklore-settings.js';
 import { bookloreUploader } from './booklore-uploader.js';
 import { appSettingsService } from './app-settings.js';
+import { appriseService } from './apprise.js';
 import { bookService } from './book-service.js';
 import type { QueueResponse, QueueItem } from '@ephemera/shared';
 import { getErrorMessage } from '@ephemera/shared';
@@ -139,6 +140,14 @@ export class QueueManager extends EventEmitter {
     // Emit queue update
     this.emitQueueUpdate();
 
+    // Send Apprise notification for book queued
+    await appriseService.send('book_queued', {
+      title,
+      authors: book?.authors,
+      md5,
+      position,
+    });
+
     // Start processing if not already
     if (!this.isProcessing) {
       this.processQueue();
@@ -216,6 +225,9 @@ export class QueueManager extends EventEmitter {
       return;
     }
 
+    // Fetch book data for author information in notifications
+    const book = await bookService.getBook(md5);
+
     // Check retry count
     const retryCount = download.retryCount || 0;
     if (retryCount >= MAX_RETRY_ATTEMPTS) {
@@ -255,6 +267,15 @@ export class QueueManager extends EventEmitter {
 
           logger.info(`${md5} delayed until ${nextRetryDate} (delayed attempt ${currentDelayedRetryCount + 1}/${MAX_DELAYED_RETRY_ATTEMPTS})`);
 
+          // Send Apprise notification for delayed download
+          await appriseService.send('delayed', {
+            title: item.title,
+            authors: book?.authors,
+            md5,
+            nextRetryAt,
+            delayedRetryCount: currentDelayedRetryCount + 1,
+          });
+
           // Re-queue for later retry
           this.queue.push(item);
         } else {
@@ -286,8 +307,18 @@ export class QueueManager extends EventEmitter {
         this.queue.push(item);
       } else {
         logger.error(`Max retry attempts reached for ${md5}`);
-        await downloadTracker.markError(md5, result.error || 'Max retry attempts reached');
+        const errorMessage = result.error || 'Max retry attempts reached';
+        await downloadTracker.markError(md5, errorMessage);
         this.emitQueueUpdate();
+
+        // Send Apprise notification for download error
+        await appriseService.send('download_error', {
+          title: item.title,
+          authors: book?.authors,
+          md5,
+          error: errorMessage,
+          retryCount: currentRetryCount,
+        });
       }
 
       return;
@@ -321,6 +352,16 @@ export class QueueManager extends EventEmitter {
           await downloadTracker.markAvailable(md5, finalPath);
           this.emitQueueUpdate();
           logger.success(`${title} is now available at: ${finalPath}`);
+
+          // Send Apprise notification for download available
+          await appriseService.send('available', {
+            title: item.title,
+            authors: book?.authors,
+            md5,
+            finalPath,
+            format: download.format,
+          });
+
           break;
         }
 
@@ -353,6 +394,14 @@ export class QueueManager extends EventEmitter {
               // Mark as available without a local path (file only exists in Booklore)
               await downloadTracker.markAvailable(md5, null);
               this.emitQueueUpdate();
+
+              // Send Apprise notification for download available (uploaded to Booklore)
+              await appriseService.send('available', {
+                title: item.title,
+                md5,
+                finalPath: 'Booklore',
+                format: download.format,
+              });
             } else {
               await downloadTracker.markUploadFailed(md5, uploadResult.error || 'Unknown error');
               logger.error(`[Booklore] Failed to upload ${title}: ${uploadResult.error}`);
@@ -375,6 +424,15 @@ export class QueueManager extends EventEmitter {
           await downloadTracker.markAvailable(md5, finalPath);
           this.emitQueueUpdate();
           logger.success(`${title} is now available at: ${finalPath}`);
+
+          // Send Apprise notification for download available
+          await appriseService.send('available', {
+            title: item.title,
+            authors: book?.authors,
+            md5,
+            finalPath,
+            format: download.format,
+          });
 
           // Upload to Booklore if enabled
           // This is wrapped in try-catch to ensure upload failures don't affect download completion
