@@ -85,6 +85,8 @@ function SettingsComponent() {
   const [postDownloadAction, setPostDownloadAction] =
     useState<PostDownloadAction>("both");
   const [bookRetentionDays, setBookRetentionDays] = useState<number>(30);
+  const [bookSearchCacheDays, setUndownloadedBookRetentionDays] =
+    useState<number>(7);
   const [requestCheckInterval, setRequestCheckInterval] =
     useState<RequestCheckInterval>("6h");
   const [timeFormat, setTimeFormat] = useState<TimeFormat>("24h");
@@ -132,6 +134,7 @@ function SettingsComponent() {
         setPostDownloadAction(settings.postDownloadAction);
       }
       setBookRetentionDays(settings.bookRetentionDays);
+      setUndownloadedBookRetentionDays(settings.bookSearchCacheDays);
       setRequestCheckInterval(settings.requestCheckInterval);
       setTimeFormat(settings.timeFormat);
       setDateFormat(settings.dateFormat);
@@ -176,6 +179,7 @@ function SettingsComponent() {
     updateSettings.mutate({
       postDownloadAction,
       bookRetentionDays,
+      bookSearchCacheDays,
       requestCheckInterval,
       timeFormat,
       dateFormat,
@@ -232,6 +236,7 @@ function SettingsComponent() {
     settings &&
     (settings.postDownloadAction !== postDownloadAction ||
       settings.bookRetentionDays !== bookRetentionDays ||
+      settings.bookSearchCacheDays !== bookSearchCacheDays ||
       settings.requestCheckInterval !== requestCheckInterval ||
       settings.timeFormat !== timeFormat ||
       settings.dateFormat !== dateFormat ||
@@ -542,6 +547,19 @@ function SettingsComponent() {
                     value={bookRetentionDays}
                     onChange={(value) =>
                       setBookRetentionDays(Number(value) || 0)
+                    }
+                    min={0}
+                    max={365}
+                    required
+                  />
+
+                  <NumberInput
+                    label="Book Search Cache Days"
+                    description="Number of days to keep books from search results in cache before auto-deleting them (0 = never delete, cleanup runs daily)"
+                    placeholder="7"
+                    value={bookSearchCacheDays}
+                    onChange={(value) =>
+                      setUndownloadedBookRetentionDays(Number(value) || 0)
                     }
                     min={0}
                     max={365}

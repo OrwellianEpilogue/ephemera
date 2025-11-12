@@ -575,6 +575,13 @@ export const appSettingsSchema = z.object({
     .describe(
       "Number of days to retain books before auto-deleting them (0 = never delete, default: 30)",
     ),
+  bookSearchCacheDays: z
+    .number()
+    .int()
+    .min(0)
+    .describe(
+      "Number of days to retain books from search cache before auto-deleting them (0 = never delete, default: 7)",
+    ),
   requestCheckInterval: requestCheckIntervalSchema.describe(
     "How often to check download requests for new results: 30min, 1h, 6h, 12h, 24h, weekly (default: 6h)",
   ),
@@ -611,6 +618,14 @@ export const updateAppSettingsSchema = z.object({
     .optional()
     .describe(
       "Number of days to retain books before auto-deleting them (0 = never delete)",
+    ),
+  bookSearchCacheDays: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe(
+      "Number of days to retain books from search cache before auto-deleting them (0 = never delete)",
     ),
   requestCheckInterval: requestCheckIntervalSchema
     .optional()

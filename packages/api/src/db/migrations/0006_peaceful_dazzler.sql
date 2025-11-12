@@ -1,0 +1,1 @@
+ALTER TABLE `app_settings` ADD `book_search_cache_days` integer DEFAULT 7 NOT NULL;

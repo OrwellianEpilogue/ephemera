@@ -163,18 +163,101 @@ class BookCleanupService {
   }
 
   /**
-   * Run both book and download cleanup
+   * Clean up books from search cache that have never been downloaded
+   * @returns Number of search cache books deleted
+   */
+  async cleanupSearchCache(): Promise<number> {
+    try {
+      const settings = await appSettingsService.getSettings();
+      const retentionDays = settings.bookSearchCacheDays;
+
+      // If retention is 0, disable cleanup
+      if (retentionDays <= 0) {
+        logger.info(
+          "[Search Cache Cleanup] Cleanup disabled (bookSearchCacheDays = 0)",
+        );
+        return 0;
+      }
+
+      // Calculate cutoff timestamp
+      const cutoffTime = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+
+      logger.info(
+        `[Search Cache Cleanup] Starting cleanup (retention: ${retentionDays} days, cutoff: ${new Date(cutoffTime).toISOString()})`,
+      );
+
+      // Get all books older than retention period that have never been downloaded
+      // Books with NO entry in downloads table are considered search cache only
+      const searchCacheBooks = await db
+        .select({ md5: books.md5 })
+        .from(books)
+        .leftJoin(downloads, sql`${books.md5} = ${downloads.md5}`)
+        .where(
+          and(
+            lt(books.firstSeenAt, cutoffTime),
+            sql`${downloads.md5} IS NULL`, // No download record exists
+          ),
+        )
+        .all();
+
+      if (searchCacheBooks.length === 0) {
+        logger.info("[Search Cache Cleanup] No search cache books to clean up");
+        return 0;
+      }
+
+      logger.info(
+        `[Search Cache Cleanup] Found ${searchCacheBooks.length} search cache books older than ${retentionDays} days`,
+      );
+
+      // Delete books in batches of 100 to avoid query size limits
+      const md5sToDelete = searchCacheBooks.map((b) => b.md5);
+      const batchSize = 100;
+      let totalDeleted = 0;
+
+      for (let i = 0; i < md5sToDelete.length; i += batchSize) {
+        const batch = md5sToDelete.slice(i, i + batchSize);
+        await db
+          .delete(books)
+          .where(
+            sql`${books.md5} IN (${sql.join(
+              batch.map((md5) => sql`${md5}`),
+              sql`, `,
+            )})`,
+          )
+          .run();
+        totalDeleted += batch.length;
+      }
+
+      logger.info(
+        `[Search Cache Cleanup] Successfully deleted ${totalDeleted} search cache books`,
+      );
+      return totalDeleted;
+    } catch (error) {
+      logger.error("[Search Cache Cleanup] Error during cleanup:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Run all cleanup operations
    * @returns Object with counts of deleted books and downloads
    */
-  async cleanupAll(): Promise<{ books: number; downloads: number }> {
-    const [booksDeleted, downloadsDeleted] = await Promise.all([
-      this.cleanup(),
-      this.cleanupDownloads(),
-    ]);
+  async cleanupAll(): Promise<{
+    books: number;
+    downloads: number;
+    searchCache: number;
+  }> {
+    const [booksDeleted, downloadsDeleted, searchCacheDeleted] =
+      await Promise.all([
+        this.cleanup(),
+        this.cleanupDownloads(),
+        this.cleanupSearchCache(),
+      ]);
 
     return {
       books: booksDeleted,
       downloads: downloadsDeleted,
+      searchCache: searchCacheDeleted,
     };
   }
 }

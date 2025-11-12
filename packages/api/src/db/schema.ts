@@ -100,6 +100,7 @@ export const appSettings = sqliteTable("app_settings", {
     .notNull()
     .default("both"),
   bookRetentionDays: integer("book_retention_days").notNull().default(30),
+  bookSearchCacheDays: integer("book_search_cache_days").notNull().default(7),
   requestCheckInterval: text("request_check_interval", {
     enum: ["1min", "15min", "30min", "1h", "6h", "12h", "24h", "weekly"],
   })

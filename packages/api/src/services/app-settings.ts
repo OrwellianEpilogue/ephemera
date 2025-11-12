@@ -55,6 +55,7 @@ class AppSettingsService {
       id: 1,
       postDownloadAction: "both",
       bookRetentionDays: 30,
+      bookSearchCacheDays: 7,
       requestCheckInterval: "6h",
       timeFormat: "24h",
       dateFormat: "eur",
@@ -84,6 +85,8 @@ class AppSettingsService {
           "both",
         bookRetentionDays:
           updates.bookRetentionDays ?? existing[0]?.bookRetentionDays ?? 30,
+        bookSearchCacheDays:
+          updates.bookSearchCacheDays ?? existing[0]?.bookSearchCacheDays ?? 7,
         requestCheckInterval:
           updates.requestCheckInterval ??
           existing[0]?.requestCheckInterval ??
@@ -138,12 +141,13 @@ class AppSettingsService {
 
       if (result.length === 0) {
         console.log(
-          "[App Settings] Initializing default settings (postDownloadAction=both, bookRetentionDays=30, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)",
+          "[App Settings] Initializing default settings (postDownloadAction=both, bookRetentionDays=30, bookSearchCacheDays=7, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)",
         );
         await db.insert(appSettings).values({
           id: 1,
           postDownloadAction: "both",
           bookRetentionDays: 30,
+          bookSearchCacheDays: 7,
           requestCheckInterval: "6h",
           timeFormat: "24h",
           dateFormat: "eur",
