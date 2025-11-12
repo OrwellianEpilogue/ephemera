@@ -257,12 +257,14 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
           )}
 
           {/* Countdown Info (for slow downloads waiting) */}
-          {item.countdownSeconds && item.countdownStartedAt && (
-            <CountdownTimer
-              countdownSeconds={item.countdownSeconds}
-              countdownStartedAt={item.countdownStartedAt}
-            />
-          )}
+          {item.countdownSeconds &&
+            item.countdownStartedAt &&
+            ["queued", "downloading", "delayed"].includes(item.status) && (
+              <CountdownTimer
+                countdownSeconds={item.countdownSeconds}
+                countdownStartedAt={item.countdownStartedAt}
+              />
+            )}
 
           {/* Download Info */}
           <Group gap="md" justify="space-between">
@@ -310,7 +312,7 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
           )}
 
           {/* Error Message */}
-          {item.status === "error" && (
+          {(item.status === "error" || item.status === "cancelled") && (
             <Stack gap="xs">
               {item.error && (
                 <Text size="xs" c="red" lineClamp={2}>

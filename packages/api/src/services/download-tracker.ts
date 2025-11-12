@@ -127,6 +127,8 @@ export class DownloadTracker {
   async markCancelled(md5: string): Promise<void> {
     await this.update(md5, {
       status: "cancelled",
+      countdownSeconds: null,
+      countdownStartedAt: null,
     });
   }
 

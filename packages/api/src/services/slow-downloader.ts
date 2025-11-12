@@ -355,6 +355,15 @@ export class SlowDownloader {
             `[${downloadId}] Countdown found: ${countdownSeconds} seconds`,
           );
 
+          // Check if download was cancelled before starting countdown
+          const preCountdownStatus = await downloadTracker.get(md5);
+          if (preCountdownStatus?.status === "cancelled") {
+            logger.info(
+              `[${downloadId}] Download already cancelled before countdown`,
+            );
+            throw new Error("Download cancelled by user");
+          }
+
           await onProgress?.({
             status: "waiting_countdown",
             message: `Waiting for countdown (${countdownSeconds}s)...`,
@@ -365,7 +374,7 @@ export class SlowDownloader {
           // Wait for the countdown duration + 2 seconds buffer, checking for cancellation
           const totalWaitMs = (countdownSeconds + 2) * 1000;
           const endTime = Date.now() + totalWaitMs;
-          const checkIntervalMs = 1000; // Check every second
+          const checkIntervalMs = 200; // Check every 200ms for faster cancellation response
 
           while (Date.now() < endTime) {
             // Check if download was cancelled
@@ -377,7 +386,7 @@ export class SlowDownloader {
               throw new Error("Download cancelled by user");
             }
 
-            // Wait 1 second before next check (or remaining time if less)
+            // Wait 200ms before next check (or remaining time if less)
             const remainingMs = endTime - Date.now();
             const waitMs = Math.min(checkIntervalMs, Math.max(0, remainingMs));
             if (waitMs > 0) {

@@ -261,6 +261,12 @@ export class QueueManager extends EventEmitter {
           progressInfo.countdownSeconds &&
           progressInfo.countdownStartedAt
         ) {
+          // Check if download was cancelled before updating status
+          const currentStatus = await downloadTracker.get(md5);
+          if (currentStatus?.status === "cancelled") {
+            return; // Don't update if cancelled
+          }
+
           await downloadTracker.markCountdown(
             md5,
             progressInfo.countdownSeconds,
@@ -271,6 +277,12 @@ export class QueueManager extends EventEmitter {
 
         // Handle transition to downloading (clear countdown fields)
         if (progressInfo.status === "downloading") {
+          // Check if download was cancelled before updating status
+          const currentStatus = await downloadTracker.get(md5);
+          if (currentStatus?.status === "cancelled") {
+            return; // Don't update if cancelled
+          }
+
           await downloadTracker.clearCountdown(md5);
           await this.emitQueueUpdate();
         }
