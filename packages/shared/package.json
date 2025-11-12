@@ -20,9 +20,9 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --build",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "generate:client": "openapi-typescript http://localhost:8286/api/openapi.json -o src/generated/api.ts"
   },
   "dependencies": {
