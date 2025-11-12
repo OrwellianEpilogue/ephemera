@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Container,
   Title,
@@ -12,6 +12,7 @@ import {
   Card,
   ActionIcon,
   Tooltip,
+  Anchor,
 } from "@mantine/core";
 import {
   IconBookmark,
@@ -27,7 +28,23 @@ import {
   useRequestStats,
   useDeleteRequest,
 } from "../hooks/useRequests";
+import { useAppSettings } from "../hooks/useSettings";
 import type { SavedRequestWithBook } from "@ephemera/shared";
+
+// Helper function to format check interval for display
+function formatCheckInterval(interval: string): string {
+  const intervalMap: Record<string, string> = {
+    "1min": "every minute",
+    "15min": "every 15 minutes",
+    "30min": "every 30 minutes",
+    "1h": "every hour",
+    "6h": "every 6 hours",
+    "12h": "every 12 hours",
+    "24h": "every 24 hours",
+    weekly: "weekly",
+  };
+  return intervalMap[interval] || "every 6 hours";
+}
 
 // Request card component
 function RequestCard({ request }: { request: SavedRequestWithBook }) {
@@ -200,6 +217,7 @@ function RequestsPage() {
       : (activeTab as "active" | "fulfilled" | "cancelled");
   const { data: requests, isLoading, isError } = useRequests(statusFilter);
   const { data: stats } = useRequestStats();
+  const { data: settings } = useAppSettings();
 
   if (isLoading) {
     return (
@@ -247,6 +265,12 @@ function RequestsPage() {
 
         <Text c="dimmed" size="sm">
           Saved search requests that are automatically checked for new results
+          {settings?.requestCheckInterval &&
+            ` ${formatCheckInterval(settings.requestCheckInterval)}`}
+          .{" "}
+          <Anchor component={Link} to="/settings" size="sm">
+            Change check interval in settings
+          </Anchor>
         </Text>
 
         <Tabs
