@@ -213,6 +213,16 @@ export const BookCard = ({ book }: BookCardProps) => {
               {formatFileSize(book.size)}
             </Badge>
           )}
+          {book.year && (
+            <Badge size="sm" variant="light" color="gray">
+              {book.year}
+            </Badge>
+          )}
+          {book.language && (
+            <Badge size="sm" variant="light" color="teal">
+              {book.language.toUpperCase()}
+            </Badge>
+          )}
           {status === "queued" || status === "downloading" ? (
             <LiveCountdownBadge
               md5={book.md5}
@@ -223,18 +233,6 @@ export const BookCard = ({ book }: BookCardProps) => {
             getDownloadStatusBadge(status, progress, remainingCountdown)
           )}
         </Group>
-
-        {book.year && (
-          <Text size="xs" c="dimmed">
-            {book.year}
-          </Text>
-        )}
-
-        {book.language && (
-          <Text size="xs" c="dimmed">
-            Language: {book.language.toUpperCase()}
-          </Text>
-        )}
 
         <Button
           fullWidth

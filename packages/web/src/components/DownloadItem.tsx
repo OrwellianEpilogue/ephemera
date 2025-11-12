@@ -233,6 +233,12 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
               </Badge>
             )}
 
+            {item.language && (
+              <Badge size="sm" variant="light" color="teal">
+                {item.language.toUpperCase()}
+              </Badge>
+            )}
+
             {item.uploadStatus && (
               <Badge size="sm" variant="light" color="violet">
                 Upload: {item.uploadStatus}

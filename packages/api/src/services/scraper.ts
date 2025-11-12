@@ -240,7 +240,7 @@ export class AAScraper {
 
       // Parse metadata from text
       const languageMatch = containerText.match(
-        /✅\s*([A-Za-z]+)\s*\[([a-z]{2,3})\]/,
+        /([A-Za-z]+)\s*\[([a-z]{2,3})\]/,
       );
       const language = languageMatch ? languageMatch[2] : undefined;
 
