@@ -234,6 +234,18 @@ export const queueItemSchema = z.object({
     .datetime()
     .optional()
     .describe("When quota was last checked"),
+  // Countdown tracking
+  countdownSeconds: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Detected countdown duration for slow downloads in seconds"),
+  countdownStartedAt: z
+    .string()
+    .datetime()
+    .optional()
+    .describe("When countdown started (for calculating remaining time)"),
   // Optional Booklore upload tracking
   uploadStatus: z
     .enum(["pending", "uploading", "completed", "failed"])

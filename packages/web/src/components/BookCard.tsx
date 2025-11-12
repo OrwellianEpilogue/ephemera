@@ -17,10 +17,56 @@ import {
 import type { Book } from "@ephemera/shared";
 import { useQueueDownload } from "../hooks/useDownload";
 import { useBookStatus } from "../hooks/useBookStatus";
+import { memo } from "react";
 
 interface BookCardProps {
   book: Book;
 }
+
+interface LiveCountdownBadgeProps {
+  md5: string;
+  status: string | null | undefined;
+  progress?: number;
+}
+
+// Separate component for the live countdown badge that re-renders every second
+const LiveCountdownBadge = memo(
+  ({ md5, status, progress }: LiveCountdownBadgeProps) => {
+    const { remainingCountdown } = useBookStatus(md5);
+
+    if (
+      status === "queued" &&
+      remainingCountdown !== null &&
+      remainingCountdown !== undefined
+    ) {
+      return (
+        <Badge
+          size="sm"
+          variant="light"
+          color="blue"
+          leftSection={<IconClock size={12} />}
+        >
+          {`Waiting ${remainingCountdown}s...`}
+        </Badge>
+      );
+    }
+
+    if (status === "downloading" && progress !== undefined) {
+      return (
+        <Badge
+          size="sm"
+          variant="light"
+          color="cyan"
+          leftSection={<IconDownload size={12} />}
+        >
+          {`Downloading ${Math.round(progress)}%`}
+        </Badge>
+      );
+    }
+
+    return null;
+  },
+);
 
 const formatFileSize = (bytes?: number): string => {
   if (!bytes) return "Unknown";
@@ -31,7 +77,8 @@ const formatFileSize = (bytes?: number): string => {
 
 const getDownloadStatusBadge = (
   status: string | null | undefined,
-  progress?: number,
+  _progress?: number,
+  _remainingCountdown?: number | null,
 ) => {
   if (!status) return null;
 
@@ -59,16 +106,8 @@ const getDownloadStatusBadge = (
         </Badge>
       );
     case "downloading":
-      return (
-        <Badge
-          size="sm"
-          variant="light"
-          color="cyan"
-          leftSection={<IconDownload size={12} />}
-        >
-          Downloading {progress !== undefined ? `${Math.round(progress)}%` : ""}
-        </Badge>
-      );
+      // Handled separately by LiveCountdownBadge to avoid re-rendering entire card
+      return null;
     case "delayed":
       return (
         <Badge
@@ -108,6 +147,7 @@ export const BookCard = ({ book }: BookCardProps) => {
     isDownloading,
     isDelayed,
     isError,
+    remainingCountdown,
   } = useBookStatus(book.md5, book.downloadStatus);
 
   const handleDownload = () => {
@@ -173,7 +213,15 @@ export const BookCard = ({ book }: BookCardProps) => {
               {formatFileSize(book.size)}
             </Badge>
           )}
-          {getDownloadStatusBadge(status, progress)}
+          {status === "queued" || status === "downloading" ? (
+            <LiveCountdownBadge
+              md5={book.md5}
+              status={status}
+              progress={progress}
+            />
+          ) : (
+            getDownloadStatusBadge(status, progress, remainingCountdown)
+          )}
         </Group>
 
         {book.year && (

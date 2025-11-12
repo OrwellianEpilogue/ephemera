@@ -32,6 +32,10 @@ export const downloads = sqliteTable("downloads", {
   speed: text("speed"), // e.g., "2.5 MB/s"
   eta: integer("eta"), // seconds remaining
 
+  // Slow download countdown
+  countdownSeconds: integer("countdown_seconds"), // detected countdown duration
+  countdownStartedAt: integer("countdown_started_at"), // milliseconds timestamp when countdown began
+
   // File paths
   tempPath: text("temp_path"),
   finalPath: text("final_path"),

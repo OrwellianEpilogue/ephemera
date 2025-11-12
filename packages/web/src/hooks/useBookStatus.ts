@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQueue } from "./useQueue";
 import type { QueueItem, DownloadStatus } from "@ephemera/shared";
 
@@ -42,6 +42,42 @@ export const useBookStatus = (
     return null;
   }, [queue, md5]);
 
+  // Use state to force periodic re-renders during countdown
+  const [tick, setTick] = useState(0);
+
+  // Determine if countdown is active
+  const hasActiveCountdown = Boolean(
+    queueItem?.countdownSeconds && queueItem?.countdownStartedAt,
+  );
+
+  // Set up interval to update countdown every second
+  useEffect(() => {
+    if (!hasActiveCountdown) {
+      return;
+    }
+
+    // Update every second
+    const interval = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [hasActiveCountdown]);
+
+  // Calculate remaining countdown time
+  const remainingCountdown = useMemo(() => {
+    if (!queueItem?.countdownSeconds || !queueItem?.countdownStartedAt) {
+      return null;
+    }
+
+    const startedAt = new Date(queueItem.countdownStartedAt).getTime();
+    const now = Date.now();
+    const elapsed = Math.floor((now - startedAt) / 1000);
+    const remaining = Math.max(0, queueItem.countdownSeconds - elapsed);
+
+    return remaining > 0 ? remaining : null;
+  }, [queueItem?.countdownSeconds, queueItem?.countdownStartedAt, tick]);
+
   return {
     // Use queue status if available, otherwise fall back to book's initial status
     status: queueItem?.status || fallbackStatus || null,
@@ -52,6 +88,10 @@ export const useBookStatus = (
     queuedAt: queueItem?.queuedAt,
     startedAt: queueItem?.startedAt,
     completedAt: queueItem?.completedAt,
+    // Countdown metadata
+    countdownSeconds: queueItem?.countdownSeconds,
+    countdownStartedAt: queueItem?.countdownStartedAt,
+    remainingCountdown,
     // Full queue item for advanced use cases
     queueItem,
     // Convenience flags

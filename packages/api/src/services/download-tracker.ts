@@ -71,6 +71,28 @@ export class DownloadTracker {
       status: "downloading",
       startedAt: Date.now(),
       tempPath,
+      // Clear countdown when actual download starts
+      countdownSeconds: null,
+      countdownStartedAt: null,
+    });
+  }
+
+  async markCountdown(
+    md5: string,
+    countdownSeconds: number,
+    countdownStartedAt: number = Date.now(),
+  ): Promise<void> {
+    await this.update(md5, {
+      status: "queued",
+      countdownSeconds,
+      countdownStartedAt,
+    });
+  }
+
+  async clearCountdown(md5: string): Promise<void> {
+    await this.update(md5, {
+      countdownSeconds: null,
+      countdownStartedAt: null,
     });
   }
 
@@ -372,6 +394,11 @@ export class DownloadTracker {
       downloadsPerDay: download.downloadsPerDay || undefined,
       quotaCheckedAt: download.quotaCheckedAt
         ? new Date(download.quotaCheckedAt).toISOString()
+        : undefined,
+      // Countdown tracking
+      countdownSeconds: download.countdownSeconds || undefined,
+      countdownStartedAt: download.countdownStartedAt
+        ? new Date(download.countdownStartedAt).toISOString()
         : undefined,
       // Optional Booklore upload fields
       uploadStatus: download.uploadStatus || undefined,

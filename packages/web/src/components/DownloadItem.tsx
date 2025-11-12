@@ -22,10 +22,46 @@ import type { QueueItem } from "@ephemera/shared";
 import { formatDate, formatTime as formatTimeOfDay } from "@ephemera/shared";
 import { useCancelDownload, useRetryDownload } from "../hooks/useDownload";
 import { useAppSettings } from "../hooks/useSettings";
+import { useState, useEffect, memo } from "react";
 
 interface DownloadItemProps {
   item: QueueItem;
 }
+
+interface CountdownTimerProps {
+  countdownSeconds: number;
+  countdownStartedAt: string;
+}
+
+// Separate component that re-renders every second for countdown
+const CountdownTimer = memo(
+  ({ countdownSeconds, countdownStartedAt }: CountdownTimerProps) => {
+    const [, setTick] = useState(0);
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setTick((t) => t + 1);
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }, []);
+
+    const startedAt = new Date(countdownStartedAt).getTime();
+    const now = Date.now();
+    const elapsed = Math.floor((now - startedAt) / 1000);
+    const remaining = Math.max(0, countdownSeconds - elapsed);
+
+    if (remaining <= 0) {
+      return null;
+    }
+
+    return (
+      <Text size="sm" c="dimmed" fs="italic">
+        Waiting for download to start… {remaining}s remaining
+      </Text>
+    );
+  },
+);
 
 const formatBytes = (bytes?: number): string => {
   if (!bytes) return "0 B";
@@ -181,6 +217,14 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
               size="lg"
               animated
               color="blue"
+            />
+          )}
+
+          {/* Countdown Info (for slow downloads waiting) */}
+          {item.countdownSeconds && item.countdownStartedAt && (
+            <CountdownTimer
+              countdownSeconds={item.countdownSeconds}
+              countdownStartedAt={item.countdownStartedAt}
             />
           )}
 

@@ -5,7 +5,7 @@ import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { logger } from "../utils/logger.js";
 import { downloadTracker } from "./download-tracker.js";
-import { slowDownloader } from "./slow-downloader.js";
+import { slowDownloader, type ProgressInfo } from "./slow-downloader.js";
 
 const AA_API_KEY = process.env.AA_API_KEY;
 const AA_BASE_URL = process.env.AA_BASE_URL;
@@ -16,12 +16,7 @@ export interface DownloadOptions {
   md5: string;
   pathIndex?: number;
   domainIndex?: number;
-  onProgress?: (
-    downloaded: number,
-    total: number,
-    speed: string,
-    eta: number,
-  ) => void;
+  onProgress?: (progressInfo: ProgressInfo) => void | Promise<void>;
 }
 
 export interface DownloadResult {
@@ -298,6 +293,15 @@ export class Downloader {
 
           const speedStr = this.formatSpeed(speed);
 
+          // Check for cancellation before updating progress
+          downloadTracker.get(md5).then((status) => {
+            if (status?.status === "cancelled") {
+              logger.info(`Download cancelled during file transfer: ${md5}`);
+              controller.abort();
+              fileStream.destroy();
+            }
+          });
+
           // Update database
           downloadTracker.updateProgress(
             md5,
@@ -309,12 +313,14 @@ export class Downloader {
 
           // Call progress callback
           if (onProgress) {
-            onProgress(
-              downloadedBytes,
-              contentLength,
-              speedStr,
-              Math.ceil(eta),
-            );
+            onProgress({
+              status: "downloading",
+              message: "Downloading file...",
+              downloaded: downloadedBytes,
+              total: contentLength,
+              speed: speedStr,
+              eta: Math.ceil(eta),
+            });
           }
 
           lastUpdate = now;
@@ -334,6 +340,15 @@ export class Downloader {
       const errorMsg =
         error instanceof Error ? error.message : "Unknown download error";
       logger.error(`Download failed for ${md5}:`, errorMsg);
+
+      // Check if download was cancelled - don't overwrite cancelled status
+      const currentStatus = await downloadTracker.get(md5);
+      if (currentStatus?.status === "cancelled") {
+        logger.info(
+          `Download ${md5} was cancelled, preserving cancelled status`,
+        );
+        return { success: false, error: "Download cancelled by user" };
+      }
 
       await downloadTracker.markError(md5, errorMsg);
 
@@ -369,36 +384,13 @@ export class Downloader {
    */
   private async downloadViaSlowServer(
     md5: string,
-    onProgress?: (
-      downloaded: number,
-      total: number,
-      speed: string,
-      eta: number,
-    ) => void,
+    onProgress?: (progressInfo: ProgressInfo) => void | Promise<void>,
   ): Promise<DownloadResult> {
     logger.info(`Using slow download fallback for ${md5}`);
 
     try {
-      // Use slow downloader with progress mapping
-      const result = await slowDownloader.downloadWithRetry(
-        md5,
-        (progressInfo) => {
-          // Map slow download progress to the format expected by onProgress callback
-          if (
-            progressInfo.status === "downloading" &&
-            onProgress &&
-            progressInfo.downloaded &&
-            progressInfo.total
-          ) {
-            onProgress(
-              progressInfo.downloaded,
-              progressInfo.total,
-              progressInfo.speed || "0 B/s",
-              progressInfo.eta || 0,
-            );
-          }
-        },
-      );
+      // Use slow downloader and pass progress callback directly through
+      const result = await slowDownloader.downloadWithRetry(md5, onProgress);
 
       if (result.success && result.filePath) {
         return { success: true, filePath: result.filePath };
@@ -412,6 +404,16 @@ export class Downloader {
       const errorMsg =
         error instanceof Error ? error.message : "Slow download error";
       logger.error(`Slow download failed for ${md5}:`, errorMsg);
+
+      // Check if download was cancelled - don't overwrite cancelled status
+      const currentStatus = await downloadTracker.get(md5);
+      if (currentStatus?.status === "cancelled") {
+        logger.info(
+          `Download ${md5} was cancelled, preserving cancelled status`,
+        );
+        return { success: false, error: "Download cancelled by user" };
+      }
+
       await downloadTracker.markError(md5, errorMsg);
       return { success: false, error: errorMsg };
     }

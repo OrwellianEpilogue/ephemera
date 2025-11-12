@@ -254,10 +254,40 @@ export class QueueManager extends EventEmitter {
       md5,
       pathIndex,
       domainIndex,
+      onProgress: async (progressInfo) => {
+        // Handle countdown updates
+        if (
+          progressInfo.status === "waiting_countdown" &&
+          progressInfo.countdownSeconds &&
+          progressInfo.countdownStartedAt
+        ) {
+          await downloadTracker.markCountdown(
+            md5,
+            progressInfo.countdownSeconds,
+            progressInfo.countdownStartedAt,
+          );
+          await this.emitQueueUpdate();
+        }
+
+        // Handle transition to downloading (clear countdown fields)
+        if (progressInfo.status === "downloading") {
+          await downloadTracker.clearCountdown(md5);
+          await this.emitQueueUpdate();
+        }
+      },
     });
 
     if (!result.success) {
       logger.error(`Download failed for ${md5}: ${result.error}`);
+
+      // Check if download was cancelled - don't retry
+      const currentStatus = await downloadTracker.get(md5);
+      if (currentStatus?.status === "cancelled") {
+        logger.info(
+          `Download ${md5} was cancelled, skipping retry and error handling`,
+        );
+        return;
+      }
 
       // Handle quota errors differently (delayed retry)
       if (result.isQuotaError) {
@@ -547,10 +577,14 @@ export class QueueManager extends EventEmitter {
       return true;
     }
 
-    // Can't cancel currently downloading
+    // Cancel currently downloading file
     if (this.currentDownload === md5) {
-      logger.warn(`Cannot cancel currently downloading file: ${md5}`);
-      return false;
+      await downloadTracker.markCancelled(md5);
+      this.emitQueueUpdate();
+      logger.info(
+        `Marked currently downloading file as cancelled: ${md5} (download will abort on next status check)`,
+      );
+      return true;
     }
 
     return false;

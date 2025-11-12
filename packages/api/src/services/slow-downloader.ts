@@ -15,7 +15,8 @@ const SLOW_DOWNLOAD_TIMEOUT = parseInt(
   process.env.SLOW_DOWNLOAD_TIMEOUT || "300000",
   10,
 ); // 5 minutes
-const MAX_SERVERS = 6; // Anna's Archive has servers 0-5
+const MAX_PATHS = 2; // Anna's Archive has paths 0-1
+const MAX_SERVERS = 7; // Anna's Archive has servers 0-6 per path
 
 // FlareSolverr API types
 interface FlareSolverrRequest {
@@ -49,12 +50,15 @@ export interface ProgressInfo {
   total?: number;
   speed?: string;
   eta?: number;
+  countdownSeconds?: number;
+  countdownStartedAt?: number;
 }
 
 export interface SlowDownloadResult {
   success: boolean;
   filePath?: string;
   error?: string;
+  pathIndex?: number;
   serverIndex?: number;
 }
 
@@ -221,48 +225,81 @@ export class SlowDownloader {
       if (lgResult && lgResult.success) {
         return lgResult;
       }
+
+      // Check if download was cancelled before continuing to slow servers
+      const status = await downloadTracker.get(md5);
+      if (status?.status === "cancelled") {
+        logger.info(
+          `[${downloadId}] Download was cancelled, aborting slow server fallback`,
+        );
+        return {
+          success: false,
+          error: "Download cancelled by user",
+        };
+      }
+
       // If failed or returned null, continue to slow servers
       logger.info(
         `[${downloadId}] LG fast download unavailable, trying slow servers...`,
       );
     }
 
-    // Try each server in sequence
-    for (let serverIndex = 0; serverIndex < MAX_SERVERS; serverIndex++) {
-      try {
-        logger.info(`[${downloadId}] Trying server #${serverIndex}...`);
-
-        onProgress?.({
-          status: "bypassing_protection",
-          message: `Trying slow server #${serverIndex + 1}...`,
-        });
-
-        const result = await this.download({
-          md5,
-          serverIndex,
-          downloadId,
-          onProgress,
-        });
-
-        if (result.success) {
-          logger.success(
-            `[${downloadId}] Successfully downloaded from server #${serverIndex}`,
+    // Try each path and server in sequence
+    for (let pathIndex = 0; pathIndex < MAX_PATHS; pathIndex++) {
+      for (let serverIndex = 0; serverIndex < MAX_SERVERS; serverIndex++) {
+        // Check if download was cancelled before trying next server
+        const status = await downloadTracker.get(md5);
+        if (status?.status === "cancelled") {
+          logger.info(
+            `[${downloadId}] Download was cancelled, aborting server attempts`,
           );
-          return result;
+          return {
+            success: false,
+            error: "Download cancelled by user",
+          };
         }
 
-        logger.warn(
-          `[${downloadId}] Server #${serverIndex} failed: ${result.error}`,
-        );
-      } catch (error: unknown) {
-        logger.error(
-          `[${downloadId}] Server #${serverIndex} error:`,
-          error instanceof Error ? error.message : String(error),
-        );
+        try {
+          const attemptNum = pathIndex * MAX_SERVERS + serverIndex + 1;
+          const totalAttempts = MAX_PATHS * MAX_SERVERS;
+          logger.info(
+            `[${downloadId}] Trying path ${pathIndex}, server ${serverIndex} (attempt ${attemptNum}/${totalAttempts})...`,
+          );
+
+          onProgress?.({
+            status: "bypassing_protection",
+            message: `Trying slow server (path ${pathIndex}, server ${serverIndex + 1})...`,
+          });
+
+          const result = await this.download({
+            md5,
+            pathIndex,
+            serverIndex,
+            downloadId,
+            onProgress,
+          });
+
+          if (result.success) {
+            logger.success(
+              `[${downloadId}] Successfully downloaded from path ${pathIndex}, server ${serverIndex}`,
+            );
+            return result;
+          }
+
+          logger.warn(
+            `[${downloadId}] Path ${pathIndex}, server ${serverIndex} failed: ${result.error}`,
+          );
+        } catch (error: unknown) {
+          logger.error(
+            `[${downloadId}] Path ${pathIndex}, server ${serverIndex} error:`,
+            error instanceof Error ? error.message : String(error),
+          );
+        }
       }
     }
 
-    const error = `All ${MAX_SERVERS} slow download servers failed`;
+    const totalAttempts = MAX_PATHS * MAX_SERVERS;
+    const error = `All ${totalAttempts} slow download attempts failed (${MAX_PATHS} paths × ${MAX_SERVERS} servers)`;
     logger.error(`[${downloadId}] ${error}`);
     return { success: false, error };
   }
@@ -272,11 +309,12 @@ export class SlowDownloader {
    */
   private async download(options: {
     md5: string;
+    pathIndex: number;
     serverIndex: number;
     downloadId: string;
     onProgress?: (info: ProgressInfo) => void;
   }): Promise<SlowDownloadResult> {
-    const { md5, serverIndex, onProgress } = options;
+    const { md5, pathIndex, serverIndex, onProgress } = options;
     const downloadId = options.downloadId;
     let sessionId: string | null = null;
 
@@ -289,7 +327,7 @@ export class SlowDownloader {
       logger.info(`[${downloadId}] Created FlareSolverr session: ${sessionId}`);
 
       // Build slow download URL
-      const slowDownloadUrl = `${AA_BASE_URL}/slow_download/${md5}/0/${serverIndex}`;
+      const slowDownloadUrl = `${AA_BASE_URL}/slow_download/${md5}/${pathIndex}/${serverIndex}`;
       logger.info(`[${downloadId}] Requesting: ${slowDownloadUrl}`);
 
       onProgress?.({
@@ -317,15 +355,35 @@ export class SlowDownloader {
             `[${downloadId}] Countdown found: ${countdownSeconds} seconds`,
           );
 
-          onProgress?.({
+          await onProgress?.({
             status: "waiting_countdown",
             message: `Waiting for countdown (${countdownSeconds}s)...`,
+            countdownSeconds,
+            countdownStartedAt: Date.now(),
           });
 
-          // Wait for the countdown duration + 2 seconds buffer
-          await new Promise((resolve) =>
-            setTimeout(resolve, (countdownSeconds + 2) * 1000),
-          );
+          // Wait for the countdown duration + 2 seconds buffer, checking for cancellation
+          const totalWaitMs = (countdownSeconds + 2) * 1000;
+          const endTime = Date.now() + totalWaitMs;
+          const checkIntervalMs = 1000; // Check every second
+
+          while (Date.now() < endTime) {
+            // Check if download was cancelled
+            const currentStatus = await downloadTracker.get(md5);
+            if (currentStatus?.status === "cancelled") {
+              logger.info(
+                `[${downloadId}] Download cancelled during countdown`,
+              );
+              throw new Error("Download cancelled by user");
+            }
+
+            // Wait 1 second before next check (or remaining time if less)
+            const remainingMs = endTime - Date.now();
+            const waitMs = Math.min(checkIntervalMs, Math.max(0, remainingMs));
+            if (waitMs > 0) {
+              await new Promise((resolve) => setTimeout(resolve, waitMs));
+            }
+          }
 
           logger.info(
             `[${downloadId}] Countdown complete, requesting page again...`,
@@ -362,6 +420,7 @@ export class SlowDownloader {
       return {
         success: true,
         filePath,
+        pathIndex,
         serverIndex,
       };
     } catch (error: unknown) {
@@ -370,6 +429,7 @@ export class SlowDownloader {
       return {
         success: false,
         error: errorMsg,
+        pathIndex,
         serverIndex,
       };
     } finally {
@@ -651,6 +711,15 @@ export class SlowDownloader {
 
         const speedStr = this.formatSpeed(speed);
 
+        // Check for cancellation before updating progress
+        downloadTracker.get(md5).then((status) => {
+          if (status?.status === "cancelled") {
+            logger.info(`Download cancelled during file transfer: ${md5}`);
+            controller.abort();
+            fileStream.destroy();
+          }
+        });
+
         // Update database
         downloadTracker.updateProgress(
           md5,
@@ -660,7 +729,7 @@ export class SlowDownloader {
           Math.ceil(eta),
         );
 
-        // Call progress callback
+        // Call progress callback (fire-and-forget for streaming updates)
         onProgress?.({
           status: "downloading",
           message: `Downloading... ${Math.round((downloadedBytes / contentLength) * 100)}%`,

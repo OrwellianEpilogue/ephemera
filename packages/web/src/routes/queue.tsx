@@ -30,7 +30,7 @@ import type { QueueItem } from "@ephemera/shared";
 
 function QueuePage() {
   // 1. Call ALL hooks first (before any conditional returns)
-  const { data: queue, isLoading, isError } = useQueue();
+  const { data: queue, isLoading, isError } = useQueue({ enableSSE: false });
   const [searchQuery, setSearchQuery] = useState("");
 
   // 2. Convert queue records to arrays (with safe fallbacks)

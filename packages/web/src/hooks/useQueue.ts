@@ -24,8 +24,9 @@ export const useQueue = (options: UseQueueOptions = {}) => {
   const query = useQuery({
     queryKey: ["queue"],
     queryFn: () => apiFetch<QueueResponse>("/queue"),
-    // Only poll if SSE is not connected or has errored (and SSE is enabled)
-    refetchInterval: enableSSE && isSSEConnected ? false : 5000,
+    // Only poll if SSE is enabled but not yet connected (fallback)
+    // If SSE is disabled, don't poll (rely on cache from root component)
+    refetchInterval: enableSSE && !isSSEConnected ? 5000 : false,
   });
 
   // Establish SSE connection for real-time updates (ONLY if enableSSE is true)
