@@ -53,8 +53,8 @@ function RootComponent() {
   const delayedCount = queue ? Object.keys(queue.delayed).length : 0;
   const totalActiveCount = queueingCount + downloadingCount + delayedCount;
 
-  // Get fulfilled requests count for badge
-  const fulfilledCount = requestStats?.fulfilled || 0;
+  // Get active requests count for badge
+  const activeCount = requestStats?.active || 0;
 
   return (
     <AppShell
@@ -136,9 +136,9 @@ function RootComponent() {
             label="Requests"
             leftSection={<IconBookmark size={20} />}
             rightSection={
-              fulfilledCount > 0 ? (
-                <Badge size="sm" variant="filled" color="green" circle>
-                  {fulfilledCount}
+              activeCount > 0 ? (
+                <Badge size="sm" variant="filled" color="blue" circle>
+                  {activeCount}
                 </Badge>
               ) : null
             }
