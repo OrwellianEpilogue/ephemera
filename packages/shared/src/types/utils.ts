@@ -25,7 +25,9 @@ export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
 /**
  * Make specific properties optional
  */
-export type WithOptional<T, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P] };
+export type WithOptional<T, K extends keyof T> = Omit<T, K> & {
+  [P in K]?: T[P];
+};
 
 /**
  * JSON-serializable types
@@ -42,7 +44,7 @@ export type JSONValue =
  * Type-safe environment variables
  */
 export interface TypedEnv {
-  NODE_ENV: 'development' | 'production' | 'test';
+  NODE_ENV: "development" | "production" | "test";
   PORT?: string;
   DATABASE_URL?: string;
   [key: string]: string | undefined;
@@ -84,7 +86,7 @@ export interface PaginatedResponse<T> {
  * Type guard for checking if a value is a non-null object
  */
 export function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -98,14 +100,14 @@ export function isArray(value: unknown): value is unknown[] {
  * Type guard for checking if a value is a string
  */
 export function isString(value: unknown): value is string {
-  return typeof value === 'string';
+  return typeof value === "string";
 }
 
 /**
  * Type guard for checking if a value is a number
  */
 export function isNumber(value: unknown): value is number {
-  return typeof value === 'number' && !isNaN(value);
+  return typeof value === "number" && !isNaN(value);
 }
 
 /**
@@ -124,12 +126,12 @@ export function safeJsonParse<T = unknown>(json: string): T | null {
  */
 export function toString(value: unknown): string {
   if (value === null || value === undefined) {
-    return '';
+    return "";
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return value;
   }
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     return JSON.stringify(value);
   }
   return String(value);

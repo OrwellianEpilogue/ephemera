@@ -6,7 +6,7 @@
 /**
  * Log levels supported by the logger
  */
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
 /**
  * Metadata that can be attached to log messages
@@ -40,8 +40,8 @@ export interface LogEntry {
  */
 export function isValidLogLevel(level: unknown): level is LogLevel {
   return (
-    typeof level === 'string' &&
-    ['debug', 'info', 'warn', 'error'].includes(level)
+    typeof level === "string" &&
+    ["debug", "info", "warn", "error"].includes(level)
   );
 }
 
@@ -50,7 +50,7 @@ export function isValidLogLevel(level: unknown): level is LogLevel {
  * Removes undefined values and ensures type safety
  */
 export function sanitizeLogMetadata(metadata: unknown): LogMetadata {
-  if (typeof metadata !== 'object' || metadata === null) {
+  if (typeof metadata !== "object" || metadata === null) {
     return {};
   }
 

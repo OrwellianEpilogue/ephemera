@@ -1,13 +1,17 @@
-import { eq, desc } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { eq, desc } from "drizzle-orm";
+import { db } from "../db/index.js";
 import {
   downloadRequests,
   books,
   type DownloadRequest,
   type NewDownloadRequest,
   type Book,
-} from '../db/schema.js';
-import type { RequestQueryParams, SavedRequestWithBook, Book as SharedBook } from '@ephemera/shared';
+} from "../db/schema.js";
+import type {
+  RequestQueryParams,
+  SavedRequestWithBook,
+  Book as SharedBook,
+} from "@ephemera/shared";
 
 // Re-export for convenience
 export type { RequestQueryParams };
@@ -49,30 +53,37 @@ class DownloadRequestsService {
    * Create a new download request
    * Checks for duplicate active requests with same query params
    */
-  async createRequest(queryParams: RequestQueryParams): Promise<DownloadRequest> {
+  async createRequest(
+    queryParams: RequestQueryParams,
+  ): Promise<DownloadRequest> {
     try {
       // Check for duplicate active request
       const existing = await this.findDuplicateActiveRequest(queryParams);
       if (existing) {
-        throw new Error('An active request with these search parameters already exists');
+        throw new Error(
+          "An active request with these search parameters already exists",
+        );
       }
 
       const now = Date.now();
       const newRequest: NewDownloadRequest = {
         queryParams,
-        status: 'active',
+        status: "active",
         createdAt: now,
         lastCheckedAt: null,
         fulfilledAt: null,
         fulfilledBookMd5: null,
       };
 
-      const result = await db.insert(downloadRequests).values(newRequest).returning();
+      const result = await db
+        .insert(downloadRequests)
+        .values(newRequest)
+        .returning();
 
-      console.log('[Download Requests] Created new request:', result[0].id);
+      console.log("[Download Requests] Created new request:", result[0].id);
       return result[0];
     } catch (error) {
-      console.error('[Download Requests] Error creating request:', error);
+      console.error("[Download Requests] Error creating request:", error);
       throw error;
     }
   }
@@ -81,7 +92,9 @@ class DownloadRequestsService {
    * Get all download requests with optional status filter
    * Returns requests with fulfilled book info if available
    */
-  async getAllRequests(statusFilter?: 'active' | 'fulfilled' | 'cancelled'): Promise<DownloadRequestWithBook[]> {
+  async getAllRequests(
+    statusFilter?: "active" | "fulfilled" | "cancelled",
+  ): Promise<DownloadRequestWithBook[]> {
     try {
       const query = db
         .select({
@@ -104,7 +117,7 @@ class DownloadRequestsService {
         fulfilledBook: convertDbBookToSharedBook(book),
       }));
     } catch (error) {
-      console.error('[Download Requests] Error fetching requests:', error);
+      console.error("[Download Requests] Error fetching requests:", error);
       throw error;
     }
   }
@@ -122,7 +135,7 @@ class DownloadRequestsService {
 
       return result[0] || null;
     } catch (error) {
-      console.error('[Download Requests] Error fetching request:', error);
+      console.error("[Download Requests] Error fetching request:", error);
       throw error;
     }
   }
@@ -135,12 +148,15 @@ class DownloadRequestsService {
       const results = await db
         .select()
         .from(downloadRequests)
-        .where(eq(downloadRequests.status, 'active'))
+        .where(eq(downloadRequests.status, "active"))
         .orderBy(downloadRequests.lastCheckedAt); // Check oldest first
 
       return results;
     } catch (error) {
-      console.error('[Download Requests] Error fetching active requests:', error);
+      console.error(
+        "[Download Requests] Error fetching active requests:",
+        error,
+      );
       return [];
     }
   }
@@ -154,15 +170,22 @@ class DownloadRequestsService {
       await db
         .update(downloadRequests)
         .set({
-          status: 'fulfilled',
+          status: "fulfilled",
           fulfilledAt: now,
           fulfilledBookMd5: bookMd5,
         })
         .where(eq(downloadRequests.id, id));
 
-      console.log('[Download Requests] Marked request as fulfilled:', id, bookMd5);
+      console.log(
+        "[Download Requests] Marked request as fulfilled:",
+        id,
+        bookMd5,
+      );
     } catch (error) {
-      console.error('[Download Requests] Error marking request as fulfilled:', error);
+      console.error(
+        "[Download Requests] Error marking request as fulfilled:",
+        error,
+      );
       throw error;
     }
   }
@@ -177,7 +200,7 @@ class DownloadRequestsService {
         .set({ lastCheckedAt: Date.now() })
         .where(eq(downloadRequests.id, id));
     } catch (error) {
-      console.error('[Download Requests] Error updating last checked:', error);
+      console.error("[Download Requests] Error updating last checked:", error);
       // Don't throw - this is not critical
     }
   }
@@ -188,9 +211,9 @@ class DownloadRequestsService {
   async deleteRequest(id: number): Promise<void> {
     try {
       await db.delete(downloadRequests).where(eq(downloadRequests.id, id));
-      console.log('[Download Requests] Deleted request:', id);
+      console.log("[Download Requests] Deleted request:", id);
     } catch (error) {
-      console.error('[Download Requests] Error deleting request:', error);
+      console.error("[Download Requests] Error deleting request:", error);
       throw error;
     }
   }
@@ -202,12 +225,12 @@ class DownloadRequestsService {
     try {
       await db
         .update(downloadRequests)
-        .set({ status: 'cancelled' })
+        .set({ status: "cancelled" })
         .where(eq(downloadRequests.id, id));
 
-      console.log('[Download Requests] Cancelled request:', id);
+      console.log("[Download Requests] Cancelled request:", id);
     } catch (error) {
-      console.error('[Download Requests] Error cancelling request:', error);
+      console.error("[Download Requests] Error cancelling request:", error);
       throw error;
     }
   }
@@ -219,24 +242,24 @@ class DownloadRequestsService {
     try {
       const request = await this.getRequestById(id);
       if (!request) {
-        throw new Error('Request not found');
+        throw new Error("Request not found");
       }
 
-      if (request.status !== 'cancelled') {
-        throw new Error('Only cancelled requests can be reactivated');
+      if (request.status !== "cancelled") {
+        throw new Error("Only cancelled requests can be reactivated");
       }
 
       await db
         .update(downloadRequests)
         .set({
-          status: 'active',
+          status: "active",
           lastCheckedAt: null, // Reset to be checked soon
         })
         .where(eq(downloadRequests.id, id));
 
-      console.log('[Download Requests] Reactivated request:', id);
+      console.log("[Download Requests] Reactivated request:", id);
     } catch (error) {
-      console.error('[Download Requests] Error reactivating request:', error);
+      console.error("[Download Requests] Error reactivating request:", error);
       throw error;
     }
   }
@@ -244,20 +267,25 @@ class DownloadRequestsService {
   /**
    * Get count of requests by status
    */
-  async getStats(): Promise<{ active: number; fulfilled: number; cancelled: number; total: number }> {
+  async getStats(): Promise<{
+    active: number;
+    fulfilled: number;
+    cancelled: number;
+    total: number;
+  }> {
     try {
       const allRequests = await db.select().from(downloadRequests);
 
       const stats = {
-        active: allRequests.filter((r) => r.status === 'active').length,
-        fulfilled: allRequests.filter((r) => r.status === 'fulfilled').length,
-        cancelled: allRequests.filter((r) => r.status === 'cancelled').length,
+        active: allRequests.filter((r) => r.status === "active").length,
+        fulfilled: allRequests.filter((r) => r.status === "fulfilled").length,
+        cancelled: allRequests.filter((r) => r.status === "cancelled").length,
         total: allRequests.length,
       };
 
       return stats;
     } catch (error) {
-      console.error('[Download Requests] Error getting stats:', error);
+      console.error("[Download Requests] Error getting stats:", error);
       return { active: 0, fulfilled: 0, cancelled: 0, total: 0 };
     }
   }
@@ -265,21 +293,28 @@ class DownloadRequestsService {
   /**
    * Check if a duplicate active request exists with the same query params
    */
-  private async findDuplicateActiveRequest(queryParams: RequestQueryParams): Promise<DownloadRequest | null> {
+  private async findDuplicateActiveRequest(
+    queryParams: RequestQueryParams,
+  ): Promise<DownloadRequest | null> {
     try {
       const activeRequests = await db
         .select()
         .from(downloadRequests)
-        .where(eq(downloadRequests.status, 'active'));
+        .where(eq(downloadRequests.status, "active"));
 
       // Find matching query params
       const duplicate = activeRequests.find((request) => {
-        return JSON.stringify(request.queryParams) === JSON.stringify(queryParams);
+        return (
+          JSON.stringify(request.queryParams) === JSON.stringify(queryParams)
+        );
       });
 
       return duplicate || null;
     } catch (error) {
-      console.error('[Download Requests] Error checking for duplicates:', error);
+      console.error(
+        "[Download Requests] Error checking for duplicates:",
+        error,
+      );
       return null;
     }
   }

@@ -1,5 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { Container, Title, Tabs, Stack, Center, Loader, Text, Badge, Group, Card, TextInput } from '@mantine/core';
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  Container,
+  Title,
+  Tabs,
+  Stack,
+  Center,
+  Loader,
+  Text,
+  Badge,
+  Group,
+  Card,
+  TextInput,
+} from "@mantine/core";
 import {
   IconDownload,
   IconClock,
@@ -10,16 +22,16 @@ import {
   IconRefresh,
   IconList,
   IconSearch,
-} from '@tabler/icons-react';
-import { useQueue } from '../hooks/useQueue';
-import { DownloadItem } from '../components/DownloadItem';
-import { useState, useMemo, useCallback } from 'react';
-import type { QueueItem } from '@ephemera/shared';
+} from "@tabler/icons-react";
+import { useQueue } from "../hooks/useQueue";
+import { DownloadItem } from "../components/DownloadItem";
+import { useState, useMemo, useCallback } from "react";
+import type { QueueItem } from "@ephemera/shared";
 
 function QueuePage() {
   // 1. Call ALL hooks first (before any conditional returns)
   const { data: queue, isLoading, isError } = useQueue();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   // 2. Convert queue records to arrays (with safe fallbacks)
   const downloading = Object.values(queue?.downloading || {});
@@ -31,29 +43,55 @@ function QueuePage() {
   const cancelled = Object.values(queue?.cancelled || {});
 
   // 3. Define all callbacks and memos
-  const filterDownloads = useCallback((items: QueueItem[]) => {
-    if (!searchQuery.trim()) return items;
-    const query = searchQuery.toLowerCase();
-    return items.filter((item) => {
-      return (
-        item.title?.toLowerCase().includes(query) ||
-        item.authors?.some((author: string) => author.toLowerCase().includes(query)) ||
-        item.md5?.toLowerCase().includes(query) ||
-        item.format?.toLowerCase().includes(query) ||
-        item.language?.toLowerCase().includes(query) ||
-        item.publisher?.toLowerCase().includes(query)
-      );
-    });
-  }, [searchQuery]);
+  const filterDownloads = useCallback(
+    (items: QueueItem[]) => {
+      if (!searchQuery.trim()) return items;
+      const query = searchQuery.toLowerCase();
+      return items.filter((item) => {
+        return (
+          item.title?.toLowerCase().includes(query) ||
+          item.authors?.some((author: string) =>
+            author.toLowerCase().includes(query),
+          ) ||
+          item.md5?.toLowerCase().includes(query) ||
+          item.format?.toLowerCase().includes(query) ||
+          item.language?.toLowerCase().includes(query) ||
+          item.publisher?.toLowerCase().includes(query)
+        );
+      });
+    },
+    [searchQuery],
+  );
 
   // Apply filters to each category
-  const filteredDownloading = useMemo(() => filterDownloads(downloading), [downloading, filterDownloads]);
-  const filteredQueued = useMemo(() => filterDownloads(queued), [queued, filterDownloads]);
-  const filteredAvailable = useMemo(() => filterDownloads(available), [available, filterDownloads]);
-  const filteredDone = useMemo(() => filterDownloads(done), [done, filterDownloads]);
-  const filteredDelayed = useMemo(() => filterDownloads(delayed), [delayed, filterDownloads]);
-  const filteredError = useMemo(() => filterDownloads(error), [error, filterDownloads]);
-  const filteredCancelled = useMemo(() => filterDownloads(cancelled), [cancelled, filterDownloads]);
+  const filteredDownloading = useMemo(
+    () => filterDownloads(downloading),
+    [downloading, filterDownloads],
+  );
+  const filteredQueued = useMemo(
+    () => filterDownloads(queued),
+    [queued, filterDownloads],
+  );
+  const filteredAvailable = useMemo(
+    () => filterDownloads(available),
+    [available, filterDownloads],
+  );
+  const filteredDone = useMemo(
+    () => filterDownloads(done),
+    [done, filterDownloads],
+  );
+  const filteredDelayed = useMemo(
+    () => filterDownloads(delayed),
+    [delayed, filterDownloads],
+  );
+  const filteredError = useMemo(
+    () => filterDownloads(error),
+    [error, filterDownloads],
+  );
+  const filteredCancelled = useMemo(
+    () => filterDownloads(cancelled),
+    [cancelled, filterDownloads],
+  );
 
   // Combine all downloads and sort by queuedAt (newest first)
   const allDownloads = useMemo(() => {
@@ -71,7 +109,15 @@ function QueuePage() {
       const timeB = b.queuedAt ? new Date(b.queuedAt).getTime() : 0;
       return timeB - timeA;
     });
-  }, [filteredDownloading, filteredQueued, filteredAvailable, filteredDone, filteredDelayed, filteredError, filteredCancelled]);
+  }, [
+    filteredDownloading,
+    filteredQueued,
+    filteredAvailable,
+    filteredDone,
+    filteredDelayed,
+    filteredError,
+    filteredCancelled,
+  ]);
 
   const totalActive = downloading.length + queued.length + delayed.length;
 
@@ -106,7 +152,12 @@ function QueuePage() {
         <Group justify="space-between">
           <Title order={1}>Download Queue</Title>
           {totalActive > 0 && (
-            <Badge size="lg" variant="filled" color="blue" leftSection={<IconRefresh size={16} />}>
+            <Badge
+              size="lg"
+              variant="filled"
+              color="blue"
+              leftSection={<IconRefresh size={16} />}
+            >
               {totalActive} active
             </Badge>
           )}
@@ -273,7 +324,11 @@ function QueuePage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconDownload size={48} opacity={0.3} />
-                  <Text c="dimmed">{searchQuery ? 'No matching downloads' : 'No active downloads'}</Text>
+                  <Text c="dimmed">
+                    {searchQuery
+                      ? "No matching downloads"
+                      : "No active downloads"}
+                  </Text>
                 </Stack>
               </Center>
             )}
@@ -291,7 +346,11 @@ function QueuePage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconClock size={48} opacity={0.3} />
-                  <Text c="dimmed">{searchQuery ? 'No matching downloads' : 'No queued downloads'}</Text>
+                  <Text c="dimmed">
+                    {searchQuery
+                      ? "No matching downloads"
+                      : "No queued downloads"}
+                  </Text>
                 </Stack>
               </Center>
             )}
@@ -309,7 +368,11 @@ function QueuePage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconFolderCheck size={48} opacity={0.3} />
-                  <Text c="dimmed">{searchQuery ? 'No matching downloads' : 'No available downloads'}</Text>
+                  <Text c="dimmed">
+                    {searchQuery
+                      ? "No matching downloads"
+                      : "No available downloads"}
+                  </Text>
                 </Stack>
               </Center>
             )}
@@ -327,7 +390,11 @@ function QueuePage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconCheck size={48} opacity={0.3} />
-                  <Text c="dimmed">{searchQuery ? 'No matching downloads' : 'No completed downloads in temp folder'}</Text>
+                  <Text c="dimmed">
+                    {searchQuery
+                      ? "No matching downloads"
+                      : "No completed downloads in temp folder"}
+                  </Text>
                 </Stack>
               </Center>
             )}
@@ -341,7 +408,8 @@ function QueuePage() {
                   <Group gap="xs">
                     <IconClock size={16} />
                     <Text size="sm">
-                      These downloads are delayed due to quota limits. They will retry automatically.
+                      These downloads are delayed due to quota limits. They will
+                      retry automatically.
                     </Text>
                   </Group>
                 </Card>
@@ -355,7 +423,11 @@ function QueuePage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconClock size={48} opacity={0.3} />
-                  <Text c="dimmed">{searchQuery ? 'No matching downloads' : 'No delayed downloads'}</Text>
+                  <Text c="dimmed">
+                    {searchQuery
+                      ? "No matching downloads"
+                      : "No delayed downloads"}
+                  </Text>
                 </Stack>
               </Center>
             )}
@@ -369,7 +441,8 @@ function QueuePage() {
                   <Group gap="xs">
                     <IconAlertCircle size={16} />
                     <Text size="sm">
-                      These downloads failed. Check the error messages for details.
+                      These downloads failed. Check the error messages for
+                      details.
                     </Text>
                   </Group>
                 </Card>
@@ -383,7 +456,11 @@ function QueuePage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconAlertCircle size={48} opacity={0.3} />
-                  <Text c="dimmed">{searchQuery ? 'No matching downloads' : 'No failed downloads'}</Text>
+                  <Text c="dimmed">
+                    {searchQuery
+                      ? "No matching downloads"
+                      : "No failed downloads"}
+                  </Text>
                 </Stack>
               </Center>
             )}
@@ -401,7 +478,11 @@ function QueuePage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconX size={48} opacity={0.3} />
-                  <Text c="dimmed">{searchQuery ? 'No matching downloads' : 'No cancelled downloads'}</Text>
+                  <Text c="dimmed">
+                    {searchQuery
+                      ? "No matching downloads"
+                      : "No cancelled downloads"}
+                  </Text>
                 </Stack>
               </Center>
             )}
@@ -412,6 +493,6 @@ function QueuePage() {
   );
 }
 
-export const Route = createFileRoute('/queue')({
+export const Route = createFileRoute("/queue")({
   component: QueuePage,
 });

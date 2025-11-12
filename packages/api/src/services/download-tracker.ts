@@ -1,8 +1,8 @@
-import { eq, like, or, sql, desc } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { downloads, type Download, type NewDownload } from '../db/schema.js';
-import type { DownloadStatus, QueueItem } from '@ephemera/shared';
-import { logger } from '../utils/logger.js';
+import { eq, like, or, sql, desc } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { downloads, type Download, type NewDownload } from "../db/schema.js";
+import type { DownloadStatus, QueueItem } from "@ephemera/shared";
+import { logger } from "../utils/logger.js";
 
 export class DownloadTracker {
   async create(data: NewDownload): Promise<Download> {
@@ -10,7 +10,7 @@ export class DownloadTracker {
       const result = await db.insert(downloads).values(data).returning();
       return result[0];
     } catch (error) {
-      logger.error('Failed to create download record:', error);
+      logger.error("Failed to create download record:", error);
       throw error;
     }
   }
@@ -30,7 +30,10 @@ export class DownloadTracker {
     }
   }
 
-  async update(md5: string, data: Partial<NewDownload>): Promise<Download | undefined> {
+  async update(
+    md5: string,
+    data: Partial<NewDownload>,
+  ): Promise<Download | undefined> {
     try {
       const result = await db
         .update(downloads)
@@ -45,7 +48,13 @@ export class DownloadTracker {
     }
   }
 
-  async updateProgress(md5: string, downloadedBytes: number, totalBytes: number, speed?: string, eta?: number): Promise<void> {
+  async updateProgress(
+    md5: string,
+    downloadedBytes: number,
+    totalBytes: number,
+    speed?: string,
+    eta?: number,
+  ): Promise<void> {
     const progress = totalBytes > 0 ? (downloadedBytes / totalBytes) * 100 : 0;
 
     await this.update(md5, {
@@ -59,7 +68,7 @@ export class DownloadTracker {
 
   async markStarted(md5: string, tempPath: string): Promise<void> {
     await this.update(md5, {
-      status: 'downloading',
+      status: "downloading",
       startedAt: Date.now(),
       tempPath,
     });
@@ -68,7 +77,7 @@ export class DownloadTracker {
   async markCompleted(md5: string): Promise<void> {
     const download = await this.get(md5);
     await this.update(md5, {
-      status: 'done',
+      status: "done",
       completedAt: Date.now(),
       progress: 100,
       downloadedBytes: download?.size || undefined,
@@ -77,7 +86,7 @@ export class DownloadTracker {
 
   async markAvailable(md5: string, finalPath: string | null): Promise<void> {
     await this.update(md5, {
-      status: 'available',
+      status: "available",
       finalPath: finalPath || undefined,
     });
   }
@@ -87,7 +96,7 @@ export class DownloadTracker {
     const retryCount = (download?.retryCount || 0) + 1;
 
     await this.update(md5, {
-      status: 'error',
+      status: "error",
       error,
       retryCount,
     });
@@ -95,12 +104,16 @@ export class DownloadTracker {
 
   async markCancelled(md5: string): Promise<void> {
     await this.update(md5, {
-      status: 'cancelled',
+      status: "cancelled",
     });
   }
 
   // Quota tracking methods
-  async updateQuotaInfo(md5: string, downloadsLeft: number, downloadsPerDay: number): Promise<void> {
+  async updateQuotaInfo(
+    md5: string,
+    downloadsLeft: number,
+    downloadsPerDay: number,
+  ): Promise<void> {
     await this.update(md5, {
       downloadsLeft,
       downloadsPerDay,
@@ -126,20 +139,20 @@ export class DownloadTracker {
   // Booklore upload status methods
   async markUploadPending(md5: string): Promise<void> {
     await this.update(md5, {
-      uploadStatus: 'pending',
+      uploadStatus: "pending",
       uploadError: null,
     });
   }
 
   async markUploadStarted(md5: string): Promise<void> {
     await this.update(md5, {
-      uploadStatus: 'uploading',
+      uploadStatus: "uploading",
     });
   }
 
   async markUploadCompleted(md5: string): Promise<void> {
     await this.update(md5, {
-      uploadStatus: 'completed',
+      uploadStatus: "completed",
       uploadedAt: Date.now(),
       uploadError: null,
     });
@@ -147,25 +160,30 @@ export class DownloadTracker {
 
   async markUploadFailed(md5: string, error: string): Promise<void> {
     await this.update(md5, {
-      uploadStatus: 'failed',
+      uploadStatus: "failed",
       uploadError: error,
     });
   }
 
-  async getByUploadStatus(uploadStatus: 'pending' | 'uploading' | 'completed' | 'failed'): Promise<Download[]> {
+  async getByUploadStatus(
+    uploadStatus: "pending" | "uploading" | "completed" | "failed",
+  ): Promise<Download[]> {
     try {
       return await db
         .select()
         .from(downloads)
         .where(eq(downloads.uploadStatus, uploadStatus));
     } catch (error) {
-      logger.error(`Failed to get downloads by upload status ${uploadStatus}:`, error);
+      logger.error(
+        `Failed to get downloads by upload status ${uploadStatus}:`,
+        error,
+      );
       throw error;
     }
   }
 
   async getPendingUploads(): Promise<Download[]> {
-    return await this.getByUploadStatus('pending');
+    return await this.getByUploadStatus("pending");
   }
 
   async getByStatus(status: DownloadStatus): Promise<Download[]> {
@@ -181,7 +199,9 @@ export class DownloadTracker {
     }
   }
 
-  async getStatusByMd5s(md5s: string[]): Promise<Array<{ md5: string; status: DownloadStatus }>> {
+  async getStatusByMd5s(
+    md5s: string[],
+  ): Promise<Array<{ md5: string; status: DownloadStatus }>> {
     try {
       if (md5s.length === 0) return [];
 
@@ -192,13 +212,13 @@ export class DownloadTracker {
 
       // Filter by md5s
       return results
-        .filter(result => md5s.includes(result.md5))
-        .map(result => ({
+        .filter((result) => md5s.includes(result.md5))
+        .map((result) => ({
           md5: result.md5,
           status: result.status as DownloadStatus,
         }));
     } catch (error) {
-      logger.error('Failed to get statuses by md5s:', error);
+      logger.error("Failed to get statuses by md5s:", error);
       throw error;
     }
   }
@@ -210,18 +230,23 @@ export class DownloadTracker {
         .from(downloads)
         .where(
           or(
-            eq(downloads.status, 'queued'),
-            eq(downloads.status, 'downloading'),
-            eq(downloads.status, 'delayed')
-          )
+            eq(downloads.status, "queued"),
+            eq(downloads.status, "downloading"),
+            eq(downloads.status, "delayed"),
+          ),
         );
     } catch (error) {
-      logger.error('Failed to get incomplete downloads:', error);
+      logger.error("Failed to get incomplete downloads:", error);
       throw error;
     }
   }
 
-  async search(searchTerm: string, status?: DownloadStatus, limit: number = 50, offset: number = 0): Promise<Download[]> {
+  async search(
+    searchTerm: string,
+    status?: DownloadStatus,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<Download[]> {
     try {
       let query = db.select().from(downloads);
 
@@ -237,15 +262,15 @@ export class DownloadTracker {
           or(
             like(downloads.title, searchPattern),
             like(downloads.author, searchPattern),
-            like(downloads.filename, searchPattern)
-          )
+            like(downloads.filename, searchPattern),
+          ),
         ) as typeof query;
       }
 
       // Apply pagination
       return await query.limit(limit).offset(offset);
     } catch (error) {
-      logger.error('Failed to search downloads:', error);
+      logger.error("Failed to search downloads:", error);
       throw error;
     }
   }
@@ -285,16 +310,16 @@ export class DownloadTracker {
         }
 
         switch (stat.status) {
-          case 'available':
+          case "available":
             available = count;
             break;
-          case 'downloading':
+          case "downloading":
             downloading = count;
             break;
-          case 'queued':
+          case "queued":
             queued = count;
             break;
-          case 'error':
+          case "error":
             errors = count;
             break;
         }
@@ -312,7 +337,7 @@ export class DownloadTracker {
         successRate,
       };
     } catch (error) {
-      logger.error('Failed to get stats:', error);
+      logger.error("Failed to get stats:", error);
       throw error;
     }
   }
@@ -330,19 +355,29 @@ export class DownloadTracker {
       error: download.error || undefined,
       filePath: download.finalPath || undefined,
       queuedAt: new Date(download.queuedAt).toISOString(),
-      startedAt: download.startedAt ? new Date(download.startedAt).toISOString() : undefined,
-      completedAt: download.completedAt ? new Date(download.completedAt).toISOString() : undefined,
+      startedAt: download.startedAt
+        ? new Date(download.startedAt).toISOString()
+        : undefined,
+      completedAt: download.completedAt
+        ? new Date(download.completedAt).toISOString()
+        : undefined,
       // Retry tracking
       retryCount: download.retryCount || undefined,
       delayedRetryCount: download.delayedRetryCount || undefined,
-      nextRetryAt: download.nextRetryAt ? new Date(download.nextRetryAt).toISOString() : undefined,
+      nextRetryAt: download.nextRetryAt
+        ? new Date(download.nextRetryAt).toISOString()
+        : undefined,
       // Quota tracking
       downloadsLeft: download.downloadsLeft || undefined,
       downloadsPerDay: download.downloadsPerDay || undefined,
-      quotaCheckedAt: download.quotaCheckedAt ? new Date(download.quotaCheckedAt).toISOString() : undefined,
+      quotaCheckedAt: download.quotaCheckedAt
+        ? new Date(download.quotaCheckedAt).toISOString()
+        : undefined,
       // Optional Booklore upload fields
       uploadStatus: download.uploadStatus || undefined,
-      uploadedAt: download.uploadedAt ? new Date(download.uploadedAt).toISOString() : undefined,
+      uploadedAt: download.uploadedAt
+        ? new Date(download.uploadedAt).toISOString()
+        : undefined,
       uploadError: download.uploadError || undefined,
     };
   }

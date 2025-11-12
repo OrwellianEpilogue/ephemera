@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { useQueue } from './useQueue';
-import type { QueueItem, DownloadStatus } from '@ephemera/shared';
+import { useMemo } from "react";
+import { useQueue } from "./useQueue";
+import type { QueueItem, DownloadStatus } from "@ephemera/shared";
 
 /**
  * Hook to get the live download status of a book from the queue cache.
@@ -12,7 +12,7 @@ import type { QueueItem, DownloadStatus } from '@ephemera/shared';
  */
 export const useBookStatus = (
   md5: string,
-  fallbackStatus?: DownloadStatus | null
+  fallbackStatus?: DownloadStatus | null,
 ) => {
   // Read from queue cache (no SSE connection, just cache reads)
   const { data: queue } = useQueue({ enableSSE: false });
@@ -23,13 +23,13 @@ export const useBookStatus = (
 
     // Check each queue category for this book's MD5
     const categories = [
-      'available',
-      'queued',
-      'downloading',
-      'delayed',
-      'error',
-      'cancelled',
-      'done',
+      "available",
+      "queued",
+      "downloading",
+      "delayed",
+      "error",
+      "cancelled",
+      "done",
     ] as const;
 
     for (const category of categories) {
@@ -56,10 +56,10 @@ export const useBookStatus = (
     queueItem,
     // Convenience flags
     isInQueue: queueItem !== null,
-    isDownloading: queueItem?.status === 'downloading',
-    isQueued: queueItem?.status === 'queued',
-    isAvailable: queueItem?.status === 'available',
-    isDelayed: queueItem?.status === 'delayed',
-    isError: queueItem?.status === 'error',
+    isDownloading: queueItem?.status === "downloading",
+    isQueued: queueItem?.status === "queued",
+    isAvailable: queueItem?.status === "available",
+    isDelayed: queueItem?.status === "delayed",
+    isError: queueItem?.status === "error",
   };
 };

@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute } from "@tanstack/react-router";
 import {
   Container,
   Title,
@@ -12,25 +12,29 @@ import {
   Card,
   ActionIcon,
   Tooltip,
-} from '@mantine/core';
+} from "@mantine/core";
 import {
   IconBookmark,
   IconClock,
   IconCheck,
   IconTrash,
   IconRefresh,
-} from '@tabler/icons-react';
-import { useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { useRequests, useRequestStats, useDeleteRequest } from '../hooks/useRequests';
-import type { SavedRequestWithBook } from '@ephemera/shared';
+} from "@tabler/icons-react";
+import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import {
+  useRequests,
+  useRequestStats,
+  useDeleteRequest,
+} from "../hooks/useRequests";
+import type { SavedRequestWithBook } from "@ephemera/shared";
 
 // Request card component
 function RequestCard({ request }: { request: SavedRequestWithBook }) {
   const deleteRequest = useDeleteRequest();
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this request?')) {
+    if (confirm("Are you sure you want to delete this request?")) {
       deleteRequest.mutate(request.id);
     }
   };
@@ -47,28 +51,29 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
 
   const extArray = toArray(params.ext);
   if (extArray.length > 0) {
-    filters.push(`Format: ${extArray.join(', ')}`);
+    filters.push(`Format: ${extArray.join(", ")}`);
   }
 
   const langArray = toArray(params.lang);
   if (langArray.length > 0) {
-    filters.push(`Language: ${langArray.join(', ')}`);
+    filters.push(`Language: ${langArray.join(", ")}`);
   }
 
   const contentArray = toArray(params.content);
   if (contentArray.length > 0) {
-    filters.push(`Content: ${contentArray.join(', ')}`);
+    filters.push(`Content: ${contentArray.join(", ")}`);
   }
 
   if (params.sort) {
     filters.push(`Sort: ${params.sort}`);
   }
 
-  const statusColor = {
-    active: 'blue',
-    fulfilled: 'green',
-    cancelled: 'gray',
-  }[request.status as string] || 'gray';
+  const statusColor =
+    {
+      active: "blue",
+      fulfilled: "green",
+      cancelled: "gray",
+    }[request.status as string] || "gray";
 
   return (
     <Card withBorder padding="md">
@@ -76,8 +81,8 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs">
             <IconBookmark size={18} />
-            <Text fw={500} style={{ wordBreak: 'break-word' }}>
-              {params.q || 'Unknown search'}
+            <Text fw={500} style={{ wordBreak: "break-word" }}>
+              {params.q || "Unknown search"}
             </Text>
           </Group>
           <Group gap="xs">
@@ -107,11 +112,17 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
           </Group>
         )}
 
-        <Group gap="md" style={{ fontSize: '0.85rem', color: 'var(--mantine-color-dimmed)' }}>
+        <Group
+          gap="md"
+          style={{ fontSize: "0.85rem", color: "var(--mantine-color-dimmed)" }}
+        >
           <Group gap={4}>
             <IconClock size={14} />
             <Text size="xs">
-              Created {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
+              Created{" "}
+              {formatDistanceToNow(new Date(request.createdAt), {
+                addSuffix: true,
+              })}
             </Text>
           </Group>
 
@@ -119,7 +130,10 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
             <Group gap={4}>
               <IconRefresh size={14} />
               <Text size="xs">
-                Last checked {formatDistanceToNow(new Date(request.lastCheckedAt), { addSuffix: true })}
+                Last checked{" "}
+                {formatDistanceToNow(new Date(request.lastCheckedAt), {
+                  addSuffix: true,
+                })}
               </Text>
             </Group>
           )}
@@ -128,24 +142,28 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
             <Group gap={4}>
               <IconCheck size={14} />
               <Text size="xs">
-                Fulfilled {formatDistanceToNow(new Date(request.fulfilledAt), { addSuffix: true })}
+                Fulfilled{" "}
+                {formatDistanceToNow(new Date(request.fulfilledAt), {
+                  addSuffix: true,
+                })}
               </Text>
             </Group>
           )}
         </Group>
 
-        {request.status === 'fulfilled' && request.fulfilledBook && (
+        {request.status === "fulfilled" && request.fulfilledBook && (
           <Card withBorder bg="var(--mantine-color-green-light)">
             <Stack gap={4}>
               <Text size="sm" fw={500} c="green">
                 Book found & sent to queue
               </Text>
               <Text size="xs">{request.fulfilledBook.title}</Text>
-              {request.fulfilledBook.authors && request.fulfilledBook.authors.length > 0 && (
-                <Text size="xs" c="dimmed">
-                  by {request.fulfilledBook.authors.join(', ')}
-                </Text>
-              )}
+              {request.fulfilledBook.authors &&
+                request.fulfilledBook.authors.length > 0 && (
+                  <Text size="xs" c="dimmed">
+                    by {request.fulfilledBook.authors.join(", ")}
+                  </Text>
+                )}
               <Group gap={4}>
                 {request.fulfilledBook.format && (
                   <Badge size="xs" variant="light">
@@ -173,10 +191,13 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
 
 // Main Requests page
 function RequestsPage() {
-  const [activeTab, setActiveTab] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>("all");
 
   // Fetch requests based on active tab
-  const statusFilter = activeTab === 'all' ? undefined : (activeTab as 'active' | 'fulfilled' | 'cancelled');
+  const statusFilter =
+    activeTab === "all"
+      ? undefined
+      : (activeTab as "active" | "fulfilled" | "cancelled");
   const { data: requests, isLoading, isError } = useRequests(statusFilter);
   const { data: stats } = useRequestStats();
 
@@ -201,10 +222,10 @@ function RequestsPage() {
   }
 
   const tabColors: Record<string, string> = {
-    all: 'grape',
-    active: 'blue',
-    fulfilled: 'green',
-    cancelled: 'gray',
+    all: "grape",
+    active: "blue",
+    fulfilled: "green",
+    cancelled: "gray",
   };
 
   return (
@@ -228,7 +249,10 @@ function RequestsPage() {
           Saved search requests that are automatically checked for new results
         </Text>
 
-        <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'all')}>
+        <Tabs
+          value={activeTab}
+          onChange={(value) => setActiveTab(value || "all")}
+        >
           <Tabs.List>
             <Tabs.Tab
               value="all"
@@ -275,10 +299,7 @@ function RequestsPage() {
             {requests && requests.length > 0 ? (
               <Stack gap="md">
                 {requests.map((request) => (
-                  <RequestCard
-                    key={request.id}
-                    request={request}
-                  />
+                  <RequestCard key={request.id} request={request} />
                 ))}
               </Stack>
             ) : (
@@ -287,8 +308,8 @@ function RequestsPage() {
                   <IconBookmark size={48} opacity={0.3} />
                   <Text c="dimmed">No requests found</Text>
                   <Text size="sm" c="dimmed">
-                    {activeTab === 'all'
-                      ? 'Search for a book and save it as a request when no results are found'
+                    {activeTab === "all"
+                      ? "Search for a book and save it as a request when no results are found"
                       : `No ${activeTab} requests`}
                   </Text>
                 </Stack>
@@ -301,6 +322,6 @@ function RequestsPage() {
   );
 }
 
-export const Route = createFileRoute('/requests')({
+export const Route = createFileRoute("/requests")({
   component: RequestsPage,
 });

@@ -16,6 +16,8 @@
     "type-check": "pnpm -r type-check",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "clean": "pnpm -r clean",
     "db:generate": "pnpm --filter @ephemera/api db:generate",
     "db:migrate": "pnpm --filter @ephemera/api db:migrate",
@@ -35,8 +37,10 @@
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
+    "prettier": "^3.6.2",
     "typescript": "^5.7.2"
   },
   "engines": {
@@ -45,6 +49,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
+      "prettier --write",
       "eslint --fix --max-warnings 0",
       "bash -c 'pnpm type-check'"
     ]

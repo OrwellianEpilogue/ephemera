@@ -1,18 +1,18 @@
-import { EventEmitter } from 'events';
-import { downloadTracker } from './download-tracker.js';
-import { downloader } from './downloader.js';
-import { fileManager } from '../utils/file-manager.js';
-import { logger } from '../utils/logger.js';
-import { bookloreSettingsService } from './booklore-settings.js';
-import { bookloreUploader } from './booklore-uploader.js';
-import { appSettingsService } from './app-settings.js';
-import { appriseService } from './apprise.js';
-import { bookService } from './book-service.js';
-import type { QueueResponse, QueueItem } from '@ephemera/shared';
-import { getErrorMessage } from '@ephemera/shared';
-import type { Download } from '../db/schema.js';
+import { EventEmitter } from "events";
+import { downloadTracker } from "./download-tracker.js";
+import { downloader } from "./downloader.js";
+import { fileManager } from "../utils/file-manager.js";
+import { logger } from "../utils/logger.js";
+import { bookloreSettingsService } from "./booklore-settings.js";
+import { bookloreUploader } from "./booklore-uploader.js";
+import { appSettingsService } from "./app-settings.js";
+import { appriseService } from "./apprise.js";
+import { bookService } from "./book-service.js";
+import type { QueueResponse, QueueItem } from "@ephemera/shared";
+import { getErrorMessage } from "@ephemera/shared";
+import type { Download } from "../db/schema.js";
 
-const MAX_RETRY_ATTEMPTS = parseInt(process.env.RETRY_ATTEMPTS || '3');
+const MAX_RETRY_ATTEMPTS = parseInt(process.env.RETRY_ATTEMPTS || "3");
 const MAX_DELAYED_RETRY_ATTEMPTS = 24; // 24 hours of hourly retries
 const DELAYED_RETRY_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
 
@@ -40,24 +40,26 @@ export class QueueManager extends EventEmitter {
   private async emitQueueUpdate() {
     try {
       const status = await this.getQueueStatus();
-      this.emit('queue-updated', status);
+      this.emit("queue-updated", status);
     } catch (error) {
-      logger.error('Failed to emit queue update:', error);
+      logger.error("Failed to emit queue update:", error);
     }
   }
 
   private async resumeIncompleteDownloads() {
     try {
-      logger.info('Checking for incomplete downloads...');
+      logger.info("Checking for incomplete downloads...");
       const incomplete = await downloadTracker.getIncomplete();
 
       if (incomplete.length > 0) {
-        logger.info(`Found ${incomplete.length} incomplete downloads, resuming...`);
+        logger.info(
+          `Found ${incomplete.length} incomplete downloads, resuming...`,
+        );
 
         for (const download of incomplete) {
           // Reset downloading status to queued
-          if (download.status === 'downloading') {
-            await downloadTracker.update(download.md5, { status: 'queued' });
+          if (download.status === "downloading") {
+            await downloadTracker.update(download.md5, { status: "queued" });
           }
 
           // Keep delayed status - the queue processor will skip it until nextRetryAt
@@ -74,15 +76,15 @@ export class QueueManager extends EventEmitter {
         // Start processing
         this.processQueue();
       } else {
-        logger.info('No incomplete downloads found');
+        logger.info("No incomplete downloads found");
       }
     } catch (error) {
-      logger.error('Failed to resume incomplete downloads:', error);
+      logger.error("Failed to resume incomplete downloads:", error);
     }
   }
 
   async addToQueue(
-    md5: string
+    md5: string,
   ): Promise<{ status: string; position?: number; existing?: Download }> {
     // Get book data from database (should already exist from search)
     const book = await bookService.getBook(md5);
@@ -94,27 +96,31 @@ export class QueueManager extends EventEmitter {
     const existing = await downloadTracker.get(md5);
 
     if (existing) {
-      if (existing.status === 'available') {
+      if (existing.status === "available") {
         return {
-          status: 'already_downloaded',
+          status: "already_downloaded",
           existing,
         };
       }
 
-      if (existing.status === 'queued' || existing.status === 'downloading' || existing.status === 'delayed') {
-        const position = this.queue.findIndex(q => q.md5 === md5);
+      if (
+        existing.status === "queued" ||
+        existing.status === "downloading" ||
+        existing.status === "delayed"
+      ) {
+        const position = this.queue.findIndex((q) => q.md5 === md5);
         return {
-          status: 'already_in_queue',
+          status: "already_in_queue",
           position: position >= 0 ? position + 1 : undefined,
           existing,
         };
       }
 
       // If error or cancelled, allow re-download
-      if (existing.status === 'error' || existing.status === 'cancelled') {
+      if (existing.status === "error" || existing.status === "cancelled") {
         logger.info(`Re-queueing ${md5} (previous status: ${existing.status})`);
         await downloadTracker.update(md5, {
-          status: 'queued',
+          status: "queued",
           error: null,
           queuedAt: Date.now(),
         });
@@ -124,7 +130,7 @@ export class QueueManager extends EventEmitter {
       await downloadTracker.create({
         md5,
         title,
-        status: 'queued',
+        status: "queued",
         pathIndex,
         domainIndex,
         queuedAt: Date.now(),
@@ -141,7 +147,7 @@ export class QueueManager extends EventEmitter {
     this.emitQueueUpdate();
 
     // Send Apprise notification for book queued
-    await appriseService.send('book_queued', {
+    await appriseService.send("book_queued", {
       title,
       authors: book?.authors,
       md5,
@@ -153,7 +159,7 @@ export class QueueManager extends EventEmitter {
       this.processQueue();
     }
 
-    return { status: 'queued', position };
+    return { status: "queued", position };
   }
 
   private async processQueue() {
@@ -170,21 +176,27 @@ export class QueueManager extends EventEmitter {
       // Check if this item is delayed and not ready for retry yet
       const download = await downloadTracker.get(item.md5);
       if (download?.nextRetryAt && download.nextRetryAt > Date.now()) {
-        const waitTime = Math.ceil((download.nextRetryAt - Date.now()) / 1000 / 60);
-        logger.info(`Skipping ${item.md5} - scheduled for retry in ${waitTime} minutes`);
+        const waitTime = Math.ceil(
+          (download.nextRetryAt - Date.now()) / 1000 / 60,
+        );
+        logger.info(
+          `Skipping ${item.md5} - scheduled for retry in ${waitTime} minutes`,
+        );
         // Push back to end of queue
         this.queue.push(item);
 
         // Check if all items in queue are delayed (properly handle async)
         const delayedChecks = await Promise.all(
-          this.queue.map(async q => {
+          this.queue.map(async (q) => {
             const d = await downloadTracker.get(q.md5);
             return d?.nextRetryAt && d.nextRetryAt > Date.now();
-          })
+          }),
         );
 
-        if (delayedChecks.every(isDelayed => isDelayed)) {
-          logger.info('All items in queue are delayed, pausing queue processing for 5 minutes');
+        if (delayedChecks.every((isDelayed) => isDelayed)) {
+          logger.info(
+            "All items in queue are delayed, pausing queue processing for 5 minutes",
+          );
           this.isProcessing = false;
           // Schedule next check in 5 minutes
           setTimeout(() => this.processQueue(), 5 * 60 * 1000);
@@ -211,7 +223,7 @@ export class QueueManager extends EventEmitter {
     }
 
     this.isProcessing = false;
-    logger.info('Queue processing completed');
+    logger.info("Queue processing completed");
   }
 
   private async processDownload(item: QueuedDownload) {
@@ -232,7 +244,7 @@ export class QueueManager extends EventEmitter {
     const retryCount = download.retryCount || 0;
     if (retryCount >= MAX_RETRY_ATTEMPTS) {
       logger.error(`Max retry attempts reached for ${md5}`);
-      await downloadTracker.markError(md5, 'Max retry attempts reached');
+      await downloadTracker.markError(md5, "Max retry attempts reached");
       this.emitQueueUpdate();
       return;
     }
@@ -250,7 +262,8 @@ export class QueueManager extends EventEmitter {
       // Handle quota errors differently (delayed retry)
       if (result.isQuotaError) {
         const updatedDownload = await downloadTracker.get(md5);
-        const currentDelayedRetryCount = updatedDownload?.delayedRetryCount || 0;
+        const currentDelayedRetryCount =
+          updatedDownload?.delayedRetryCount || 0;
 
         if (currentDelayedRetryCount < MAX_DELAYED_RETRY_ATTEMPTS) {
           // Calculate next retry time (1 hour from now)
@@ -259,16 +272,18 @@ export class QueueManager extends EventEmitter {
 
           // Increment delayed retry count and mark as delayed
           await downloadTracker.update(md5, {
-            status: 'delayed',
+            status: "delayed",
             error: result.error,
             delayedRetryCount: currentDelayedRetryCount + 1,
             nextRetryAt,
           });
 
-          logger.info(`${md5} delayed until ${nextRetryDate} (delayed attempt ${currentDelayedRetryCount + 1}/${MAX_DELAYED_RETRY_ATTEMPTS})`);
+          logger.info(
+            `${md5} delayed until ${nextRetryDate} (delayed attempt ${currentDelayedRetryCount + 1}/${MAX_DELAYED_RETRY_ATTEMPTS})`,
+          );
 
           // Send Apprise notification for delayed download
-          await appriseService.send('delayed', {
+          await appriseService.send("delayed", {
             title: item.title,
             authors: book?.authors,
             md5,
@@ -283,7 +298,7 @@ export class QueueManager extends EventEmitter {
           const error = `Max delayed retry attempts reached (${MAX_DELAYED_RETRY_ATTEMPTS} hours). Quota may not have reset.`;
           logger.error(`${md5}: ${error}`);
           await downloadTracker.update(md5, {
-            status: 'error',
+            status: "error",
             error,
           });
           this.emitQueueUpdate();
@@ -302,17 +317,19 @@ export class QueueManager extends EventEmitter {
           error: result.error,
         });
 
-        logger.info(`Will retry ${md5} (attempt ${currentRetryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
+        logger.info(
+          `Will retry ${md5} (attempt ${currentRetryCount + 1}/${MAX_RETRY_ATTEMPTS})`,
+        );
         // Re-queue
         this.queue.push(item);
       } else {
         logger.error(`Max retry attempts reached for ${md5}`);
-        const errorMessage = result.error || 'Max retry attempts reached';
+        const errorMessage = result.error || "Max retry attempts reached";
         await downloadTracker.markError(md5, errorMessage);
         this.emitQueueUpdate();
 
         // Send Apprise notification for download error
-        await appriseService.send('download_error', {
+        await appriseService.send("download_error", {
           title: item.title,
           authors: book?.authors,
           md5,
@@ -330,10 +347,13 @@ export class QueueManager extends EventEmitter {
     }
 
     // Validate download
-    const isValid = await fileManager.validateDownload(result.filePath, download.size || undefined);
+    const isValid = await fileManager.validateDownload(
+      result.filePath,
+      download.size || undefined,
+    );
     if (!isValid) {
       logger.error(`Downloaded file validation failed for ${md5}`);
-      await downloadTracker.markError(md5, 'File validation failed');
+      await downloadTracker.markError(md5, "File validation failed");
       this.emitQueueUpdate();
       return;
     }
@@ -346,15 +366,17 @@ export class QueueManager extends EventEmitter {
 
     try {
       switch (postDownloadAction) {
-        case 'move_only': {
+        case "move_only": {
           // Just move to final destination
-          const finalPath = await fileManager.moveToFinalDestination(result.filePath);
+          const finalPath = await fileManager.moveToFinalDestination(
+            result.filePath,
+          );
           await downloadTracker.markAvailable(md5, finalPath);
           this.emitQueueUpdate();
           logger.success(`${title} is now available at: ${finalPath}`);
 
           // Send Apprise notification for download available
-          await appriseService.send('available', {
+          await appriseService.send("available", {
             title: item.title,
             authors: book?.authors,
             md5,
@@ -365,13 +387,16 @@ export class QueueManager extends EventEmitter {
           break;
         }
 
-        case 'upload_only': {
+        case "upload_only": {
           // Upload to Booklore and delete temp file
           const isEnabled = await bookloreSettingsService.isEnabled();
 
           if (!isEnabled) {
             logger.error(`[Booklore] Cannot upload - Booklore is not enabled`);
-            await downloadTracker.markError(md5, 'Post-download action is upload_only but Booklore is not enabled');
+            await downloadTracker.markError(
+              md5,
+              "Post-download action is upload_only but Booklore is not enabled",
+            );
             this.emitQueueUpdate();
             return;
           }
@@ -381,31 +406,45 @@ export class QueueManager extends EventEmitter {
             await downloadTracker.markUploadPending(md5);
             await downloadTracker.markUploadStarted(md5);
 
-            const uploadResult = await bookloreUploader.uploadFile(result.filePath);
+            const uploadResult = await bookloreUploader.uploadFile(
+              result.filePath,
+            );
 
             if (uploadResult.success) {
               await downloadTracker.markUploadCompleted(md5);
-              logger.success(`[Booklore] Successfully uploaded ${title} to Booklore`);
+              logger.success(
+                `[Booklore] Successfully uploaded ${title} to Booklore`,
+              );
 
               // Delete temp file after successful upload
               await fileManager.deleteFile(result.filePath);
-              logger.info(`[Post-Download] Deleted temp file after upload: ${result.filePath}`);
+              logger.info(
+                `[Post-Download] Deleted temp file after upload: ${result.filePath}`,
+              );
 
               // Mark as available without a local path (file only exists in Booklore)
               await downloadTracker.markAvailable(md5, null);
               this.emitQueueUpdate();
 
               // Send Apprise notification for download available (uploaded to Booklore)
-              await appriseService.send('available', {
+              await appriseService.send("available", {
                 title: item.title,
                 md5,
-                finalPath: 'Booklore',
+                finalPath: "Booklore",
                 format: download.format,
               });
             } else {
-              await downloadTracker.markUploadFailed(md5, uploadResult.error || 'Unknown error');
-              logger.error(`[Booklore] Failed to upload ${title}: ${uploadResult.error}`);
-              await downloadTracker.markError(md5, `Upload failed: ${uploadResult.error}`);
+              await downloadTracker.markUploadFailed(
+                md5,
+                uploadResult.error || "Unknown error",
+              );
+              logger.error(
+                `[Booklore] Failed to upload ${title}: ${uploadResult.error}`,
+              );
+              await downloadTracker.markError(
+                md5,
+                `Upload failed: ${uploadResult.error}`,
+              );
               this.emitQueueUpdate();
             }
           } catch (bookloreError: unknown) {
@@ -418,15 +457,17 @@ export class QueueManager extends EventEmitter {
           break;
         }
 
-        case 'both': {
+        case "both": {
           // Move to final destination AND upload to Booklore
-          const finalPath = await fileManager.moveToFinalDestination(result.filePath);
+          const finalPath = await fileManager.moveToFinalDestination(
+            result.filePath,
+          );
           await downloadTracker.markAvailable(md5, finalPath);
           this.emitQueueUpdate();
           logger.success(`${title} is now available at: ${finalPath}`);
 
           // Send Apprise notification for download available
-          await appriseService.send('available', {
+          await appriseService.send("available", {
             title: item.title,
             authors: book?.authors,
             md5,
@@ -448,25 +489,42 @@ export class QueueManager extends EventEmitter {
 
               if (uploadResult.success) {
                 await downloadTracker.markUploadCompleted(md5);
-                logger.success(`[Booklore] Successfully uploaded ${title} to Booklore`);
+                logger.success(
+                  `[Booklore] Successfully uploaded ${title} to Booklore`,
+                );
               } else {
-                await downloadTracker.markUploadFailed(md5, uploadResult.error || 'Unknown error');
-                logger.error(`[Booklore] Failed to upload ${title}: ${uploadResult.error}`);
+                await downloadTracker.markUploadFailed(
+                  md5,
+                  uploadResult.error || "Unknown error",
+                );
+                logger.error(
+                  `[Booklore] Failed to upload ${title}: ${uploadResult.error}`,
+                );
               }
             } else {
-              logger.warn(`[Booklore] Skipping upload for ${title} - Booklore is not enabled or not fully configured (baseUrl, token, libraryId, pathId required)`);
+              logger.warn(
+                `[Booklore] Skipping upload for ${title} - Booklore is not enabled or not fully configured (baseUrl, token, libraryId, pathId required)`,
+              );
             }
           } catch (bookloreError: unknown) {
             // Log but don't fail the download
-            logger.error(`[Booklore] Upload error (non-critical):`, bookloreError);
-            await downloadTracker.markUploadFailed(md5, getErrorMessage(bookloreError)).catch(() => {});
+            logger.error(
+              `[Booklore] Upload error (non-critical):`,
+              bookloreError,
+            );
+            await downloadTracker
+              .markUploadFailed(md5, getErrorMessage(bookloreError))
+              .catch(() => {});
           }
           break;
         }
 
         default: {
           logger.error(`[Post-Download] Unknown action: ${postDownloadAction}`);
-          await downloadTracker.markError(md5, `Unknown post-download action: ${postDownloadAction}`);
+          await downloadTracker.markError(
+            md5,
+            `Unknown post-download action: ${postDownloadAction}`,
+          );
           this.emitQueueUpdate();
         }
       }
@@ -480,7 +538,7 @@ export class QueueManager extends EventEmitter {
 
   async cancelDownload(md5: string): Promise<boolean> {
     // Remove from queue
-    const index = this.queue.findIndex(q => q.md5 === md5);
+    const index = this.queue.findIndex((q) => q.md5 === md5);
     if (index >= 0) {
       this.queue.splice(index, 1);
       await downloadTracker.markCancelled(md5);
@@ -498,16 +556,18 @@ export class QueueManager extends EventEmitter {
     return false;
   }
 
-  async retryDownload(md5: string): Promise<{ status: string; position?: number }> {
+  async retryDownload(
+    md5: string,
+  ): Promise<{ status: string; position?: number }> {
     // Get the download record
     const download = await downloadTracker.get(md5);
 
     if (!download) {
-      throw new Error('Download not found');
+      throw new Error("Download not found");
     }
 
     // Only allow retry for error or cancelled downloads
-    if (download.status !== 'error' && download.status !== 'cancelled') {
+    if (download.status !== "error" && download.status !== "cancelled") {
       throw new Error(`Cannot retry download with status: ${download.status}`);
     }
 
@@ -515,7 +575,7 @@ export class QueueManager extends EventEmitter {
 
     // Reset the download status and retry count
     await downloadTracker.update(md5, {
-      status: 'queued',
+      status: "queued",
       error: null,
       retryCount: 0, // Reset retry count for manual retry
       delayedRetryCount: 0, // Reset delayed retry count too
@@ -541,17 +601,17 @@ export class QueueManager extends EventEmitter {
       this.processQueue();
     }
 
-    return { status: 'queued', position };
+    return { status: "queued", position };
   }
 
   async getQueueStatus(): Promise<QueueResponse> {
-    const allDownloads = await downloadTracker.getByStatus('queued');
-    const downloading = await downloadTracker.getByStatus('downloading');
-    const done = await downloadTracker.getByStatus('done');
-    const available = await downloadTracker.getByStatus('available');
-    const delayed = await downloadTracker.getByStatus('delayed');
-    const error = await downloadTracker.getByStatus('error');
-    const cancelled = await downloadTracker.getByStatus('cancelled');
+    const allDownloads = await downloadTracker.getByStatus("queued");
+    const downloading = await downloadTracker.getByStatus("downloading");
+    const done = await downloadTracker.getByStatus("done");
+    const available = await downloadTracker.getByStatus("available");
+    const delayed = await downloadTracker.getByStatus("delayed");
+    const error = await downloadTracker.getByStatus("error");
+    const cancelled = await downloadTracker.getByStatus("cancelled");
 
     // Get all unique MD5s
     const allMd5s = [
@@ -562,11 +622,11 @@ export class QueueManager extends EventEmitter {
       ...delayed,
       ...error,
       ...cancelled,
-    ].map(d => d.md5);
+    ].map((d) => d.md5);
 
     // Fetch all books for these downloads
     const books = await bookService.getBooksByMd5s(allMd5s);
-    const booksMap = new Map(books.map(book => [book.md5, book]));
+    const booksMap = new Map(books.map((book) => [book.md5, book]));
 
     // Helper to convert download to queue item with book details
     const toQueueItem = (d: Download): QueueItem => {
@@ -579,7 +639,7 @@ export class QueueManager extends EventEmitter {
         if (book.authors) {
           if (Array.isArray(book.authors)) {
             authors = book.authors;
-          } else if (typeof book.authors === 'string') {
+          } else if (typeof book.authors === "string") {
             try {
               authors = JSON.parse(book.authors);
             } catch {
@@ -605,13 +665,21 @@ export class QueueManager extends EventEmitter {
     };
 
     return {
-      available: Object.fromEntries(available.map(d => [d.md5, toQueueItem(d)])),
-      queued: Object.fromEntries(allDownloads.map(d => [d.md5, toQueueItem(d)])),
-      downloading: Object.fromEntries(downloading.map(d => [d.md5, toQueueItem(d)])),
-      done: Object.fromEntries(done.map(d => [d.md5, toQueueItem(d)])),
-      delayed: Object.fromEntries(delayed.map(d => [d.md5, toQueueItem(d)])),
-      error: Object.fromEntries(error.map(d => [d.md5, toQueueItem(d)])),
-      cancelled: Object.fromEntries(cancelled.map(d => [d.md5, toQueueItem(d)])),
+      available: Object.fromEntries(
+        available.map((d) => [d.md5, toQueueItem(d)]),
+      ),
+      queued: Object.fromEntries(
+        allDownloads.map((d) => [d.md5, toQueueItem(d)]),
+      ),
+      downloading: Object.fromEntries(
+        downloading.map((d) => [d.md5, toQueueItem(d)]),
+      ),
+      done: Object.fromEntries(done.map((d) => [d.md5, toQueueItem(d)])),
+      delayed: Object.fromEntries(delayed.map((d) => [d.md5, toQueueItem(d)])),
+      error: Object.fromEntries(error.map((d) => [d.md5, toQueueItem(d)])),
+      cancelled: Object.fromEntries(
+        cancelled.map((d) => [d.md5, toQueueItem(d)]),
+      ),
     };
   }
 
@@ -631,7 +699,7 @@ export class QueueManager extends EventEmitter {
       if (book.authors) {
         if (Array.isArray(book.authors)) {
           authors = book.authors;
-        } else if (typeof book.authors === 'string') {
+        } else if (typeof book.authors === "string") {
           try {
             authors = JSON.parse(book.authors);
           } catch {

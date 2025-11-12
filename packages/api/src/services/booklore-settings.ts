@@ -1,13 +1,17 @@
-import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { bookloreSettings, type BookloreSettings } from '../db/schema.js';
-import { login as bookloreLogin, type BookloreTokens } from './booklore-auth.js';
-import { type BookloreSettingsResponse } from '@ephemera/shared';
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { bookloreSettings, type BookloreSettings } from "../db/schema.js";
+import {
+  login as bookloreLogin,
+  type BookloreTokens,
+} from "./booklore-auth.js";
+import { type BookloreSettingsResponse } from "@ephemera/shared";
 
 /**
  * Booklore settings with tokens
  */
-export interface DecryptedBookloreSettings extends Omit<BookloreSettings, 'accessToken' | 'refreshToken'> {
+export interface DecryptedBookloreSettings
+  extends Omit<BookloreSettings, "accessToken" | "refreshToken"> {
   accessToken: string | null;
   refreshToken: string | null;
 }
@@ -68,7 +72,7 @@ class BookloreSettingsService {
 
       return settings;
     } catch (error) {
-      console.error('[Booklore Settings] Error fetching settings:', error);
+      console.error("[Booklore Settings] Error fetching settings:", error);
       return null;
     }
   }
@@ -110,22 +114,24 @@ class BookloreSettingsService {
    * Validate that all required settings are present
    * Returns error message if invalid, null if valid
    */
-  validateConfiguration(settings: UpdateBookloreSettingsRequest): string | null {
+  validateConfiguration(
+    settings: UpdateBookloreSettingsRequest,
+  ): string | null {
     if (settings.enabled) {
       if (!settings.baseUrl) {
-        return 'Base URL is required when Booklore is enabled';
+        return "Base URL is required when Booklore is enabled";
       }
       if (!settings.username) {
-        return 'Username is required when Booklore is enabled';
+        return "Username is required when Booklore is enabled";
       }
       if (!settings.password) {
-        return 'Password is required when Booklore is enabled';
+        return "Password is required when Booklore is enabled";
       }
       if (!settings.libraryId || settings.libraryId <= 0) {
-        return 'Valid library ID is required when Booklore is enabled';
+        return "Valid library ID is required when Booklore is enabled";
       }
       if (!settings.pathId || settings.pathId <= 0) {
-        return 'Valid path ID is required when Booklore is enabled';
+        return "Valid path ID is required when Booklore is enabled";
       }
     }
 
@@ -136,7 +142,9 @@ class BookloreSettingsService {
    * Update Booklore settings with authentication
    * Authenticates with Booklore API and stores tokens
    */
-  async updateSettings(updates: UpdateBookloreSettingsRequest): Promise<DecryptedBookloreSettings> {
+  async updateSettings(
+    updates: UpdateBookloreSettingsRequest,
+  ): Promise<DecryptedBookloreSettings> {
     try {
       const existing = await this.getSettings();
 
@@ -159,15 +167,22 @@ class BookloreSettingsService {
 
       // Authenticate with Booklore if credentials provided
       let tokens: BookloreTokens | null = null;
-      if (mergedUpdates.enabled && mergedUpdates.baseUrl && mergedUpdates.username && mergedUpdates.password) {
+      if (
+        mergedUpdates.enabled &&
+        mergedUpdates.baseUrl &&
+        mergedUpdates.username &&
+        mergedUpdates.password
+      ) {
         const loginResult = await bookloreLogin(
           mergedUpdates.baseUrl,
           mergedUpdates.username,
-          mergedUpdates.password
+          mergedUpdates.password,
         );
 
         if (!loginResult.success) {
-          throw new Error(`Booklore authentication failed: ${loginResult.error}`);
+          throw new Error(
+            `Booklore authentication failed: ${loginResult.error}`,
+          );
         }
 
         tokens = loginResult.tokens!;
@@ -176,18 +191,45 @@ class BookloreSettingsService {
       // Prepare settings data - NO CREDENTIALS STORED
       // If disabling Booklore, clear all auth data for security
       if (mergedUpdates.enabled === false && existing?.accessToken) {
-        console.log('[Booklore Settings] Disabling Booklore - clearing all authentication data');
+        console.log(
+          "[Booklore Settings] Disabling Booklore - clearing all authentication data",
+        );
       }
 
       const settingsData = {
         id: 1,
         enabled: mergedUpdates.enabled,
         baseUrl: mergedUpdates.baseUrl ?? null,
-        accessToken: mergedUpdates.enabled === false ? null : (tokens ? tokens.accessToken : existing?.accessToken ?? null),
-        refreshToken: mergedUpdates.enabled === false ? null : (tokens ? tokens.refreshToken : existing?.refreshToken ?? null),
-        accessTokenExpiresAt: mergedUpdates.enabled === false ? null : (tokens ? tokens.accessTokenExpiresAt : existing?.accessTokenExpiresAt ?? null),
-        refreshTokenExpiresAt: mergedUpdates.enabled === false ? null : (tokens ? tokens.refreshTokenExpiresAt : existing?.refreshTokenExpiresAt ?? null),
-        lastTokenRefresh: mergedUpdates.enabled === false ? null : (tokens ? Date.now() : existing?.lastTokenRefresh ?? null),
+        accessToken:
+          mergedUpdates.enabled === false
+            ? null
+            : tokens
+              ? tokens.accessToken
+              : (existing?.accessToken ?? null),
+        refreshToken:
+          mergedUpdates.enabled === false
+            ? null
+            : tokens
+              ? tokens.refreshToken
+              : (existing?.refreshToken ?? null),
+        accessTokenExpiresAt:
+          mergedUpdates.enabled === false
+            ? null
+            : tokens
+              ? tokens.accessTokenExpiresAt
+              : (existing?.accessTokenExpiresAt ?? null),
+        refreshTokenExpiresAt:
+          mergedUpdates.enabled === false
+            ? null
+            : tokens
+              ? tokens.refreshTokenExpiresAt
+              : (existing?.refreshTokenExpiresAt ?? null),
+        lastTokenRefresh:
+          mergedUpdates.enabled === false
+            ? null
+            : tokens
+              ? Date.now()
+              : (existing?.lastTokenRefresh ?? null),
         libraryId: mergedUpdates.libraryId ?? null,
         pathId: mergedUpdates.pathId ?? null,
         autoUpload: mergedUpdates.autoUpload,
@@ -211,12 +253,12 @@ class BookloreSettingsService {
       // Fetch and return updated settings
       const updated = await this.getSettings();
       if (!updated) {
-        throw new Error('Failed to fetch updated settings');
+        throw new Error("Failed to fetch updated settings");
       }
 
       return updated;
     } catch (error) {
-      console.error('[Booklore Settings] Error updating settings:', error);
+      console.error("[Booklore Settings] Error updating settings:", error);
       throw error;
     }
   }
@@ -242,9 +284,9 @@ class BookloreSettingsService {
       // Clear cache so next getSettings() fetches fresh data
       this.clearCache();
 
-      console.log('[Booklore Settings] Tokens updated successfully');
+      console.log("[Booklore Settings] Tokens updated successfully");
     } catch (error) {
-      console.error('[Booklore Settings] Error updating tokens:', error);
+      console.error("[Booklore Settings] Error updating tokens:", error);
       throw error;
     }
   }
@@ -257,7 +299,9 @@ class BookloreSettingsService {
     try {
       const existing = await this.getSettings();
       if (!existing) {
-        console.log('[Booklore Settings] Initializing default settings (disabled)');
+        console.log(
+          "[Booklore Settings] Initializing default settings (disabled)",
+        );
         await db.insert(bookloreSettings).values({
           id: 1,
           enabled: false,
@@ -266,7 +310,7 @@ class BookloreSettingsService {
         });
       }
     } catch (error) {
-      console.error('[Booklore Settings] Error initializing defaults:', error);
+      console.error("[Booklore Settings] Error initializing defaults:", error);
       // Don't throw - this is not critical
     }
   }
@@ -291,9 +335,11 @@ class BookloreSettingsService {
         .where(eq(bookloreSettings.id, 1));
 
       this.clearCache();
-      console.log('[Booklore Settings] Booklore integration disabled and authentication data cleared');
+      console.log(
+        "[Booklore Settings] Booklore integration disabled and authentication data cleared",
+      );
     } catch (error) {
-      console.error('[Booklore Settings] Error disabling Booklore:', error);
+      console.error("[Booklore Settings] Error disabling Booklore:", error);
       throw error;
     }
   }

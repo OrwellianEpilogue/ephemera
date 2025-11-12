@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Container,
   Title,
@@ -19,7 +19,7 @@ import {
   Checkbox,
   ActionIcon,
   Tabs,
-} from '@mantine/core'
+} from "@mantine/core";
 import {
   IconInfoCircle,
   IconPlugConnected,
@@ -28,7 +28,7 @@ import {
   IconPlus,
   IconSettings,
   IconUpload,
-} from '@tabler/icons-react'
+} from "@tabler/icons-react";
 import {
   useAppSettings,
   useUpdateAppSettings,
@@ -38,83 +38,84 @@ import {
   useAppriseSettings,
   useUpdateAppriseSettings,
   useTestAppriseNotification,
-} from '../hooks/useSettings'
-import { useState, useEffect } from 'react'
+} from "../hooks/useSettings";
+import { useState, useEffect } from "react";
 import type {
   PostDownloadAction,
   TimeFormat,
   DateFormat,
   RequestCheckInterval,
   LibraryLinkLocation,
-} from '@ephemera/shared'
-import { formatDate } from '@ephemera/shared'
-import { z } from 'zod'
+} from "@ephemera/shared";
+import { formatDate } from "@ephemera/shared";
+import { z } from "zod";
 
 const settingsSearchSchema = z.object({
   tab: z
-    .enum(['general', 'notifications', 'booklore'])
+    .enum(["general", "notifications", "booklore"])
     .optional()
-    .default('general'),
-})
+    .default("general"),
+});
 
 function SettingsComponent() {
-  const navigate = useNavigate({ from: '/settings' })
-  const { tab } = Route.useSearch()
+  const navigate = useNavigate({ from: "/settings" });
+  const { tab } = Route.useSearch();
   const {
     data: settings,
     isLoading: loadingApp,
     isError: errorApp,
-  } = useAppSettings()
+  } = useAppSettings();
   const {
     data: bookloreSettings,
     isLoading: loadingBooklore,
     isError: errorBooklore,
-  } = useBookloreSettings()
+  } = useBookloreSettings();
   const {
     data: appriseSettings,
     isLoading: loadingApprise,
     isError: errorApprise,
-  } = useAppriseSettings()
-  const updateSettings = useUpdateAppSettings()
-  const updateBooklore = useUpdateBookloreSettings()
-  const updateApprise = useUpdateAppriseSettings()
-  const testConnection = useTestBookloreConnection()
-  const testApprise = useTestAppriseNotification()
+  } = useAppriseSettings();
+  const updateSettings = useUpdateAppSettings();
+  const updateBooklore = useUpdateBookloreSettings();
+  const updateApprise = useUpdateAppriseSettings();
+  const testConnection = useTestBookloreConnection();
+  const testApprise = useTestAppriseNotification();
 
   // App settings state
   const [postDownloadAction, setPostDownloadAction] =
-    useState<PostDownloadAction>('both')
-  const [bookRetentionDays, setBookRetentionDays] = useState<number>(30)
+    useState<PostDownloadAction>("both");
+  const [bookRetentionDays, setBookRetentionDays] = useState<number>(30);
   const [requestCheckInterval, setRequestCheckInterval] =
-    useState<RequestCheckInterval>('6h')
-  const [timeFormat, setTimeFormat] = useState<TimeFormat>('24h')
-  const [dateFormat, setDateFormat] = useState<DateFormat>('eur')
-  const [libraryUrl, setLibraryUrl] = useState<string>('')
+    useState<RequestCheckInterval>("6h");
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>("24h");
+  const [dateFormat, setDateFormat] = useState<DateFormat>("eur");
+  const [libraryUrl, setLibraryUrl] = useState<string>("");
   const [libraryLinkLocation, setLibraryLinkLocation] =
-    useState<LibraryLinkLocation>('sidebar')
+    useState<LibraryLinkLocation>("sidebar");
 
   // Booklore settings state
-  const [bookloreEnabled, setBookloreEnabled] = useState(false)
-  const [baseUrl, setBaseUrl] = useState('')
-  const [username, setUsername] = useState('') // For authentication only
-  const [password, setPassword] = useState('') // For authentication only
-  const [libraryId, setLibraryId] = useState<number | ''>('')
-  const [pathId, setPathId] = useState<number | ''>('')
-  const [showAuthForm, setShowAuthForm] = useState(false) // Toggle auth form
+  const [bookloreEnabled, setBookloreEnabled] = useState(false);
+  const [baseUrl, setBaseUrl] = useState("");
+  const [username, setUsername] = useState(""); // For authentication only
+  const [password, setPassword] = useState(""); // For authentication only
+  const [libraryId, setLibraryId] = useState<number | "">("");
+  const [pathId, setPathId] = useState<number | "">("");
+  const [showAuthForm, setShowAuthForm] = useState(false); // Toggle auth form
 
   // Apprise settings state
-  const [appriseEnabled, setAppriseEnabled] = useState(false)
-  const [appriseServerUrl, setAppriseServerUrl] = useState('')
+  const [appriseEnabled, setAppriseEnabled] = useState(false);
+  const [appriseServerUrl, setAppriseServerUrl] = useState("");
   const [customHeaders, setCustomHeaders] = useState<
     Array<{ key: string; value: string }>
-  >([])
-  const [notifyOnNewRequest, setNotifyOnNewRequest] = useState(true)
-  const [notifyOnDownloadError, setNotifyOnDownloadError] = useState(true)
-  const [notifyOnAvailable, setNotifyOnAvailable] = useState(true)
-  const [notifyOnDelayed, setNotifyOnDelayed] = useState(true)
-  const [notifyOnUpdateAvailable, setNotifyOnUpdateAvailable] = useState(true)
-  const [notifyOnRequestFulfilled, setNotifyOnRequestFulfilled] = useState(true)
-  const [notifyOnBookQueued, setNotifyOnBookQueued] = useState(false)
+  >([]);
+  const [notifyOnNewRequest, setNotifyOnNewRequest] = useState(true);
+  const [notifyOnDownloadError, setNotifyOnDownloadError] = useState(true);
+  const [notifyOnAvailable, setNotifyOnAvailable] = useState(true);
+  const [notifyOnDelayed, setNotifyOnDelayed] = useState(true);
+  const [notifyOnUpdateAvailable, setNotifyOnUpdateAvailable] = useState(true);
+  const [notifyOnRequestFulfilled, setNotifyOnRequestFulfilled] =
+    useState(true);
+  const [notifyOnBookQueued, setNotifyOnBookQueued] = useState(false);
 
   // Sync with fetched settings
   useEffect(() => {
@@ -123,53 +124,53 @@ function SettingsComponent() {
       // reset to move_only
       if (
         !bookloreSettings?.connected &&
-        (settings.postDownloadAction === 'upload_only' ||
-          settings.postDownloadAction === 'both')
+        (settings.postDownloadAction === "upload_only" ||
+          settings.postDownloadAction === "both")
       ) {
-        setPostDownloadAction('move_only')
+        setPostDownloadAction("move_only");
       } else {
-        setPostDownloadAction(settings.postDownloadAction)
+        setPostDownloadAction(settings.postDownloadAction);
       }
-      setBookRetentionDays(settings.bookRetentionDays)
-      setRequestCheckInterval(settings.requestCheckInterval)
-      setTimeFormat(settings.timeFormat)
-      setDateFormat(settings.dateFormat)
-      setLibraryUrl(settings.libraryUrl || '')
-      setLibraryLinkLocation(settings.libraryLinkLocation)
+      setBookRetentionDays(settings.bookRetentionDays);
+      setRequestCheckInterval(settings.requestCheckInterval);
+      setTimeFormat(settings.timeFormat);
+      setDateFormat(settings.dateFormat);
+      setLibraryUrl(settings.libraryUrl || "");
+      setLibraryLinkLocation(settings.libraryLinkLocation);
     }
-  }, [settings, bookloreSettings?.connected])
+  }, [settings, bookloreSettings?.connected]);
 
   useEffect(() => {
     if (bookloreSettings) {
-      setBookloreEnabled(bookloreSettings.enabled)
-      setBaseUrl(bookloreSettings.baseUrl || '')
-      setLibraryId(bookloreSettings.libraryId || '')
-      setPathId(bookloreSettings.pathId || '')
+      setBookloreEnabled(bookloreSettings.enabled);
+      setBaseUrl(bookloreSettings.baseUrl || "");
+      setLibraryId(bookloreSettings.libraryId || "");
+      setPathId(bookloreSettings.pathId || "");
       // Show auth form only if not connected
-      setShowAuthForm(!bookloreSettings.connected)
+      setShowAuthForm(!bookloreSettings.connected);
       // Clear credentials after successful auth
-      setUsername('')
-      setPassword('')
+      setUsername("");
+      setPassword("");
     }
-  }, [bookloreSettings])
+  }, [bookloreSettings]);
 
   useEffect(() => {
     if (appriseSettings) {
-      setAppriseEnabled(appriseSettings.enabled)
-      setAppriseServerUrl(appriseSettings.serverUrl || '')
-      const headers = appriseSettings.customHeaders || {}
+      setAppriseEnabled(appriseSettings.enabled);
+      setAppriseServerUrl(appriseSettings.serverUrl || "");
+      const headers = appriseSettings.customHeaders || {};
       setCustomHeaders(
-        Object.entries(headers).map(([key, value]) => ({ key, value }))
-      )
-      setNotifyOnNewRequest(appriseSettings.notifyOnNewRequest)
-      setNotifyOnDownloadError(appriseSettings.notifyOnDownloadError)
-      setNotifyOnAvailable(appriseSettings.notifyOnAvailable)
-      setNotifyOnDelayed(appriseSettings.notifyOnDelayed)
-      setNotifyOnUpdateAvailable(appriseSettings.notifyOnUpdateAvailable)
-      setNotifyOnRequestFulfilled(appriseSettings.notifyOnRequestFulfilled)
-      setNotifyOnBookQueued(appriseSettings.notifyOnBookQueued)
+        Object.entries(headers).map(([key, value]) => ({ key, value })),
+      );
+      setNotifyOnNewRequest(appriseSettings.notifyOnNewRequest);
+      setNotifyOnDownloadError(appriseSettings.notifyOnDownloadError);
+      setNotifyOnAvailable(appriseSettings.notifyOnAvailable);
+      setNotifyOnDelayed(appriseSettings.notifyOnDelayed);
+      setNotifyOnUpdateAvailable(appriseSettings.notifyOnUpdateAvailable);
+      setNotifyOnRequestFulfilled(appriseSettings.notifyOnRequestFulfilled);
+      setNotifyOnBookQueued(appriseSettings.notifyOnBookQueued);
     }
-  }, [appriseSettings])
+  }, [appriseSettings]);
 
   const handleSaveApp = () => {
     updateSettings.mutate({
@@ -180,8 +181,8 @@ function SettingsComponent() {
       dateFormat,
       libraryUrl: libraryUrl || null,
       libraryLinkLocation,
-    })
-  }
+    });
+  };
 
   const handleSaveBooklore = () => {
     updateBooklore.mutate({
@@ -192,18 +193,21 @@ function SettingsComponent() {
       libraryId: libraryId || undefined,
       pathId: pathId || undefined,
       autoUpload: true, // Always true - uploads happen when post-download action is set to 'both'
-    })
-  }
+    });
+  };
 
   const handleTestConnection = () => {
-    testConnection.mutate()
-  }
+    testConnection.mutate();
+  };
 
   const handleSaveApprise = () => {
-    const headersObject = customHeaders.reduce((acc, { key, value }) => {
-      if (key && value) acc[key] = value
-      return acc
-    }, {} as Record<string, string>)
+    const headersObject = customHeaders.reduce(
+      (acc, { key, value }) => {
+        if (key && value) acc[key] = value;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
 
     updateApprise.mutate({
       enabled: appriseEnabled,
@@ -217,12 +221,12 @@ function SettingsComponent() {
       notifyOnUpdateAvailable,
       notifyOnRequestFulfilled,
       notifyOnBookQueued,
-    })
-  }
+    });
+  };
 
   const handleTestApprise = () => {
-    testApprise.mutate()
-  }
+    testApprise.mutate();
+  };
 
   const hasAppChanges =
     settings &&
@@ -231,8 +235,8 @@ function SettingsComponent() {
       settings.requestCheckInterval !== requestCheckInterval ||
       settings.timeFormat !== timeFormat ||
       settings.dateFormat !== dateFormat ||
-      (settings.libraryUrl || '') !== libraryUrl ||
-      settings.libraryLinkLocation !== libraryLinkLocation)
+      (settings.libraryUrl || "") !== libraryUrl ||
+      settings.libraryLinkLocation !== libraryLinkLocation);
   // Check if there are unsaved changes OR if this is authentication/re-authentication
   const hasBookloreChanges = bookloreSettings
     ? bookloreSettings.enabled !== bookloreEnabled ||
@@ -240,14 +244,14 @@ function SettingsComponent() {
       bookloreSettings.libraryId !== libraryId ||
       bookloreSettings.pathId !== pathId ||
       // Enable save if user has entered credentials (for auth/re-auth)
-      (showAuthForm && username !== '' && password !== '')
+      (showAuthForm && username !== "" && password !== "")
     : // New setup: enable save button if user has entered all required values
       bookloreEnabled &&
-      baseUrl !== '' &&
-      username !== '' &&
-      password !== '' &&
-      libraryId !== '' &&
-      pathId !== ''
+      baseUrl !== "" &&
+      username !== "" &&
+      password !== "" &&
+      libraryId !== "" &&
+      pathId !== "";
 
   const hasAppriseChanges = appriseSettings
     ? appriseSettings.enabled !== appriseEnabled ||
@@ -261,15 +265,18 @@ function SettingsComponent() {
       appriseSettings.notifyOnBookQueued !== notifyOnBookQueued ||
       JSON.stringify(appriseSettings.customHeaders || {}) !==
         JSON.stringify(
-          customHeaders.reduce((acc, { key, value }) => {
-            if (key && value) acc[key] = value
-            return acc
-          }, {} as Record<string, string>)
+          customHeaders.reduce(
+            (acc, { key, value }) => {
+              if (key && value) acc[key] = value;
+              return acc;
+            },
+            {} as Record<string, string>,
+          ),
         )
-    : false
+    : false;
 
-  const isLoading = loadingApp || loadingBooklore || loadingApprise
-  const isError = errorApp || errorBooklore || errorApprise
+  const isLoading = loadingApp || loadingBooklore || loadingApprise;
+  const isError = errorApp || errorBooklore || errorApprise;
 
   if (isLoading) {
     return (
@@ -278,7 +285,7 @@ function SettingsComponent() {
           <Loader size="lg" />
         </Center>
       </Container>
-    )
+    );
   }
 
   if (isError) {
@@ -288,7 +295,7 @@ function SettingsComponent() {
           Failed to load settings. Please try again.
         </Alert>
       </Container>
-    )
+    );
   }
 
   return (
@@ -301,7 +308,7 @@ function SettingsComponent() {
           onChange={(value) =>
             navigate({
               search: {
-                tab: value as 'general' | 'notifications' | 'booklore',
+                tab: value as "general" | "notifications" | "booklore",
               },
             })
           }
@@ -369,10 +376,10 @@ function SettingsComponent() {
                     !bookloreSettings?.connected) && (
                     <Alert icon={<IconInfoCircle size={16} />} color="blue">
                       <Text size="sm">
-                        <strong>Note:</strong>{' '}
+                        <strong>Note:</strong>{" "}
                         {!bookloreSettings?.enabled
-                          ? 'Enable and configure Booklore to use upload options.'
-                          : 'Authenticate with Booklore below to enable upload options.'}
+                          ? "Enable and configure Booklore to use upload options."
+                          : "Authenticate with Booklore below to enable upload options."}
                       </Text>
                     </Alert>
                   )}
@@ -397,21 +404,21 @@ function SettingsComponent() {
                     }
                     data={[
                       {
-                        value: '1min',
-                        label: 'Every minute (Not recommended)',
+                        value: "1min",
+                        label: "Every minute (Not recommended)",
                       },
-                      { value: '15min', label: 'Every 15 minutes' },
-                      { value: '30min', label: 'Every 30 minutes' },
-                      { value: '1h', label: 'Every hour' },
-                      { value: '6h', label: 'Every 6 hours' },
-                      { value: '12h', label: 'Every 12 hours' },
-                      { value: '24h', label: 'Every 24 hours' },
-                      { value: 'weekly', label: 'Weekly' },
+                      { value: "15min", label: "Every 15 minutes" },
+                      { value: "30min", label: "Every 30 minutes" },
+                      { value: "1h", label: "Every hour" },
+                      { value: "6h", label: "Every 6 hours" },
+                      { value: "12h", label: "Every 12 hours" },
+                      { value: "24h", label: "Every 24 hours" },
+                      { value: "weekly", label: "Weekly" },
                     ]}
                     required
                   />
 
-                  {requestCheckInterval === '1min' && (
+                  {requestCheckInterval === "1min" && (
                     <Alert icon={<IconInfoCircle size={16} />} color="red">
                       <Text size="sm">
                         <strong>Warning:</strong> Checking every minute may
@@ -566,7 +573,7 @@ function SettingsComponent() {
                         <Group gap="xs">Apprise Notifications</Group>
                       </Title>
                       <Text size="sm" c="dimmed">
-                        Configure push notifications for download events via{' '}
+                        Configure push notifications for download events via{" "}
                         <a
                           href="https://github.com/caronc/apprise"
                           target="_blank"
@@ -610,7 +617,7 @@ function SettingsComponent() {
                             onClick={() =>
                               setCustomHeaders([
                                 ...customHeaders,
-                                { key: '', value: '' },
+                                { key: "", value: "" },
                               ])
                             }
                           >
@@ -623,11 +630,11 @@ function SettingsComponent() {
                               placeholder="Header name"
                               value={header.key}
                               onChange={(e) => {
-                                const newHeaders = [...customHeaders]
-                                const current = newHeaders[index]
+                                const newHeaders = [...customHeaders];
+                                const current = newHeaders[index];
                                 if (current) {
-                                  current.key = e.target.value
-                                  setCustomHeaders(newHeaders)
+                                  current.key = e.target.value;
+                                  setCustomHeaders(newHeaders);
                                 }
                               }}
                               style={{ flex: 1 }}
@@ -636,11 +643,11 @@ function SettingsComponent() {
                               placeholder="Header value"
                               value={header.value}
                               onChange={(e) => {
-                                const newHeaders = [...customHeaders]
-                                const current = newHeaders[index]
+                                const newHeaders = [...customHeaders];
+                                const current = newHeaders[index];
                                 if (current) {
-                                  current.value = e.target.value
-                                  setCustomHeaders(newHeaders)
+                                  current.value = e.target.value;
+                                  setCustomHeaders(newHeaders);
                                 }
                               }}
                               style={{ flex: 1 }}
@@ -650,8 +657,8 @@ function SettingsComponent() {
                               variant="light"
                               onClick={() => {
                                 setCustomHeaders(
-                                  customHeaders.filter((_, i) => i !== index)
-                                )
+                                  customHeaders.filter((_, i) => i !== index),
+                                );
                               }}
                             >
                               <IconTrash size={16} />
@@ -815,7 +822,7 @@ function SettingsComponent() {
                         label="Library ID"
                         placeholder="e.g., 1"
                         value={libraryId}
-                        onChange={(value) => setLibraryId(value as number | '')}
+                        onChange={(value) => setLibraryId(value as number | "")}
                         min={1}
                         required
                       />
@@ -824,7 +831,7 @@ function SettingsComponent() {
                         label="Path ID"
                         placeholder="e.g., 1"
                         value={pathId}
-                        onChange={(value) => setPathId(value as number | '')}
+                        onChange={(value) => setPathId(value as number | "")}
                         min={1}
                         required
                       />
@@ -842,21 +849,21 @@ function SettingsComponent() {
                             </Text>
                             {bookloreSettings.accessTokenExpiresAt && (
                               <Text size="xs" c="dimmed">
-                                Access token expires:{' '}
+                                Access token expires:{" "}
                                 {formatDate(
                                   bookloreSettings.accessTokenExpiresAt,
                                   dateFormat,
-                                  timeFormat
+                                  timeFormat,
                                 )}
                               </Text>
                             )}
                             {bookloreSettings.refreshTokenExpiresAt && (
                               <Text size="xs" c="dimmed">
-                                Refresh token expires:{' '}
+                                Refresh token expires:{" "}
                                 {formatDate(
                                   bookloreSettings.refreshTokenExpiresAt,
                                   dateFormat,
-                                  timeFormat
+                                  timeFormat,
                                 )}
                               </Text>
                             )}
@@ -923,8 +930,8 @@ function SettingsComponent() {
                           loading={updateBooklore.isPending}
                         >
                           {bookloreSettings?.connected
-                            ? 'Save Changes'
-                            : 'Save & Authenticate'}
+                            ? "Save Changes"
+                            : "Save & Authenticate"}
                         </Button>
                       </Group>
                     </Stack>
@@ -957,7 +964,7 @@ function SettingsComponent() {
                               onClick={async () => {
                                 await updateBooklore.mutateAsync({
                                   enabled: false,
-                                })
+                                });
                               }}
                               loading={updateBooklore.isPending}
                             >
@@ -975,10 +982,10 @@ function SettingsComponent() {
         </Tabs>
       </Stack>
     </Container>
-  )
+  );
 }
 
-export const Route = createFileRoute('/settings')({
+export const Route = createFileRoute("/settings")({
   component: SettingsComponent,
   validateSearch: settingsSearchSchema,
-})
+});

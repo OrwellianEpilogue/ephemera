@@ -1,23 +1,41 @@
-import { Card, Text, Progress, Group, Badge, Stack, ActionIcon, Tooltip, Image, Box, Button } from '@mantine/core';
-import { IconX, IconRefresh, IconClock, IconCheck, IconAlertCircle } from '@tabler/icons-react';
-import type { QueueItem } from '@ephemera/shared';
-import { formatDate, formatTime as formatTimeOfDay } from '@ephemera/shared';
-import { useCancelDownload, useRetryDownload } from '../hooks/useDownload';
-import { useAppSettings } from '../hooks/useSettings';
+import {
+  Card,
+  Text,
+  Progress,
+  Group,
+  Badge,
+  Stack,
+  ActionIcon,
+  Tooltip,
+  Image,
+  Box,
+  Button,
+} from "@mantine/core";
+import {
+  IconX,
+  IconRefresh,
+  IconClock,
+  IconCheck,
+  IconAlertCircle,
+} from "@tabler/icons-react";
+import type { QueueItem } from "@ephemera/shared";
+import { formatDate, formatTime as formatTimeOfDay } from "@ephemera/shared";
+import { useCancelDownload, useRetryDownload } from "../hooks/useDownload";
+import { useAppSettings } from "../hooks/useSettings";
 
 interface DownloadItemProps {
   item: QueueItem;
 }
 
 const formatBytes = (bytes?: number): string => {
-  if (!bytes) return '0 B';
+  if (!bytes) return "0 B";
   const mb = bytes / (1024 * 1024);
   if (mb < 1) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${mb.toFixed(1)} MB`;
 };
 
 const formatTime = (seconds?: number): string => {
-  if (!seconds || seconds <= 0) return '—';
+  if (!seconds || seconds <= 0) return "—";
   if (seconds < 60) return `${Math.round(seconds)}s`;
   const minutes = Math.floor(seconds / 60);
   const secs = Math.round(seconds % 60);
@@ -26,35 +44,35 @@ const formatTime = (seconds?: number): string => {
 
 const getStatusColor = (status: string): string => {
   switch (status) {
-    case 'available':
-      return 'green';
-    case 'downloading':
-      return 'blue';
-    case 'done':
-      return 'teal';
-    case 'queued':
-      return 'gray';
-    case 'delayed':
-      return 'yellow';
-    case 'error':
-      return 'red';
-    case 'cancelled':
-      return 'orange';
+    case "available":
+      return "green";
+    case "downloading":
+      return "blue";
+    case "done":
+      return "teal";
+    case "queued":
+      return "gray";
+    case "delayed":
+      return "yellow";
+    case "error":
+      return "red";
+    case "cancelled":
+      return "orange";
     default:
-      return 'gray';
+      return "gray";
   }
 };
 
 const getStatusIcon = (status: string) => {
   switch (status) {
-    case 'available':
-    case 'done':
+    case "available":
+    case "done":
       return <IconCheck size={16} />;
-    case 'downloading':
+    case "downloading":
       return <IconRefresh size={16} />;
-    case 'delayed':
+    case "delayed":
       return <IconClock size={16} />;
-    case 'error':
+    case "error":
       return <IconAlertCircle size={16} />;
     default:
       return null;
@@ -74,12 +92,12 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
     retryDownload.mutate({ md5: item.md5, title: item.title });
   };
 
-  const canCancel = ['queued', 'downloading', 'delayed'].includes(item.status);
-  const showProgress = item.status === 'downloading';
+  const canCancel = ["queued", "downloading", "delayed"].includes(item.status);
+  const showProgress = item.status === "downloading";
 
   // Use settings for date/time formatting, fall back to defaults
-  const timeFormat = settings?.timeFormat ?? '24h';
-  const dateFormat = settings?.dateFormat ?? 'us';
+  const timeFormat = settings?.timeFormat ?? "24h";
+  const dateFormat = settings?.dateFormat ?? "us";
 
   return (
     <Card withBorder padding="md">
@@ -87,7 +105,10 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
         {/* Cover Image */}
         <Box style={{ flexShrink: 0 }}>
           <Image
-            src={item.coverUrl || 'https://placehold.co/80x120/e9ecef/495057?text=No+Cover'}
+            src={
+              item.coverUrl ||
+              "https://placehold.co/80x120/e9ecef/495057?text=No+Cover"
+            }
             width={80}
             height={120}
             fit="cover"
@@ -106,7 +127,7 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
               </Text>
               {item.authors && item.authors.length > 0 && (
                 <Text size="xs" c="dimmed" lineClamp={1}>
-                  {item.authors.join(', ')}
+                  {item.authors.join(", ")}
                 </Text>
               )}
             </div>
@@ -168,14 +189,15 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
             <Text size="xs" c="dimmed">
               {item.downloadedBytes && item.totalBytes ? (
                 <>
-                  {formatBytes(item.downloadedBytes)} / {formatBytes(item.totalBytes)}
+                  {formatBytes(item.downloadedBytes)} /{" "}
+                  {formatBytes(item.totalBytes)}
                 </>
               ) : item.totalBytes ? (
                 formatBytes(item.totalBytes)
               ) : item.size ? (
                 formatBytes(item.size)
               ) : (
-                'Size unknown'
+                "Size unknown"
               )}
             </Text>
 
@@ -193,7 +215,7 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
           </Group>
 
           {/* Retry Info (for delayed items) */}
-          {item.status === 'delayed' && item.nextRetryAt && (
+          {item.status === "delayed" && item.nextRetryAt && (
             <Group gap="xs">
               <IconClock size={14} />
               <Text size="xs" c="dimmed">
@@ -208,7 +230,7 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
           )}
 
           {/* Error Message */}
-          {item.status === 'error' && (
+          {item.status === "error" && (
             <Stack gap="xs">
               {item.error && (
                 <Text size="xs" c="red" lineClamp={2}>
@@ -237,11 +259,11 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
             </Text>
             {item.completedAt && (
               <Text size="xs" c="dimmed">
-                Completed: {formatDate(item.completedAt, dateFormat, timeFormat)}
+                Completed:{" "}
+                {formatDate(item.completedAt, dateFormat, timeFormat)}
               </Text>
             )}
           </Group>
-
         </Stack>
       </Group>
     </Card>

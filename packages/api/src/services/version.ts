@@ -1,13 +1,13 @@
-import type { VersionInfo } from '@ephemera/shared';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import type { VersionInfo } from "@ephemera/shared";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // GitHub repository configuration
-const GITHUB_REPO = 'OrwellianEpilogue/ephemera';
+const GITHUB_REPO = "OrwellianEpilogue/ephemera";
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/tags`;
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
 
@@ -23,14 +23,17 @@ function getCurrentVersion(): string {
     // In development (tsx), __dirname is in src/services
     // In production (compiled), __dirname is in dist/services
     // Root package.json is always at ../../.. from packages/api/src/services
-    const packagePath = join(__dirname, '../../..', '..', 'package.json');
-    const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8'));
+    const packagePath = join(__dirname, "../../..", "..", "package.json");
+    const packageJson = JSON.parse(readFileSync(packagePath, "utf-8"));
     return packageJson.version;
   } catch (error) {
-    console.error('Failed to read package.json:', error);
-    console.error('__dirname:', __dirname);
-    console.error('Tried path:', join(__dirname, '../../..', '..', 'package.json'));
-    return '0.0.0';
+    console.error("Failed to read package.json:", error);
+    console.error("__dirname:", __dirname);
+    console.error(
+      "Tried path:",
+      join(__dirname, "../../..", "..", "package.json"),
+    );
+    return "0.0.0";
   }
 }
 
@@ -38,13 +41,16 @@ function getCurrentVersion(): string {
  * Compare two semantic versions
  * Returns true if remoteVersion is newer than currentVersion
  */
-function isNewerVersion(currentVersion: string, remoteVersion: string): boolean {
+function isNewerVersion(
+  currentVersion: string,
+  remoteVersion: string,
+): boolean {
   // Remove 'v' prefix if present
-  const cleanCurrent = currentVersion.replace(/^v/, '');
-  const cleanRemote = remoteVersion.replace(/^v/, '');
+  const cleanCurrent = currentVersion.replace(/^v/, "");
+  const cleanRemote = remoteVersion.replace(/^v/, "");
 
-  const currentParts = cleanCurrent.split('.').map(Number);
-  const remoteParts = cleanRemote.split('.').map(Number);
+  const currentParts = cleanCurrent.split(".").map(Number);
+  const remoteParts = cleanRemote.split(".").map(Number);
 
   for (let i = 0; i < 3; i++) {
     const current = currentParts[i] || 0;
@@ -60,32 +66,38 @@ function isNewerVersion(currentVersion: string, remoteVersion: string): boolean 
 /**
  * Fetch the latest version from GitHub
  */
-async function fetchLatestVersion(currentVersion: string): Promise<{ version: string; url: string } | null> {
+async function fetchLatestVersion(
+  currentVersion: string,
+): Promise<{ version: string; url: string } | null> {
   try {
     const response = await fetch(GITHUB_API_URL, {
       headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Ephemera-App',
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "Ephemera-App",
       },
       signal: AbortSignal.timeout(5000), // 5 second timeout
     });
 
     if (!response.ok) {
-      console.error(`GitHub API error: ${response.status} ${response.statusText}`);
+      console.error(
+        `GitHub API error: ${response.status} ${response.statusText}`,
+      );
       return null;
     }
 
-    const tags = await response.json() as Array<{ name: string }>;
+    const tags = (await response.json()) as Array<{ name: string }>;
 
     if (!Array.isArray(tags) || tags.length === 0) {
-      console.error('No tags found in GitHub repository');
+      console.error("No tags found in GitHub repository");
       return null;
     }
 
     // Get the first tag (most recent)
     const latestTag = tags[0].name;
 
-    const currentTag = currentVersion.startsWith('v') ? currentVersion : `v${currentVersion}`;
+    const currentTag = currentVersion.startsWith("v")
+      ? currentVersion
+      : `v${currentVersion}`;
     const compareUrl = `https://github.com/${GITHUB_REPO}/compare/${currentTag}...${latestTag}`;
 
     return {
@@ -93,7 +105,7 @@ async function fetchLatestVersion(currentVersion: string): Promise<{ version: st
       url: compareUrl,
     };
   } catch (error) {
-    console.error('Failed to fetch latest version from GitHub:', error);
+    console.error("Failed to fetch latest version from GitHub:", error);
     return null;
   }
 }
@@ -106,7 +118,7 @@ export async function getVersionInfo(): Promise<VersionInfo> {
   const now = Date.now();
 
   // Check if cache is still valid
-  if (cachedResponse && (now - cacheTimestamp) < CACHE_DURATION) {
+  if (cachedResponse && now - cacheTimestamp < CACHE_DURATION) {
     return cachedResponse;
   }
 
@@ -116,7 +128,9 @@ export async function getVersionInfo(): Promise<VersionInfo> {
   const versionInfo: VersionInfo = {
     currentVersion,
     latestVersion: latestInfo?.version || null,
-    updateAvailable: latestInfo ? isNewerVersion(currentVersion, latestInfo.version) : false,
+    updateAvailable: latestInfo
+      ? isNewerVersion(currentVersion, latestInfo.version)
+      : false,
     releaseUrl: latestInfo?.url || null,
   };
 

@@ -1,16 +1,16 @@
-import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { appriseSettings, type AppriseSettings } from '../db/schema.js';
-import type { AppriseNotificationType } from '@ephemera/shared';
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { appriseSettings, type AppriseSettings } from "../db/schema.js";
+import type { AppriseNotificationType } from "@ephemera/shared";
 
 export type NotificationEvent =
-  | 'new_request'
-  | 'download_error'
-  | 'available'
-  | 'delayed'
-  | 'update_available'
-  | 'request_fulfilled'
-  | 'book_queued';
+  | "new_request"
+  | "download_error"
+  | "available"
+  | "delayed"
+  | "update_available"
+  | "request_fulfilled"
+  | "book_queued";
 
 interface NotificationData {
   title: string;
@@ -56,7 +56,7 @@ class AppriseService {
 
       return this.settingsCache;
     } catch (error) {
-      console.error('[Apprise] Error fetching settings:', error);
+      console.error("[Apprise] Error fetching settings:", error);
       // Return defaults on error
       return this.getDefaults();
     }
@@ -86,7 +86,9 @@ class AppriseService {
    * Update Apprise settings
    * Creates settings row if it doesn't exist
    */
-  async updateSettings(updates: Partial<AppriseSettings>): Promise<AppriseSettings> {
+  async updateSettings(
+    updates: Partial<AppriseSettings>,
+  ): Promise<AppriseSettings> {
     try {
       const existing = await db
         .select()
@@ -97,15 +99,36 @@ class AppriseService {
       const settingsData = {
         id: 1,
         enabled: updates.enabled ?? existing[0]?.enabled ?? false,
-        serverUrl: updates.serverUrl !== undefined ? updates.serverUrl : (existing[0]?.serverUrl ?? null),
-        customHeaders: updates.customHeaders !== undefined ? updates.customHeaders : (existing[0]?.customHeaders ?? null),
-        notifyOnNewRequest: updates.notifyOnNewRequest ?? existing[0]?.notifyOnNewRequest ?? true,
-        notifyOnDownloadError: updates.notifyOnDownloadError ?? existing[0]?.notifyOnDownloadError ?? true,
-        notifyOnAvailable: updates.notifyOnAvailable ?? existing[0]?.notifyOnAvailable ?? true,
-        notifyOnDelayed: updates.notifyOnDelayed ?? existing[0]?.notifyOnDelayed ?? true,
-        notifyOnUpdateAvailable: updates.notifyOnUpdateAvailable ?? existing[0]?.notifyOnUpdateAvailable ?? true,
-        notifyOnRequestFulfilled: updates.notifyOnRequestFulfilled ?? existing[0]?.notifyOnRequestFulfilled ?? true,
-        notifyOnBookQueued: updates.notifyOnBookQueued ?? existing[0]?.notifyOnBookQueued ?? false,
+        serverUrl:
+          updates.serverUrl !== undefined
+            ? updates.serverUrl
+            : (existing[0]?.serverUrl ?? null),
+        customHeaders:
+          updates.customHeaders !== undefined
+            ? updates.customHeaders
+            : (existing[0]?.customHeaders ?? null),
+        notifyOnNewRequest:
+          updates.notifyOnNewRequest ?? existing[0]?.notifyOnNewRequest ?? true,
+        notifyOnDownloadError:
+          updates.notifyOnDownloadError ??
+          existing[0]?.notifyOnDownloadError ??
+          true,
+        notifyOnAvailable:
+          updates.notifyOnAvailable ?? existing[0]?.notifyOnAvailable ?? true,
+        notifyOnDelayed:
+          updates.notifyOnDelayed ?? existing[0]?.notifyOnDelayed ?? true,
+        notifyOnUpdateAvailable:
+          updates.notifyOnUpdateAvailable ??
+          existing[0]?.notifyOnUpdateAvailable ??
+          true,
+        notifyOnRequestFulfilled:
+          updates.notifyOnRequestFulfilled ??
+          existing[0]?.notifyOnRequestFulfilled ??
+          true,
+        notifyOnBookQueued:
+          updates.notifyOnBookQueued ??
+          existing[0]?.notifyOnBookQueued ??
+          false,
         updatedAt: Date.now(),
       };
 
@@ -127,7 +150,7 @@ class AppriseService {
       const updated = await this.getSettings();
       return updated;
     } catch (error) {
-      console.error('[Apprise] Error updating settings:', error);
+      console.error("[Apprise] Error updating settings:", error);
       throw error;
     }
   }
@@ -145,7 +168,7 @@ class AppriseService {
         .limit(1);
 
       if (result.length === 0) {
-        console.log('[Apprise] Initializing default settings (disabled)');
+        console.log("[Apprise] Initializing default settings (disabled)");
         await db.insert(appriseSettings).values({
           id: 1,
           enabled: false,
@@ -162,7 +185,7 @@ class AppriseService {
         });
       }
     } catch (error) {
-      console.error('[Apprise] Error initializing defaults:', error);
+      console.error("[Apprise] Error initializing defaults:", error);
       // Don't throw - this is not critical
     }
   }
@@ -179,7 +202,9 @@ class AppriseService {
   /**
    * Get settings for API response
    */
-  async getSettingsForResponse(): Promise<Omit<AppriseSettings, 'updatedAt'> & { updatedAt: string }> {
+  async getSettingsForResponse(): Promise<
+    Omit<AppriseSettings, "updatedAt"> & { updatedAt: string }
+  > {
     const settings = await this.getSettings();
     return {
       ...settings,
@@ -205,19 +230,19 @@ class AppriseService {
     }
 
     switch (event) {
-      case 'new_request':
+      case "new_request":
         return settings.notifyOnNewRequest;
-      case 'download_error':
+      case "download_error":
         return settings.notifyOnDownloadError;
-      case 'available':
+      case "available":
         return settings.notifyOnAvailable;
-      case 'delayed':
+      case "delayed":
         return settings.notifyOnDelayed;
-      case 'update_available':
+      case "update_available":
         return settings.notifyOnUpdateAvailable;
-      case 'request_fulfilled':
+      case "request_fulfilled":
         return settings.notifyOnRequestFulfilled;
-      case 'book_queued':
+      case "book_queued":
         return settings.notifyOnBookQueued;
       default:
         return false;
@@ -227,7 +252,10 @@ class AppriseService {
   /**
    * Send a notification via Apprise
    */
-  async send(event: NotificationEvent, data: Record<string, unknown>): Promise<void> {
+  async send(
+    event: NotificationEvent,
+    data: Record<string, unknown>,
+  ): Promise<void> {
     try {
       // Check if we should send this notification
       if (!(await this.shouldNotify(event))) {
@@ -236,7 +264,9 @@ class AppriseService {
 
       const settings = await this.getSettings();
       if (!settings.serverUrl) {
-        console.warn('[Apprise] Cannot send notification: serverUrl not configured');
+        console.warn(
+          "[Apprise] Cannot send notification: serverUrl not configured",
+        );
         return;
       }
 
@@ -244,9 +274,15 @@ class AppriseService {
       const notification = this.buildNotification(event, data);
 
       // Send via Apprise
-      await this.sendToApprise(settings.serverUrl, notification, settings.customHeaders);
+      await this.sendToApprise(
+        settings.serverUrl,
+        notification,
+        settings.customHeaders,
+      );
 
-      console.log(`[Apprise] Sent ${event} notification: ${notification.title}`);
+      console.log(
+        `[Apprise] Sent ${event} notification: ${notification.title}`,
+      );
     } catch (error) {
       // Log error but don't throw - notifications shouldn't break core functionality
       console.error(`[Apprise] Failed to send ${event} notification:`, error);
@@ -256,12 +292,18 @@ class AppriseService {
   /**
    * Build notification content based on event type and data
    */
-  private buildNotification(event: NotificationEvent, data: Record<string, unknown>): NotificationData {
+  private buildNotification(
+    event: NotificationEvent,
+    data: Record<string, unknown>,
+  ): NotificationData {
     // Helper to format book info with author(s)
-    const formatBookInfo = (title: string, authors?: string | string[]): string => {
+    const formatBookInfo = (
+      title: string,
+      authors?: string | string[],
+    ): string => {
       if (authors) {
         // Handle both string and array of strings
-        const authorStr = Array.isArray(authors) ? authors.join(', ') : authors;
+        const authorStr = Array.isArray(authors) ? authors.join(", ") : authors;
         if (authorStr) {
           return `"${title}" by ${authorStr}`;
         }
@@ -270,60 +312,60 @@ class AppriseService {
     };
 
     switch (event) {
-      case 'new_request':
+      case "new_request":
         return {
-          title: 'Ephemera: New Download Request Created',
-          body: `Request for: ${data.query || 'unknown query'}`,
-          type: 'info',
+          title: "Ephemera: New Download Request Created",
+          body: `Request for: ${data.query || "unknown query"}`,
+          type: "info",
         };
 
-      case 'download_error':
+      case "download_error":
         return {
-          title: 'Ephemera: Download Failed',
-          body: `${formatBookInfo(data.title as string || 'Unknown book', data.authors as string | string[])} failed to download\nError: ${data.error || 'Unknown error'}`,
-          type: 'failure',
+          title: "Ephemera: Download Failed",
+          body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} failed to download\nError: ${data.error || "Unknown error"}`,
+          type: "failure",
         };
 
-      case 'available':
+      case "available":
         return {
-          title: 'Ephemera: Download Complete',
-          body: `${formatBookInfo(data.title as string || 'Unknown book', data.authors as string | string[])} is now available${data.format ? ` (${data.format})` : ''}`,
-          type: 'success',
+          title: "Ephemera: Download Complete",
+          body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} is now available${data.format ? ` (${data.format})` : ""}`,
+          type: "success",
         };
 
-      case 'delayed':
+      case "delayed":
         return {
-          title: 'Ephemera: Download Delayed - Quota Exhausted',
-          body: `${formatBookInfo(data.title as string || 'Unknown book', data.authors as string | string[])} delayed due to quota limits${data.nextRetryAt ? `\nNext retry: ${new Date(data.nextRetryAt as number).toLocaleString()}` : ''}`,
-          type: 'warning',
+          title: "Ephemera: Download Delayed - Quota Exhausted",
+          body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} delayed due to quota limits${data.nextRetryAt ? `\nNext retry: ${new Date(data.nextRetryAt as number).toLocaleString()}` : ""}`,
+          type: "warning",
         };
 
-      case 'update_available':
+      case "update_available":
         return {
-          title: 'Ephemera: Update Available',
-          body: `Version ${data.latestVersion} is now available${data.currentVersion ? ` (current: ${data.currentVersion})` : ''}`,
-          type: 'info',
+          title: "Ephemera: Update Available",
+          body: `Version ${data.latestVersion} is now available${data.currentVersion ? ` (current: ${data.currentVersion})` : ""}`,
+          type: "info",
         };
 
-      case 'request_fulfilled':
+      case "request_fulfilled":
         return {
-          title: 'Ephemera: Request Fulfilled',
-          body: `Found and queued: ${formatBookInfo(data.bookTitle as string || 'Unknown book', (data.bookAuthors || data.authors) as string | string[])}\nRequest: ${data.query || 'unknown query'}`,
-          type: 'success',
+          title: "Ephemera: Request Fulfilled",
+          body: `Found and queued: ${formatBookInfo((data.bookTitle as string) || "Unknown book", (data.bookAuthors || data.authors) as string | string[])}\nRequest: ${data.query || "unknown query"}`,
+          type: "success",
         };
 
-      case 'book_queued':
+      case "book_queued":
         return {
-          title: 'Ephemera: Book Queued for Download',
-          body: `${formatBookInfo(data.title as string || 'Unknown book', data.authors as string | string[])} added to download queue`,
-          type: 'info',
+          title: "Ephemera: Book Queued for Download",
+          body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} added to download queue`,
+          type: "info",
         };
 
       default:
         return {
-          title: 'Ephemera: Notification',
-          body: 'Unknown event',
-          type: 'info',
+          title: "Ephemera: Notification",
+          body: "Unknown event",
+          type: "info",
         };
     }
   }
@@ -334,13 +376,13 @@ class AppriseService {
   private async sendToApprise(
     serverUrl: string,
     notification: NotificationData,
-    customHeaders: Record<string, string> | null
+    customHeaders: Record<string, string> | null,
   ): Promise<void> {
     const formData = new FormData();
-    formData.append('title', notification.title);
-    formData.append('body', notification.body);
-    formData.append('type', notification.type);
-    formData.append('tags', 'all');
+    formData.append("title", notification.title);
+    formData.append("body", notification.body);
+    formData.append("type", notification.type);
+    formData.append("tags", "all");
 
     const headers: Record<string, string> = {};
 
@@ -352,14 +394,16 @@ class AppriseService {
     }
 
     const response = await fetch(serverUrl, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: formData,
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`Apprise server returned ${response.status}: ${errorText}`);
+      const errorText = await response.text().catch(() => "Unknown error");
+      throw new Error(
+        `Apprise server returned ${response.status}: ${errorText}`,
+      );
     }
   }
 
@@ -373,7 +417,7 @@ class AppriseService {
       if (!settings.serverUrl) {
         return {
           success: false,
-          message: 'Apprise server URL not configured',
+          message: "Apprise server URL not configured",
         };
       }
 
@@ -381,22 +425,23 @@ class AppriseService {
       await this.sendToApprise(
         settings.serverUrl,
         {
-          title: 'Test Notification',
-          body: 'Test notification from Ephemera',
-          type: 'info',
+          title: "Test Notification",
+          body: "Test notification from Ephemera",
+          type: "info",
         },
-        settings.customHeaders
+        settings.customHeaders,
       );
 
       return {
         success: true,
-        message: 'Test notification sent successfully',
+        message: "Test notification sent successfully",
       };
     } catch (error) {
-      console.error('[Apprise] Test notification failed:', error);
+      console.error("[Apprise] Test notification failed:", error);
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }

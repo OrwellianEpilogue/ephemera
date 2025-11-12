@@ -1,22 +1,23 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { apiFetch } from '@ephemera/shared';
-import type { SearchResponse, SearchQuery } from '@ephemera/shared';
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { apiFetch } from "@ephemera/shared";
+import type { SearchResponse, SearchQuery } from "@ephemera/shared";
 
-export const useSearch = (params: Omit<SearchQuery, 'page'>) => {
+export const useSearch = (params: Omit<SearchQuery, "page">) => {
   return useInfiniteQuery({
-    queryKey: ['search', params],
+    queryKey: ["search", params],
     queryFn: async ({ pageParam = 1 }) => {
       const query = new URLSearchParams();
-      query.append('q', params.q);
-      query.append('page', String(pageParam));
+      query.append("q", params.q);
+      query.append("page", String(pageParam));
 
-      if (params.sort) query.append('sort', params.sort);
-      if (params.content) params.content.forEach(c => query.append('content', c));
-      if (params.ext) params.ext.forEach(e => query.append('ext', e));
-      if (params.acc) params.acc.forEach(a => query.append('acc', a));
-      if (params.src) params.src.forEach(s => query.append('src', s));
-      if (params.lang) params.lang.forEach(l => query.append('lang', l));
-      if (params.desc !== undefined) query.append('desc', String(params.desc));
+      if (params.sort) query.append("sort", params.sort);
+      if (params.content)
+        params.content.forEach((c) => query.append("content", c));
+      if (params.ext) params.ext.forEach((e) => query.append("ext", e));
+      if (params.acc) params.acc.forEach((a) => query.append("acc", a));
+      if (params.src) params.src.forEach((s) => query.append("src", s));
+      if (params.lang) params.lang.forEach((l) => query.append("lang", l));
+      if (params.desc !== undefined) query.append("desc", String(params.desc));
 
       return apiFetch<SearchResponse>(`/search?${query.toString()}`, {
         timeout: 30000, // 30 second timeout

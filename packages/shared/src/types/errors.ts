@@ -10,10 +10,10 @@ export class AppError extends Error {
   constructor(
     message: string,
     public readonly code?: string,
-    public readonly statusCode?: number
+    public readonly statusCode?: number,
   ) {
     super(message);
-    this.name = 'AppError';
+    this.name = "AppError";
   }
 }
 
@@ -24,10 +24,10 @@ export class NetworkError extends AppError {
   constructor(
     message: string,
     public readonly url?: string,
-    statusCode?: number
+    statusCode?: number,
   ) {
-    super(message, 'NETWORK_ERROR', statusCode);
-    this.name = 'NetworkError';
+    super(message, "NETWORK_ERROR", statusCode);
+    this.name = "NetworkError";
   }
 }
 
@@ -37,22 +37,24 @@ export class NetworkError extends AppError {
 export class ValidationError extends AppError {
   constructor(
     message: string,
-    public readonly fields?: Record<string, string>
+    public readonly fields?: Record<string, string>,
   ) {
-    super(message, 'VALIDATION_ERROR', 400);
-    this.name = 'ValidationError';
+    super(message, "VALIDATION_ERROR", 400);
+    this.name = "ValidationError";
   }
 }
 
 /**
  * Type guard to check if an error has a message property
  */
-export function isErrorWithMessage(error: unknown): error is { message: string } {
+export function isErrorWithMessage(
+  error: unknown,
+): error is { message: string } {
   return (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'message' in error &&
-    typeof (error as Record<string, unknown>).message === 'string'
+    "message" in error &&
+    typeof (error as Record<string, unknown>).message === "string"
   );
 }
 
@@ -61,10 +63,10 @@ export function isErrorWithMessage(error: unknown): error is { message: string }
  */
 export function isErrorWithStack(error: unknown): error is { stack: string } {
   return (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'stack' in error &&
-    typeof (error as Record<string, unknown>).stack === 'string'
+    "stack" in error &&
+    typeof (error as Record<string, unknown>).stack === "string"
   );
 }
 
@@ -77,11 +79,11 @@ export function getErrorMessage(error: unknown): string {
     return error.message;
   }
 
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
 
-  return 'An unknown error occurred';
+  return "An unknown error occurred";
 }
 
 /**

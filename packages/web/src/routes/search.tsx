@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
+import { useState, useEffect, useRef, useMemo } from "react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import {
   Container,
   Title,
@@ -16,13 +16,19 @@ import {
   Paper,
   Checkbox,
   Accordion,
-} from '@mantine/core';
-import { IconSearch, IconFilter, IconBookmark } from '@tabler/icons-react';
-import { useSearch } from '../hooks/useSearch';
-import { BookCard } from '../components/BookCard';
-import type { SearchQuery, SavedRequestWithBook } from '@ephemera/shared';
-import { SORT_OPTIONS, FILE_FORMATS, CONTENT_TYPES, LANGUAGES, apiFetch } from '@ephemera/shared';
-import { useCreateRequest } from '../hooks/useRequests';
+} from "@mantine/core";
+import { IconSearch, IconFilter, IconBookmark } from "@tabler/icons-react";
+import { useSearch } from "../hooks/useSearch";
+import { BookCard } from "../components/BookCard";
+import type { SearchQuery, SavedRequestWithBook } from "@ephemera/shared";
+import {
+  SORT_OPTIONS,
+  FILE_FORMATS,
+  CONTENT_TYPES,
+  LANGUAGES,
+  apiFetch,
+} from "@ephemera/shared";
+import { useCreateRequest } from "../hooks/useRequests";
 
 // URL search params schema
 type SearchParams = {
@@ -35,13 +41,14 @@ type SearchParams = {
 };
 
 function SearchPage() {
-
   const navigate = useNavigate();
   const urlParams = Route.useSearch();
 
   // Local input state for typing (before submitting)
-  const [searchInput, setSearchInput] = useState(urlParams.q || '');
-  const [existingRequestId, setExistingRequestId] = useState<number | null>(null);
+  const [searchInput, setSearchInput] = useState(urlParams.q || "");
+  const [existingRequestId, setExistingRequestId] = useState<number | null>(
+    null,
+  );
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -66,24 +73,41 @@ function SearchPage() {
 
   // Build query params from URL - memoized to prevent infinite re-renders
   // Use JSON.stringify for array dependencies to compare values, not references
-  const queryParams: Omit<SearchQuery, 'page'> = useMemo(() => ({
-    q: urlParams.q || '',
-    sort: (urlParams.sort as 'relevant' | 'newest' | 'oldest') || 'relevant',
-    content: urlParams.content && urlParams.content.length > 0 ? urlParams.content : undefined,
-    ext: urlParams.ext && urlParams.ext.length > 0 ? urlParams.ext : undefined,
-    lang: urlParams.lang && urlParams.lang.length > 0 ? urlParams.lang : undefined,
-    desc: urlParams.desc || undefined,
-  }), [
-    urlParams.q,
-    urlParams.sort,
-    JSON.stringify(urlParams.content),
-    JSON.stringify(urlParams.ext),
-    JSON.stringify(urlParams.lang),
-    urlParams.desc
-  ]);
+  const queryParams: Omit<SearchQuery, "page"> = useMemo(
+    () => ({
+      q: urlParams.q || "",
+      sort: (urlParams.sort as "relevant" | "newest" | "oldest") || "relevant",
+      content:
+        urlParams.content && urlParams.content.length > 0
+          ? urlParams.content
+          : undefined,
+      ext:
+        urlParams.ext && urlParams.ext.length > 0 ? urlParams.ext : undefined,
+      lang:
+        urlParams.lang && urlParams.lang.length > 0
+          ? urlParams.lang
+          : undefined,
+      desc: urlParams.desc || undefined,
+    }),
+    [
+      urlParams.q,
+      urlParams.sort,
+      JSON.stringify(urlParams.content),
+      JSON.stringify(urlParams.ext),
+      JSON.stringify(urlParams.lang),
+      urlParams.desc,
+    ],
+  );
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, error } =
-    useSearch(queryParams);
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+  } = useSearch(queryParams);
 
   // Store latest values in refs to avoid recreating observer
   const hasNextPageRef = useRef(hasNextPage);
@@ -99,27 +123,27 @@ function SearchPage() {
 
   // Sync input with URL when navigating back
   useEffect(() => {
-    setSearchInput(urlParams.q || '');
+    setSearchInput(urlParams.q || "");
   }, [urlParams.q]);
 
   // Update URL params and save to localStorage
   const updateSearchParams = (updates: Partial<SearchParams>) => {
     const newParams = { ...urlParams, ...updates };
     navigate({
-      to: '/search',
+      to: "/search",
       search: newParams,
     });
 
     // Save to localStorage for persistence
     if (newParams.q) {
-      localStorage.setItem('lastSearch', JSON.stringify(newParams));
+      localStorage.setItem("lastSearch", JSON.stringify(newParams));
     }
   };
 
   // Default filters when no localStorage exists
   const defaultFilters: Partial<SearchParams> = {
-    ext: ['epub'],
-    lang: ['en', 'de'],
+    ext: ["epub"],
+    lang: ["en", "de"],
   };
 
   // Restore from localStorage when navigating to /search with no params
@@ -131,9 +155,9 @@ function SearchPage() {
     }
 
     // Check if we have any actual params (not just undefined values)
-    const hasAnyParams = Object.values(urlParams).some(val => {
+    const hasAnyParams = Object.values(urlParams).some((val) => {
       if (Array.isArray(val)) return val.length > 0;
-      return val !== undefined && val !== null && val !== '';
+      return val !== undefined && val !== null && val !== "";
     });
 
     // Only restore if we're on the search page with no query params at all
@@ -142,20 +166,20 @@ function SearchPage() {
       hasRestoredRef.current = true;
 
       try {
-        const saved = localStorage.getItem('lastSearch');
+        const saved = localStorage.getItem("lastSearch");
         if (saved) {
           const savedParams = JSON.parse(saved);
           // Only navigate if saved params actually has a query
           if (savedParams.q) {
             navigate({
-              to: '/search',
+              to: "/search",
               search: savedParams,
               replace: true, // Replace so back button works correctly
             });
           } else {
             // Has saved params but no query - apply default filters
             navigate({
-              to: '/search',
+              to: "/search",
               search: defaultFilters,
               replace: true,
             });
@@ -163,7 +187,7 @@ function SearchPage() {
         } else {
           // No saved params - apply default filters
           navigate({
-            to: '/search',
+            to: "/search",
             search: defaultFilters,
             replace: true,
           });
@@ -171,7 +195,7 @@ function SearchPage() {
       } catch (_e) {
         // On parse error, apply default filters
         navigate({
-          to: '/search',
+          to: "/search",
           search: defaultFilters,
           replace: true,
         });
@@ -184,7 +208,7 @@ function SearchPage() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearch();
     }
   };
@@ -202,21 +226,38 @@ function SearchPage() {
       }
 
       try {
-        const activeRequests = await apiFetch<SavedRequestWithBook[]>('/requests?status=active');
+        const activeRequests = await apiFetch<SavedRequestWithBook[]>(
+          "/requests?status=active",
+        );
 
         // Helper to normalize and compare query params
         // Handles both SearchQuery (with optional sort union) and RequestQueryParams (with optional string)
-        const normalizeParams = (params: Partial<SearchQuery> | { q?: string; sort?: string; content?: string | string[]; ext?: string | string[]; lang?: string | string[]; desc?: boolean }) => {
+        const normalizeParams = (
+          params:
+            | Partial<SearchQuery>
+            | {
+                q?: string;
+                sort?: string;
+                content?: string | string[];
+                ext?: string | string[];
+                lang?: string | string[];
+                desc?: boolean;
+              },
+        ) => {
           // Normalize arrays from string | string[] to string[]
-          const normalizeArray = (val: string | string[] | undefined): string[] => {
+          const normalizeArray = (
+            val: string | string[] | undefined,
+          ): string[] => {
             if (!val) return [];
             return Array.isArray(val) ? val : [val];
           };
 
           return JSON.stringify({
-            q: params.q || '',
-            sort: params.sort || 'relevant',
-            content: normalizeArray(params.content as string | string[] | undefined),
+            q: params.q || "",
+            sort: params.sort || "relevant",
+            content: normalizeArray(
+              params.content as string | string[] | undefined,
+            ),
             ext: normalizeArray(params.ext as string | string[] | undefined),
             lang: normalizeArray(params.lang as string | string[] | undefined),
             desc: params.desc || false,
@@ -231,13 +272,21 @@ function SearchPage() {
 
         setExistingRequestId(matchingRequest?.id || null);
       } catch (error) {
-        console.error('Failed to check for existing requests:', error);
+        console.error("Failed to check for existing requests:", error);
         setExistingRequestId(null);
       }
     };
 
     checkForExistingRequest();
-  }, [urlParams.q, urlParams.sort, JSON.stringify(urlParams.content), JSON.stringify(urlParams.ext), JSON.stringify(urlParams.lang), urlParams.desc, allBooks.length]);
+  }, [
+    urlParams.q,
+    urlParams.sort,
+    JSON.stringify(urlParams.content),
+    JSON.stringify(urlParams.ext),
+    JSON.stringify(urlParams.lang),
+    urlParams.desc,
+    allBooks.length,
+  ]);
 
   // Infinite scroll observer - using refs to avoid recreating observer on every state change
   // Must create observer AFTER results exist, so target div is rendered
@@ -249,7 +298,9 @@ function SearchPage() {
 
     const currentTarget = observerTarget.current;
     if (!currentTarget) {
-      console.warn('[IntersectionObserver] No target element found! Waiting for results to render...');
+      console.warn(
+        "[IntersectionObserver] No target element found! Waiting for results to render...",
+      );
       return;
     }
 
@@ -266,8 +317,8 @@ function SearchPage() {
       },
       {
         threshold: 0.1,
-        rootMargin: '0px 0px 1200px 0px' // Trigger 800px before reaching the bottom
-      }
+        rootMargin: "0px 0px 1200px 0px", // Trigger 800px before reaching the bottom
+      },
     );
 
     observer.observe(currentTarget);
@@ -316,9 +367,11 @@ function SearchPage() {
                         <Select
                           label="Sort by"
                           placeholder="Most relevant"
-                          value={urlParams.sort || 'relevant'}
-                          onChange={(value) => updateSearchParams({ sort: value || 'relevant' })}
-                          data={SORT_OPTIONS.map(opt => opt)}
+                          value={urlParams.sort || "relevant"}
+                          onChange={(value) =>
+                            updateSearchParams({ sort: value || "relevant" })
+                          }
+                          data={SORT_OPTIONS.map((opt) => opt)}
                         />
                       </Grid.Col>
 
@@ -327,8 +380,10 @@ function SearchPage() {
                           label="File Format"
                           placeholder="Any format"
                           value={urlParams.ext || []}
-                          onChange={(value) => updateSearchParams({ ext: value })}
-                          data={FILE_FORMATS.map(fmt => fmt)}
+                          onChange={(value) =>
+                            updateSearchParams({ ext: value })
+                          }
+                          data={FILE_FORMATS.map((fmt) => fmt)}
                           searchable
                           clearable
                         />
@@ -339,8 +394,10 @@ function SearchPage() {
                           label="Language"
                           placeholder="Any language"
                           value={urlParams.lang || []}
-                          onChange={(value) => updateSearchParams({ lang: value })}
-                          data={LANGUAGES.map(lang => lang)}
+                          onChange={(value) =>
+                            updateSearchParams({ lang: value })
+                          }
+                          data={LANGUAGES.map((lang) => lang)}
                           searchable
                           clearable
                         />
@@ -351,8 +408,10 @@ function SearchPage() {
                           label="Content Type"
                           placeholder="Any type"
                           value={urlParams.content || []}
-                          onChange={(value) => updateSearchParams({ content: value })}
-                          data={CONTENT_TYPES.map(type => type)}
+                          onChange={(value) =>
+                            updateSearchParams({ content: value })
+                          }
+                          data={CONTENT_TYPES.map((type) => type)}
                           searchable
                           clearable
                         />
@@ -362,7 +421,9 @@ function SearchPage() {
                     <Checkbox
                       label="Search in descriptions and metadata"
                       checked={urlParams.desc || false}
-                      onChange={(e) => updateSearchParams({ desc: e.currentTarget.checked })}
+                      onChange={(e) =>
+                        updateSearchParams({ desc: e.currentTarget.checked })
+                      }
                     />
                   </Stack>
                 </Accordion.Panel>
@@ -390,7 +451,8 @@ function SearchPage() {
               <>
                 <Group justify="space-between">
                   <Text size="sm" c="dimmed">
-                    Found {totalResults ? `${totalResults}+` : 'many'} results for "{urlParams.q}"
+                    Found {totalResults ? `${totalResults}+` : "many"} results
+                    for "{urlParams.q}"
                   </Text>
                   <Text size="sm" c="dimmed">
                     Showing {allBooks.length} books
@@ -399,14 +461,17 @@ function SearchPage() {
 
                 <Grid gutter="md">
                   {allBooks.map((book, index) => (
-                    <Grid.Col key={`${book.md5}-${index}`} span={{ base: 12, xs: 6, sm: 4, md: 3 }}>
+                    <Grid.Col
+                      key={`${book.md5}-${index}`}
+                      span={{ base: 12, xs: 6, sm: 4, md: 3 }}
+                    >
                       <BookCard book={book} />
                     </Grid.Col>
                   ))}
                 </Grid>
 
                 {/* Infinite scroll trigger */}
-                <div ref={observerTarget} style={{ height: '20px' }}>
+                <div ref={observerTarget} style={{ height: "20px" }}>
                   {isFetchingNextPage && (
                     <Center>
                       <Loader size="sm" />
@@ -470,8 +535,13 @@ function SearchPage() {
                       >
                         Save this search as a request
                       </Button>
-                      <Text size="xs" c="dimmed" style={{ maxWidth: '400px', textAlign: 'center' }}>
-                        Ephemera will automatically check for new results and download the book when it becomes available
+                      <Text
+                        size="xs"
+                        c="dimmed"
+                        style={{ maxWidth: "400px", textAlign: "center" }}
+                      >
+                        Ephemera will automatically check for new results and
+                        download the book when it becomes available
                       </Text>
                     </>
                   )}
@@ -494,24 +564,27 @@ function SearchPage() {
   );
 }
 
-export const Route = createFileRoute('/search')({
+export const Route = createFileRoute("/search")({
   component: SearchPage,
   validateSearch: (search: Record<string, unknown>): SearchParams => {
     // Helper to parse arrays from URL
     const toArray = (val: unknown): string[] | undefined => {
       if (!val) return undefined;
       if (Array.isArray(val)) return val as string[];
-      if (typeof val === 'string') return [val];
+      if (typeof val === "string") return [val];
       return undefined;
     };
 
     return {
-      q: typeof search.q === 'string' ? search.q : undefined,
-      sort: typeof search.sort === 'string' ? search.sort : undefined,
+      q: typeof search.q === "string" ? search.q : undefined,
+      sort: typeof search.sort === "string" ? search.sort : undefined,
       content: toArray(search.content),
       ext: toArray(search.ext),
       lang: toArray(search.lang),
-      desc: typeof search.desc === 'boolean' || search.desc === 'true' ? true : undefined,
+      desc:
+        typeof search.desc === "boolean" || search.desc === "true"
+          ? true
+          : undefined,
     };
   },
 });

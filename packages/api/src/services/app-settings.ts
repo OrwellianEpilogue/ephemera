@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { appSettings, type AppSettings } from '../db/schema.js';
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { appSettings, type AppSettings } from "../db/schema.js";
 
 /**
  * App Settings Service
@@ -41,7 +41,7 @@ class AppSettingsService {
 
       return this.settingsCache;
     } catch (error) {
-      console.error('[App Settings] Error fetching settings:', error);
+      console.error("[App Settings] Error fetching settings:", error);
       // Return defaults on error
       return this.getDefaults();
     }
@@ -53,13 +53,13 @@ class AppSettingsService {
   private getDefaults(): AppSettings {
     return {
       id: 1,
-      postDownloadAction: 'both',
+      postDownloadAction: "both",
       bookRetentionDays: 30,
-      requestCheckInterval: '6h',
-      timeFormat: '24h',
-      dateFormat: 'eur',
+      requestCheckInterval: "6h",
+      timeFormat: "24h",
+      dateFormat: "eur",
       libraryUrl: null,
-      libraryLinkLocation: 'sidebar',
+      libraryLinkLocation: "sidebar",
       updatedAt: Date.now(),
     };
   }
@@ -78,13 +78,26 @@ class AppSettingsService {
 
       const settingsData = {
         id: 1,
-        postDownloadAction: updates.postDownloadAction ?? existing[0]?.postDownloadAction ?? 'both',
-        bookRetentionDays: updates.bookRetentionDays ?? existing[0]?.bookRetentionDays ?? 30,
-        requestCheckInterval: updates.requestCheckInterval ?? existing[0]?.requestCheckInterval ?? '6h',
-        timeFormat: updates.timeFormat ?? existing[0]?.timeFormat ?? '24h',
-        dateFormat: updates.dateFormat ?? existing[0]?.dateFormat ?? 'eur',
-        libraryUrl: updates.libraryUrl !== undefined ? updates.libraryUrl : (existing[0]?.libraryUrl ?? null),
-        libraryLinkLocation: updates.libraryLinkLocation ?? existing[0]?.libraryLinkLocation ?? 'sidebar',
+        postDownloadAction:
+          updates.postDownloadAction ??
+          existing[0]?.postDownloadAction ??
+          "both",
+        bookRetentionDays:
+          updates.bookRetentionDays ?? existing[0]?.bookRetentionDays ?? 30,
+        requestCheckInterval:
+          updates.requestCheckInterval ??
+          existing[0]?.requestCheckInterval ??
+          "6h",
+        timeFormat: updates.timeFormat ?? existing[0]?.timeFormat ?? "24h",
+        dateFormat: updates.dateFormat ?? existing[0]?.dateFormat ?? "eur",
+        libraryUrl:
+          updates.libraryUrl !== undefined
+            ? updates.libraryUrl
+            : (existing[0]?.libraryUrl ?? null),
+        libraryLinkLocation:
+          updates.libraryLinkLocation ??
+          existing[0]?.libraryLinkLocation ??
+          "sidebar",
         updatedAt: Date.now(),
       };
 
@@ -106,7 +119,7 @@ class AppSettingsService {
       const updated = await this.getSettings();
       return updated;
     } catch (error) {
-      console.error('[App Settings] Error updating settings:', error);
+      console.error("[App Settings] Error updating settings:", error);
       throw error;
     }
   }
@@ -124,21 +137,23 @@ class AppSettingsService {
         .limit(1);
 
       if (result.length === 0) {
-        console.log('[App Settings] Initializing default settings (postDownloadAction=both, bookRetentionDays=30, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)');
+        console.log(
+          "[App Settings] Initializing default settings (postDownloadAction=both, bookRetentionDays=30, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)",
+        );
         await db.insert(appSettings).values({
           id: 1,
-          postDownloadAction: 'both',
+          postDownloadAction: "both",
           bookRetentionDays: 30,
-          requestCheckInterval: '6h',
-          timeFormat: '24h',
-          dateFormat: 'eur',
+          requestCheckInterval: "6h",
+          timeFormat: "24h",
+          dateFormat: "eur",
           libraryUrl: null,
-          libraryLinkLocation: 'sidebar',
+          libraryLinkLocation: "sidebar",
           updatedAt: Date.now(),
         });
       }
     } catch (error) {
-      console.error('[App Settings] Error initializing defaults:', error);
+      console.error("[App Settings] Error initializing defaults:", error);
       // Don't throw - this is not critical
     }
   }
@@ -155,7 +170,9 @@ class AppSettingsService {
   /**
    * Get settings for API response
    */
-  async getSettingsForResponse(): Promise<Omit<AppSettings, 'updatedAt'> & { updatedAt: string }> {
+  async getSettingsForResponse(): Promise<
+    Omit<AppSettings, "updatedAt"> & { updatedAt: string }
+  > {
     const settings = await this.getSettings();
     return {
       ...settings,

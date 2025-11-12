@@ -1,5 +1,5 @@
-import { bookloreSettingsService } from './booklore-settings.js';
-import { refreshAccessToken, isTokenExpired } from './booklore-auth.js';
+import { bookloreSettingsService } from "./booklore-settings.js";
+import { refreshAccessToken, isTokenExpired } from "./booklore-auth.js";
 
 /**
  * Proactive Token Refresher Service
@@ -17,21 +17,29 @@ class BookloreTokenRefresher {
    */
   start(): void {
     if (this.isRunning) {
-      console.log('[Token Refresher] Already running');
+      console.log("[Token Refresher] Already running");
       return;
     }
 
-    console.log('[Token Refresher] Starting background token refresh service (checks every 30 minutes)');
+    console.log(
+      "[Token Refresher] Starting background token refresh service (checks every 30 minutes)",
+    );
 
     // Run immediately on start
     this.checkAndRefreshToken().catch((error) => {
-      console.error('[Token Refresher] Error during initial token check:', error);
+      console.error(
+        "[Token Refresher] Error during initial token check:",
+        error,
+      );
     });
 
     // Then run periodically
     this.intervalId = setInterval(() => {
       this.checkAndRefreshToken().catch((error) => {
-        console.error('[Token Refresher] Error during scheduled token check:', error);
+        console.error(
+          "[Token Refresher] Error during scheduled token check:",
+          error,
+        );
       });
     }, this.CHECK_INTERVAL_MS);
 
@@ -46,7 +54,7 @@ class BookloreTokenRefresher {
       clearInterval(this.intervalId);
       this.intervalId = null;
       this.isRunning = false;
-      console.log('[Token Refresher] Stopped');
+      console.log("[Token Refresher] Stopped");
     }
   }
 
@@ -63,36 +71,64 @@ class BookloreTokenRefresher {
         return;
       }
 
-      if (!settings.baseUrl || !settings.refreshToken || !settings.accessToken || !settings.accessTokenExpiresAt) {
-        console.log('[Token Refresher] Booklore not fully configured, skipping token refresh');
+      if (
+        !settings.baseUrl ||
+        !settings.refreshToken ||
+        !settings.accessToken ||
+        !settings.accessTokenExpiresAt
+      ) {
+        console.log(
+          "[Token Refresher] Booklore not fully configured, skipping token refresh",
+        );
         return;
       }
 
       // Check if token needs refresh
-      if (!isTokenExpired(settings.accessTokenExpiresAt, this.REFRESH_BUFFER_MINUTES)) {
+      if (
+        !isTokenExpired(
+          settings.accessTokenExpiresAt,
+          this.REFRESH_BUFFER_MINUTES,
+        )
+      ) {
         // Token still valid, no need to refresh
-        const expiresIn = Math.floor((settings.accessTokenExpiresAt - Date.now()) / 1000 / 60);
-        console.log(`[Token Refresher] Access token still valid (expires in ${expiresIn} minutes)`);
+        const expiresIn = Math.floor(
+          (settings.accessTokenExpiresAt - Date.now()) / 1000 / 60,
+        );
+        console.log(
+          `[Token Refresher] Access token still valid (expires in ${expiresIn} minutes)`,
+        );
         return;
       }
 
       // Token expires soon, refresh it
-      console.log('[Token Refresher] Token expiring soon, refreshing proactively...');
+      console.log(
+        "[Token Refresher] Token expiring soon, refreshing proactively...",
+      );
 
-      const refreshResult = await refreshAccessToken(settings.baseUrl, settings.refreshToken);
+      const refreshResult = await refreshAccessToken(
+        settings.baseUrl,
+        settings.refreshToken,
+      );
 
       if (!refreshResult.success || !refreshResult.tokens) {
-        console.error('[Token Refresher] Failed to refresh token:', refreshResult.error);
+        console.error(
+          "[Token Refresher] Failed to refresh token:",
+          refreshResult.error,
+        );
         return;
       }
 
       // Update tokens in database
       await bookloreSettingsService.updateTokens(refreshResult.tokens);
 
-      const expiresIn = Math.floor((refreshResult.tokens.accessTokenExpiresAt - Date.now()) / 1000 / 60);
-      console.log(`[Token Refresher] Token refreshed successfully (access token valid for ${expiresIn} minutes)`);
+      const expiresIn = Math.floor(
+        (refreshResult.tokens.accessTokenExpiresAt - Date.now()) / 1000 / 60,
+      );
+      console.log(
+        `[Token Refresher] Token refreshed successfully (access token valid for ${expiresIn} minutes)`,
+      );
     } catch (error) {
-      console.error('[Token Refresher] Error during token refresh:', error);
+      console.error("[Token Refresher] Error during token refresh:", error);
     }
   }
 
@@ -100,7 +136,7 @@ class BookloreTokenRefresher {
    * Manually trigger a token refresh check (useful for testing)
    */
   async triggerRefresh(): Promise<void> {
-    console.log('[Token Refresher] Manual refresh triggered');
+    console.log("[Token Refresher] Manual refresh triggered");
     await this.checkAndRefreshToken();
   }
 }

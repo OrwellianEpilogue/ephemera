@@ -1,6 +1,6 @@
-import { useMutation } from '@tanstack/react-query';
-import { apiFetch } from '@ephemera/shared';
-import { notifications } from '@mantine/notifications';
+import { useMutation } from "@tanstack/react-query";
+import { apiFetch } from "@ephemera/shared";
+import { notifications } from "@mantine/notifications";
 
 interface QueueDownloadParams {
   md5: string;
@@ -12,22 +12,22 @@ export const useQueueDownload = () => {
     mutationFn: async (params: QueueDownloadParams) => {
       // Only send MD5 - book data already exists in database from search
       return apiFetch(`/download/${params.md5}`, {
-        method: 'POST',
+        method: "POST",
       });
     },
     onSuccess: (_, { title }) => {
       notifications.show({
-        title: 'Download Queued',
+        title: "Download Queued",
         message: `"${title}" has been added to the download queue`,
-        color: 'green',
+        color: "green",
       });
       // No need to invalidate - SSE will push the update automatically
     },
     onError: (error: Error, { title }) => {
       notifications.show({
-        title: 'Download Failed',
+        title: "Download Failed",
         message: error.message || `Failed to queue "${title}"`,
-        color: 'red',
+        color: "red",
       });
     },
   });
@@ -42,22 +42,22 @@ export const useCancelDownload = () => {
   return useMutation({
     mutationFn: async ({ md5 }: CancelDownloadParams) => {
       return apiFetch(`/download/${md5}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
     },
     onSuccess: (_, { title }) => {
       notifications.show({
-        title: 'Download Cancelled',
+        title: "Download Cancelled",
         message: `"${title}" has been cancelled`,
-        color: 'orange',
+        color: "orange",
       });
       // No need to invalidate - SSE will push the update automatically
     },
     onError: (error: Error, { title }) => {
       notifications.show({
-        title: 'Cancel Failed',
+        title: "Cancel Failed",
         message: error.message || `Failed to cancel "${title}"`,
-        color: 'red',
+        color: "red",
       });
     },
   });
@@ -72,22 +72,22 @@ export const useRetryDownload = () => {
   return useMutation({
     mutationFn: async ({ md5 }: RetryDownloadParams) => {
       return apiFetch(`/download/${md5}/retry`, {
-        method: 'POST',
+        method: "POST",
       });
     },
     onSuccess: (_, { title }) => {
       notifications.show({
-        title: 'Download Retrying',
+        title: "Download Retrying",
         message: `"${title}" has been added back to the queue`,
-        color: 'blue',
+        color: "blue",
       });
       // No need to invalidate - SSE will push the update automatically
     },
     onError: (error: Error, { title }) => {
       notifications.show({
-        title: 'Retry Failed',
+        title: "Retry Failed",
         message: error.message || `Failed to retry "${title}"`,
-        color: 'red',
+        color: "red",
       });
     },
   });

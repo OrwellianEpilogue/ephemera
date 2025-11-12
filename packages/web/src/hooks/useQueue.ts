@@ -1,8 +1,8 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useEffect, useState } from 'react';
-import { apiFetch } from '@ephemera/shared';
-import type { QueueResponse } from '@ephemera/shared';
-import { notifications } from '@mantine/notifications';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef, useEffect, useState } from "react";
+import { apiFetch } from "@ephemera/shared";
+import type { QueueResponse } from "@ephemera/shared";
+import { notifications } from "@mantine/notifications";
 
 interface UseQueueOptions {
   notifyOnComplete?: boolean;
@@ -22,8 +22,8 @@ export const useQueue = (options: UseQueueOptions = {}) => {
 
   // Initial fetch via REST and fallback polling if SSE fails
   const query = useQuery({
-    queryKey: ['queue'],
-    queryFn: () => apiFetch<QueueResponse>('/queue'),
+    queryKey: ["queue"],
+    queryFn: () => apiFetch<QueueResponse>("/queue"),
     // Only poll if SSE is not connected or has errored (and SSE is enabled)
     refetchInterval: enableSSE && isSSEConnected ? false : 5000,
   });
@@ -36,33 +36,33 @@ export const useQueue = (options: UseQueueOptions = {}) => {
     // Don't try SSE if it already errored
     if (sseError) return;
 
-    const eventSource = new EventSource('/api/queue/stream');
+    const eventSource = new EventSource("/api/queue/stream");
     eventSourceRef.current = eventSource;
 
-    eventSource.addEventListener('queue-update', (event) => {
+    eventSource.addEventListener("queue-update", (event) => {
       try {
         const data: QueueResponse = JSON.parse(event.data);
 
         // Update React Query cache with new data
-        queryClient.setQueryData(['queue'], data);
+        queryClient.setQueryData(["queue"], data);
       } catch (error) {
-        console.error('[SSE] Failed to parse queue update:', error);
+        console.error("[SSE] Failed to parse queue update:", error);
       }
     });
 
-    eventSource.addEventListener('ping', () => {
+    eventSource.addEventListener("ping", () => {
       // Heartbeat received, connection is alive
       // console.log('[SSE] Heartbeat received');
     });
 
     eventSource.onopen = () => {
-      console.log('[SSE] Connected to queue updates');
+      console.log("[SSE] Connected to queue updates");
       setIsSSEConnected(true);
       setSSEError(false);
     };
 
     eventSource.onerror = (error) => {
-      console.error('[SSE] Connection error, falling back to polling:', error);
+      console.error("[SSE] Connection error, falling back to polling:", error);
       setIsSSEConnected(false);
       setSSEError(true);
       eventSource.close();
@@ -95,17 +95,17 @@ export const useQueue = (options: UseQueueOptions = {}) => {
 
     // Find newly available items
     const newlyAvailable = [...currentAvailable].filter(
-      (md5) => !previousAvailableRef.current.has(md5)
+      (md5) => !previousAvailableRef.current.has(md5),
     );
 
     // Find newly delayed items
     const newlyDelayed = [...currentDelayed].filter(
-      (md5) => !previousDelayedRef.current.has(md5)
+      (md5) => !previousDelayedRef.current.has(md5),
     );
 
     // Find newly errored items
     const newlyErrored = [...currentError].filter(
-      (md5) => !previousErrorRef.current.has(md5)
+      (md5) => !previousErrorRef.current.has(md5),
     );
 
     // Show notification for each newly available download
@@ -113,9 +113,9 @@ export const useQueue = (options: UseQueueOptions = {}) => {
       const item = query.data.available[md5];
       if (item) {
         notifications.show({
-          title: 'Download Complete',
+          title: "Download Complete",
           message: `"${item.title}" is now available`,
-          color: 'green',
+          color: "green",
           autoClose: 5000,
         });
       }
@@ -126,12 +126,15 @@ export const useQueue = (options: UseQueueOptions = {}) => {
       const item = query.data.delayed[md5];
       if (item) {
         const nextRetryDate = item.nextRetryAt
-          ? new Date(item.nextRetryAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          : 'soon';
+          ? new Date(item.nextRetryAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "soon";
         notifications.show({
-          title: 'Download Delayed',
+          title: "Download Delayed",
           message: `"${item.title}" - Quota reached, will retry at ${nextRetryDate}`,
-          color: 'orange',
+          color: "orange",
           autoClose: 7000,
         });
       }
@@ -142,9 +145,9 @@ export const useQueue = (options: UseQueueOptions = {}) => {
       const item = query.data.error[md5];
       if (item) {
         notifications.show({
-          title: 'Download Failed',
-          message: `"${item.title}" - ${item.error || 'Unknown error'}`,
-          color: 'red',
+          title: "Download Failed",
+          message: `"${item.title}" - ${item.error || "Unknown error"}`,
+          color: "red",
           autoClose: 10000,
         });
       }
@@ -165,7 +168,7 @@ export const useQueue = (options: UseQueueOptions = {}) => {
 
 export const useQueueItem = (md5: string) => {
   return useQuery({
-    queryKey: ['queue', md5],
+    queryKey: ["queue", md5],
     queryFn: () => apiFetch(`/queue/${md5}`),
     refetchInterval: 1000, // Poll every second for individual item
   });

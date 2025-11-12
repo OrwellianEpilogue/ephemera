@@ -1,11 +1,11 @@
-import { eq, lt } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { searchCache, type NewSearchCache } from '../db/schema.js';
-import type { SearchQuery, SearchResponse } from '@ephemera/shared';
-import { logger } from '../utils/logger.js';
-import { createHash } from 'crypto';
+import { eq, lt } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { searchCache, type NewSearchCache } from "../db/schema.js";
+import type { SearchQuery, SearchResponse } from "@ephemera/shared";
+import { logger } from "../utils/logger.js";
+import { createHash } from "crypto";
 
-const CACHE_TTL = parseInt(process.env.SEARCH_CACHE_TTL || '300') * 1000; // Default 5 minutes in ms
+const CACHE_TTL = parseInt(process.env.SEARCH_CACHE_TTL || "300") * 1000; // Default 5 minutes in ms
 
 export class SearchCacheManager {
   private generateQueryHash(query: SearchQuery): string {
@@ -13,7 +13,7 @@ export class SearchCacheManager {
     const normalized = {
       q: query.q.toLowerCase().trim(),
       page: query.page || 1,
-      sort: query.sort || '',
+      sort: query.sort || "",
       content: query.content?.sort() || [],
       ext: query.ext?.sort() || [],
       acc: query.acc?.sort() || [],
@@ -22,7 +22,7 @@ export class SearchCacheManager {
       desc: query.desc || false,
     };
 
-    return createHash('md5').update(JSON.stringify(normalized)).digest('hex');
+    return createHash("md5").update(JSON.stringify(normalized)).digest("hex");
   }
 
   async get(query: SearchQuery): Promise<SearchResponse | null> {
@@ -50,7 +50,9 @@ export class SearchCacheManager {
         return null;
       }
 
-      logger.info(`Cache hit for query: ${query.q} (${entry.results.length} results)`);
+      logger.info(
+        `Cache hit for query: ${query.q} (${entry.results.length} results)`,
+      );
 
       return {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,7 +61,7 @@ export class SearchCacheManager {
         pagination: entry.pagination as any,
       };
     } catch (error) {
-      logger.error('Failed to get from cache:', error);
+      logger.error("Failed to get from cache:", error);
       return null;
     }
   }
@@ -84,7 +86,7 @@ export class SearchCacheManager {
 
       logger.info(`Cached query: ${query.q} (expires in ${CACHE_TTL / 1000}s)`);
     } catch (error) {
-      logger.error('Failed to set cache:', error);
+      logger.error("Failed to set cache:", error);
     }
   }
 
@@ -97,7 +99,7 @@ export class SearchCacheManager {
 
       return result.changes || 0;
     } catch (error) {
-      logger.error('Failed to cleanup cache:', error);
+      logger.error("Failed to cleanup cache:", error);
       return 0;
     }
   }
@@ -105,9 +107,9 @@ export class SearchCacheManager {
   async clear(): Promise<void> {
     try {
       await db.delete(searchCache);
-      logger.info('Cache cleared');
+      logger.info("Cache cleared");
     } catch (error) {
-      logger.error('Failed to clear cache:', error);
+      logger.error("Failed to clear cache:", error);
     }
   }
 
@@ -120,7 +122,7 @@ export class SearchCacheManager {
       const all = await db.select().from(searchCache);
       const now = Date.now();
 
-      const expired = all.filter(entry => entry.expiresAt < now).length;
+      const expired = all.filter((entry) => entry.expiresAt < now).length;
       const active = all.length - expired;
 
       return {
@@ -129,7 +131,7 @@ export class SearchCacheManager {
         active,
       };
     } catch (error) {
-      logger.error('Failed to get cache stats:', error);
+      logger.error("Failed to get cache stats:", error);
       return { total: 0, expired: 0, active: 0 };
     }
   }

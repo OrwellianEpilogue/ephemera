@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - '8286:8286'
+      - "8286:8286"
 
     environment:
       # Required:
@@ -49,12 +49,12 @@ services:
     healthcheck:
       test:
         [
-          'CMD',
-          'wget',
-          '--no-verbose',
-          '--tries=1',
-          '--spider',
-          'http://localhost:8286/health',
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8286/health",
         ]
       interval: 30s
       timeout: 10s
@@ -78,7 +78,7 @@ services:
     #  - 1.0.0.1
 
     healthcheck:
-      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8191/health']
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8191/health"]
       interval: 30s
       timeout: 10s
       start_period: 30s
@@ -336,18 +336,18 @@ Edit `packages/shared/src/schemas.ts`:
 export const myNewSchema = z.object({
   id: z.string(),
   name: z.string(),
-})
+});
 ```
 
 ### 2. Use in API
 
 ```typescript
-import { myNewSchema } from '@ephemera/shared'
+import { myNewSchema } from "@ephemera/shared";
 
 const route = createRoute({
   request: { body: myNewSchema },
   // ...
-})
+});
 ```
 
 ### 3. Regenerate OpenAPI Types
@@ -363,9 +363,9 @@ pnpm --filter @ephemera/shared generate:client
 ### 4. Use in Frontend
 
 ```typescript
-import { client } from '@ephemera/shared'
+import { client } from "@ephemera/shared";
 
-const data = await client.get('/api/new-endpoint')
+const data = await client.get("/api/new-endpoint");
 // `data` is fully typed!
 ```
 

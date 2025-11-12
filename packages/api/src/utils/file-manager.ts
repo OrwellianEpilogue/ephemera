@@ -1,8 +1,8 @@
-import { rename, access, mkdir, stat, unlink, copyFile } from 'fs/promises';
-import { join, basename } from 'path';
-import { logger } from './logger.js';
+import { rename, access, mkdir, stat, unlink, copyFile } from "fs/promises";
+import { join, basename } from "path";
+import { logger } from "./logger.js";
 
-const INGEST_FOLDER = process.env.INGEST_FOLDER || './final-downloads';
+const INGEST_FOLDER = process.env.INGEST_FOLDER || "./final-downloads";
 
 export class FileManager {
   /**
@@ -15,13 +15,13 @@ export class FileManager {
     } catch (error: unknown) {
       // EXDEV error means crossing filesystem boundaries
       const isExdevError =
-        typeof error === 'object' &&
+        typeof error === "object" &&
         error !== null &&
-        'code' in error &&
-        (error as { code?: string }).code === 'EXDEV';
+        "code" in error &&
+        (error as { code?: string }).code === "EXDEV";
 
       if (isExdevError) {
-        logger.info('Cross-filesystem move detected, using copy+delete');
+        logger.info("Cross-filesystem move detected, using copy+delete");
         await copyFile(source, destination);
         await unlink(source);
       } else {
@@ -33,7 +33,7 @@ export class FileManager {
     try {
       await mkdir(INGEST_FOLDER, { recursive: true });
     } catch (error) {
-      logger.error('Failed to create download folder:', error);
+      logger.error("Failed to create download folder:", error);
       throw error;
     }
   }
@@ -79,9 +79,9 @@ export class FileManager {
       if (destExists) {
         // If destination exists, add timestamp to make unique
         const timestamp = Date.now();
-        const parts = filename.split('.');
+        const parts = filename.split(".");
         const ext = parts.pop();
-        const name = parts.join('.');
+        const name = parts.join(".");
         const uniqueFilename = `${name}_${timestamp}.${ext}`;
         const uniquePath = join(INGEST_FOLDER, uniqueFilename);
 
@@ -103,7 +103,10 @@ export class FileManager {
     }
   }
 
-  async validateDownload(path: string, expectedSize?: number): Promise<boolean> {
+  async validateDownload(
+    path: string,
+    expectedSize?: number,
+  ): Promise<boolean> {
     try {
       const exists = await this.fileExists(path);
       if (!exists) {
@@ -119,7 +122,9 @@ export class FileManager {
       }
 
       if (expectedSize && actualSize !== expectedSize) {
-        logger.warn(`File size mismatch: expected ${expectedSize}, got ${actualSize}`);
+        logger.warn(
+          `File size mismatch: expected ${expectedSize}, got ${actualSize}`,
+        );
         // Don't fail on size mismatch, just warn
         // Sometimes headers report incorrect size
       }

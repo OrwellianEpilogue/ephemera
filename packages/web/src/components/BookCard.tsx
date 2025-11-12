@@ -1,51 +1,93 @@
-import { Card, Image, Text, Badge, Button, Group, Stack, AspectRatio } from '@mantine/core';
-import { IconDownload, IconCheck, IconClock, IconAlertCircle } from '@tabler/icons-react';
-import type { Book } from '@ephemera/shared';
-import { useQueueDownload } from '../hooks/useDownload';
-import { useBookStatus } from '../hooks/useBookStatus';
+import {
+  Card,
+  Image,
+  Text,
+  Badge,
+  Button,
+  Group,
+  Stack,
+  AspectRatio,
+} from "@mantine/core";
+import {
+  IconDownload,
+  IconCheck,
+  IconClock,
+  IconAlertCircle,
+} from "@tabler/icons-react";
+import type { Book } from "@ephemera/shared";
+import { useQueueDownload } from "../hooks/useDownload";
+import { useBookStatus } from "../hooks/useBookStatus";
 
 interface BookCardProps {
   book: Book;
 }
 
 const formatFileSize = (bytes?: number): string => {
-  if (!bytes) return 'Unknown';
+  if (!bytes) return "Unknown";
   const mb = bytes / (1024 * 1024);
   if (mb < 1) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${mb.toFixed(1)} MB`;
 };
 
-const getDownloadStatusBadge = (status: string | null | undefined, progress?: number) => {
+const getDownloadStatusBadge = (
+  status: string | null | undefined,
+  progress?: number,
+) => {
   if (!status) return null;
 
   switch (status) {
-    case 'available':
+    case "available":
       return (
-        <Badge size="sm" variant="light" color="green" leftSection={<IconCheck size={12} />}>
+        <Badge
+          size="sm"
+          variant="light"
+          color="green"
+          leftSection={<IconCheck size={12} />}
+        >
           Downloaded
         </Badge>
       );
-    case 'queued':
+    case "queued":
       return (
-        <Badge size="sm" variant="light" color="blue" leftSection={<IconClock size={12} />}>
+        <Badge
+          size="sm"
+          variant="light"
+          color="blue"
+          leftSection={<IconClock size={12} />}
+        >
           Queued
         </Badge>
       );
-    case 'downloading':
+    case "downloading":
       return (
-        <Badge size="sm" variant="light" color="cyan" leftSection={<IconDownload size={12} />}>
-          Downloading {progress !== undefined ? `${progress}%` : ''}
+        <Badge
+          size="sm"
+          variant="light"
+          color="cyan"
+          leftSection={<IconDownload size={12} />}
+        >
+          Downloading {progress !== undefined ? `${progress}%` : ""}
         </Badge>
       );
-    case 'delayed':
+    case "delayed":
       return (
-        <Badge size="sm" variant="light" color="orange" leftSection={<IconClock size={12} />}>
+        <Badge
+          size="sm"
+          variant="light"
+          color="orange"
+          leftSection={<IconClock size={12} />}
+        >
           Delayed
         </Badge>
       );
-    case 'error':
+    case "error":
       return (
-        <Badge size="sm" variant="light" color="red" leftSection={<IconAlertCircle size={12} />}>
+        <Badge
+          size="sm"
+          variant="light"
+          color="red"
+          leftSection={<IconAlertCircle size={12} />}
+        >
           Error
         </Badge>
       );
@@ -58,8 +100,15 @@ export const BookCard = ({ book }: BookCardProps) => {
   const queueDownload = useQueueDownload();
 
   // Get live status from queue (reactive to SSE updates)
-  const { status, progress, isAvailable, isQueued, isDownloading, isDelayed, isError } =
-    useBookStatus(book.md5, book.downloadStatus);
+  const {
+    status,
+    progress,
+    isAvailable,
+    isQueued,
+    isDownloading,
+    isDelayed,
+    isError,
+  } = useBookStatus(book.md5, book.downloadStatus);
 
   const handleDownload = () => {
     queueDownload.mutate({
@@ -71,7 +120,14 @@ export const BookCard = ({ book }: BookCardProps) => {
   const isInQueue = isQueued || isDownloading || isDelayed;
 
   return (
-    <Card shadow="sm" padding="lg" radius="md" withBorder h="100%" style={{ display: 'flex', flexDirection: 'column' }}>
+    <Card
+      shadow="sm"
+      padding="lg"
+      radius="md"
+      withBorder
+      h="100%"
+      style={{ display: "flex", flexDirection: "column" }}
+    >
       <Card.Section>
         <AspectRatio ratio={2 / 3}>
           {book.coverUrl ? (
@@ -91,14 +147,18 @@ export const BookCard = ({ book }: BookCardProps) => {
         </AspectRatio>
       </Card.Section>
 
-      <Stack gap="xs" mt="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Stack
+        gap="xs"
+        mt="md"
+        style={{ flex: 1, display: "flex", flexDirection: "column" }}
+      >
         <Text fw={500} lineClamp={2} size="sm">
           {book.title}
         </Text>
 
         {book.authors && book.authors.length > 0 && (
           <Text size="xs" c="dimmed" lineClamp={1}>
-            {book.authors.join(', ')}
+            {book.authors.join(", ")}
           </Text>
         )}
 
@@ -135,20 +195,20 @@ export const BookCard = ({ book }: BookCardProps) => {
           onClick={handleDownload}
           loading={queueDownload.isPending}
           disabled={queueDownload.isPending || isAvailable || isInQueue}
-          variant={isAvailable ? 'light' : isError ? 'outline' : 'filled'}
-          color={isAvailable ? 'green' : isError ? 'red' : undefined}
+          variant={isAvailable ? "light" : isError ? "outline" : "filled"}
+          color={isAvailable ? "green" : isError ? "red" : undefined}
         >
           {isAvailable
-            ? 'Already Downloaded'
+            ? "Already Downloaded"
             : isDownloading
-            ? `Downloading ${progress !== undefined ? `${progress}%` : '...'}`
-            : isQueued
-            ? 'In Queue'
-            : isDelayed
-            ? 'Delayed'
-            : isError
-            ? 'Retry Download'
-            : 'Download'}
+              ? `Downloading ${progress !== undefined ? `${progress}%` : "..."}`
+              : isQueued
+                ? "In Queue"
+                : isDelayed
+                  ? "Delayed"
+                  : isError
+                    ? "Retry Download"
+                    : "Download"}
         </Button>
       </Stack>
     </Card>

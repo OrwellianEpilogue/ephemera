@@ -21,7 +21,8 @@
     "@tanstack/react-router": "^1.104.1",
     "date-fns": "^4.1.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@tanstack/react-router-devtools": "^1.104.1",

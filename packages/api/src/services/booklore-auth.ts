@@ -19,27 +19,27 @@ export interface BookloreTokens {
 function decodeJWTExpiry(token: string): number | null {
   try {
     // JWT format: header.payload.signature
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 3) {
-      console.error('[Booklore Auth] Invalid JWT format');
+      console.error("[Booklore Auth] Invalid JWT format");
       return null;
     }
 
     // Decode base64url payload
     const payload = parts[1];
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = Buffer.from(base64, 'base64').toString('utf-8');
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = Buffer.from(base64, "base64").toString("utf-8");
     const decoded = JSON.parse(jsonPayload);
 
     // Extract exp claim (in seconds) and convert to milliseconds
-    if (decoded.exp && typeof decoded.exp === 'number') {
+    if (decoded.exp && typeof decoded.exp === "number") {
       return decoded.exp * 1000;
     }
 
-    console.error('[Booklore Auth] JWT missing exp claim');
+    console.error("[Booklore Auth] JWT missing exp claim");
     return null;
   } catch (error) {
-    console.error('[Booklore Auth] Failed to decode JWT:', error);
+    console.error("[Booklore Auth] Failed to decode JWT:", error);
     return null;
   }
 }
@@ -66,15 +66,15 @@ export interface RefreshResponse {
 export async function login(
   baseUrl: string,
   username: string,
-  password: string
+  password: string,
 ): Promise<LoginResponse> {
   try {
     const loginUrl = `${baseUrl}/api/v1/auth/login`;
 
     const response = await fetch(loginUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         username,
@@ -83,18 +83,18 @@ export async function login(
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
+      const errorText = await response.text().catch(() => "");
 
       if (response.status === 401) {
         return {
           success: false,
-          error: 'Invalid username or password',
+          error: "Invalid username or password",
         };
       }
 
       return {
         success: false,
-        error: `Login failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`,
+        error: `Login failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
       };
     }
 
@@ -103,12 +103,12 @@ export async function login(
     // Booklore returns Map<String, String> with tokens
     const accessToken = data.accessToken || data.access_token;
     const refreshToken = data.refreshToken || data.refresh_token;
-    const tokenType = data.tokenType || data.token_type || 'Bearer';
+    const tokenType = data.tokenType || data.token_type || "Bearer";
 
     if (!accessToken || !refreshToken) {
       return {
         success: false,
-        error: 'Login response missing tokens',
+        error: "Login response missing tokens",
       };
     }
 
@@ -119,12 +119,16 @@ export async function login(
     if (!accessTokenExpiresAt || !refreshTokenExpiresAt) {
       return {
         success: false,
-        error: 'Failed to decode token expiry times',
+        error: "Failed to decode token expiry times",
       };
     }
 
-    console.log(`[Booklore Auth] Access token expires at: ${new Date(accessTokenExpiresAt).toISOString()}`);
-    console.log(`[Booklore Auth] Refresh token expires at: ${new Date(refreshTokenExpiresAt).toISOString()}`);
+    console.log(
+      `[Booklore Auth] Access token expires at: ${new Date(accessTokenExpiresAt).toISOString()}`,
+    );
+    console.log(
+      `[Booklore Auth] Refresh token expires at: ${new Date(refreshTokenExpiresAt).toISOString()}`,
+    );
 
     return {
       success: true,
@@ -152,15 +156,15 @@ export async function login(
  */
 export async function refreshAccessToken(
   baseUrl: string,
-  refreshToken: string
+  refreshToken: string,
 ): Promise<RefreshResponse> {
   try {
     const refreshUrl = `${baseUrl}/api/v1/auth/refresh`;
 
     const response = await fetch(refreshUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         refreshToken,
@@ -168,18 +172,18 @@ export async function refreshAccessToken(
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
+      const errorText = await response.text().catch(() => "");
 
       if (response.status === 401) {
         return {
           success: false,
-          error: 'Refresh token expired or invalid. Please re-authenticate.',
+          error: "Refresh token expired or invalid. Please re-authenticate.",
         };
       }
 
       return {
         success: false,
-        error: `Token refresh failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`,
+        error: `Token refresh failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
       };
     }
 
@@ -187,13 +191,14 @@ export async function refreshAccessToken(
 
     // Booklore returns Map<String, String> with new tokens
     const accessToken = data.accessToken || data.access_token;
-    const newRefreshToken = data.refreshToken || data.refresh_token || refreshToken;
-    const tokenType = data.tokenType || data.token_type || 'Bearer';
+    const newRefreshToken =
+      data.refreshToken || data.refresh_token || refreshToken;
+    const tokenType = data.tokenType || data.token_type || "Bearer";
 
     if (!accessToken) {
       return {
         success: false,
-        error: 'Refresh response missing access token',
+        error: "Refresh response missing access token",
       };
     }
 
@@ -204,12 +209,16 @@ export async function refreshAccessToken(
     if (!accessTokenExpiresAt || !refreshTokenExpiresAt) {
       return {
         success: false,
-        error: 'Failed to decode token expiry times',
+        error: "Failed to decode token expiry times",
       };
     }
 
-    console.log(`[Booklore Auth] Access token expires at: ${new Date(accessTokenExpiresAt).toISOString()}`);
-    console.log(`[Booklore Auth] Refresh token expires at: ${new Date(refreshTokenExpiresAt).toISOString()}`);
+    console.log(
+      `[Booklore Auth] Access token expires at: ${new Date(accessTokenExpiresAt).toISOString()}`,
+    );
+    console.log(
+      `[Booklore Auth] Refresh token expires at: ${new Date(refreshTokenExpiresAt).toISOString()}`,
+    );
 
     return {
       success: true,
@@ -235,9 +244,12 @@ export async function refreshAccessToken(
  * @param bufferMinutes - Refresh tokens this many minutes before expiration (default: 5)
  * @returns true if token is expired or will expire within buffer time
  */
-export function isTokenExpired(expiresAt: number, bufferMinutes: number = 5): boolean {
+export function isTokenExpired(
+  expiresAt: number,
+  bufferMinutes: number = 5,
+): boolean {
   const bufferMs = bufferMinutes * 60 * 1000;
-  return Date.now() >= (expiresAt - bufferMs);
+  return Date.now() >= expiresAt - bufferMs;
 }
 
 /**
@@ -250,19 +262,19 @@ export function isTokenExpired(expiresAt: number, bufferMinutes: number = 5): bo
 export async function testConnection(
   baseUrl: string,
   username: string,
-  password: string
+  password: string,
 ): Promise<{ success: boolean; message: string }> {
   const loginResult = await login(baseUrl, username, password);
 
   if (loginResult.success) {
     return {
       success: true,
-      message: 'Successfully authenticated with Booklore API',
+      message: "Successfully authenticated with Booklore API",
     };
   }
 
   return {
     success: false,
-    message: loginResult.error || 'Authentication failed',
+    message: loginResult.error || "Authentication failed",
   };
 }

@@ -672,9 +672,7 @@
       "indexes": {
         "search_cache_query_hash_unique": {
           "name": "search_cache_query_hash_unique",
-          "columns": [
-            "query_hash"
-          ],
+          "columns": ["query_hash"],
           "isUnique": true
         }
       },

@@ -1,5 +1,5 @@
-import { Group, Text, Badge, Anchor, Box } from '@mantine/core';
-import { useVersion } from '../hooks/useVersion';
+import { Group, Text, Badge, Anchor, Box } from "@mantine/core";
+import { useVersion } from "../hooks/useVersion";
 
 export function VersionFooter() {
   const { data: versionInfo, isLoading, error } = useVersion();
@@ -14,7 +14,9 @@ export function VersionFooter() {
     return (
       <Box pt="md" style={{ marginLeft: 15 }}>
         <Group justify="space-between" gap="xs">
-          <Text size="xs" c="dimmed">Loading version...</Text>
+          <Text size="xs" c="dimmed">
+            Loading version...
+          </Text>
         </Group>
       </Box>
     );
@@ -31,9 +33,14 @@ export function VersionFooter() {
             href={versionInfo.releaseUrl}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ textDecoration: 'none' }}
+            style={{ textDecoration: "none" }}
           >
-            <Badge size="sm" variant="filled" color="green" style={{ cursor: 'pointer' }}>
+            <Badge
+              size="sm"
+              variant="filled"
+              color="green"
+              style={{ cursor: "pointer" }}
+            >
               Update Available
             </Badge>
           </Anchor>

@@ -1,7 +1,7 @@
-import { db } from '../db/index.js';
-import { books, type Book, type NewBook } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
-import type { Book as SharedBook } from '@ephemera/shared';
+import { db } from "../db/index.js";
+import { books, type Book, type NewBook } from "../db/schema.js";
+import { eq } from "drizzle-orm";
+import type { Book as SharedBook } from "@ephemera/shared";
 
 export class BookService {
   /**
@@ -12,7 +12,11 @@ export class BookService {
     const now = Date.now();
 
     // Check if book exists
-    const existing = await db.select().from(books).where(eq(books.md5, bookData.md5)).get();
+    const existing = await db
+      .select()
+      .from(books)
+      .where(eq(books.md5, bookData.md5))
+      .get();
 
     if (existing) {
       // Update existing book
@@ -83,13 +87,15 @@ export class BookService {
     const now = Date.now();
 
     // Get all existing books in one query
-    const existingBooks = await this.getBooksByMd5s(booksData.map(b => b.md5));
-    const existingMd5s = new Set(existingBooks.map(b => b.md5));
-    const existingMap = new Map(existingBooks.map(b => [b.md5, b]));
+    const existingBooks = await this.getBooksByMd5s(
+      booksData.map((b) => b.md5),
+    );
+    const existingMd5s = new Set(existingBooks.map((b) => b.md5));
+    const existingMap = new Map(existingBooks.map((b) => [b.md5, b]));
 
     // Separate into updates and inserts
-    const toUpdate = booksData.filter(b => existingMd5s.has(b.md5));
-    const toInsert = booksData.filter(b => !existingMd5s.has(b.md5));
+    const toUpdate = booksData.filter((b) => existingMd5s.has(b.md5));
+    const toInsert = booksData.filter((b) => !existingMd5s.has(b.md5));
 
     // Batch update existing books
     for (const bookData of toUpdate) {
@@ -120,7 +126,7 @@ export class BookService {
 
     // Batch insert new books
     if (toInsert.length > 0) {
-      const newBooks: NewBook[] = toInsert.map(bookData => ({
+      const newBooks: NewBook[] = toInsert.map((bookData) => ({
         md5: bookData.md5,
         title: bookData.title,
         authors: bookData.authors || null,
@@ -161,7 +167,7 @@ export class BookService {
 
     // Use IN query to get multiple books at once
     const results = await db.select().from(books).all();
-    return results.filter(book => md5s.includes(book.md5));
+    return results.filter((book) => md5s.includes(book.md5));
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { paths } from './generated/api.js';
+import type { paths } from "./generated/api.js";
 
 /**
  * Configuration for the API client
@@ -12,9 +12,9 @@ export interface ClientConfig {
  * Default configuration
  */
 const defaultConfig: Required<ClientConfig> = {
-  baseUrl: 'http://localhost:8286',
+  baseUrl: "http://localhost:8286",
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 };
 
@@ -30,7 +30,9 @@ export const configureClient = (config: ClientConfig) => {
 /**
  * Get current client configuration
  */
-export const getClientConfig = (): Required<ClientConfig> => ({ ...clientConfig });
+export const getClientConfig = (): Required<ClientConfig> => ({
+  ...clientConfig,
+});
 
 /**
  * HTTP Methods type (for future use)
@@ -40,17 +42,21 @@ export const getClientConfig = (): Required<ClientConfig> => ({ ...clientConfig 
 /**
  * Extract path parameters from a path string
  */
-type PathParams<T extends string> = T extends `${infer _Start}{${infer Param}}${infer Rest}`
-  ? { [K in Param | keyof PathParams<Rest>]: string }
-  : {};
+type PathParams<T extends string> =
+  T extends `${infer _Start}{${infer Param}}${infer Rest}`
+    ? { [K in Param | keyof PathParams<Rest>]: string }
+    : {};
 
 /**
  * Replace path parameters in a URL
  */
-const replacePathParams = (path: string, params: Record<string, string>): string => {
+const replacePathParams = (
+  path: string,
+  params: Record<string, string>,
+): string => {
   return Object.entries(params).reduce(
     (url, [key, value]) => url.replace(`{${key}}`, encodeURIComponent(value)),
-    path
+    path,
   );
 };
 
@@ -64,14 +70,14 @@ const buildQueryString = (params: Record<string, unknown>): string => {
     if (value === undefined || value === null) return;
 
     if (Array.isArray(value)) {
-      value.forEach(item => searchParams.append(key, String(item)));
+      value.forEach((item) => searchParams.append(key, String(item)));
     } else {
       searchParams.append(key, String(value));
     }
   });
 
   const queryString = searchParams.toString();
-  return queryString ? `?${queryString}` : '';
+  return queryString ? `?${queryString}` : "";
 };
 
 /**
@@ -81,10 +87,10 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public response?: unknown
+    public response?: unknown,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
@@ -97,7 +103,7 @@ export async function apiFetch<TResponse = unknown>(
     params?: Record<string, string>;
     query?: Record<string, unknown>;
     timeout?: number;
-  } = {}
+  } = {},
 ): Promise<TResponse> {
   const { params, query, timeout = 30000, ...fetchOptions } = options;
 
@@ -110,7 +116,9 @@ export async function apiFetch<TResponse = unknown>(
   }
 
   // Build full URL
-  const fullUrl = url.startsWith('http') ? url : `${clientConfig.baseUrl}${url}`;
+  const fullUrl = url.startsWith("http")
+    ? url
+    : `${clientConfig.baseUrl}${url}`;
 
   // Merge headers
   const headers = {
@@ -122,7 +130,7 @@ export async function apiFetch<TResponse = unknown>(
   // Check if AbortSignal.any is available (requires modern browser)
   let combinedSignal: AbortSignal;
 
-  if (typeof AbortSignal.any === 'function') {
+  if (typeof AbortSignal.any === "function") {
     const timeoutSignal = AbortSignal.timeout(timeout);
     const signals = [timeoutSignal];
     if (fetchOptions.signal) {
@@ -144,7 +152,7 @@ export async function apiFetch<TResponse = unknown>(
       if (fetchOptions.signal.aborted) {
         controller.abort();
       } else {
-        fetchOptions.signal.addEventListener('abort', () => {
+        fetchOptions.signal.addEventListener("abort", () => {
           clearTimeout(timeoutId);
           controller.abort();
         });
@@ -167,7 +175,11 @@ export async function apiFetch<TResponse = unknown>(
 
       try {
         errorResponse = await response.json();
-        if (errorResponse && typeof errorResponse === 'object' && 'error' in errorResponse) {
+        if (
+          errorResponse &&
+          typeof errorResponse === "object" &&
+          "error" in errorResponse
+        ) {
           errorMessage = String(errorResponse.error);
         }
       } catch {
@@ -178,16 +190,16 @@ export async function apiFetch<TResponse = unknown>(
     }
 
     // Parse response
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
+    const contentType = response.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
       return await response.json();
     }
 
     return undefined as TResponse;
   } catch (error) {
     // Handle abort errors (timeout or cancellation)
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new ApiError('Request cancelled or timeout', 408);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError("Request cancelled or timeout", 408);
     }
 
     throw error;
@@ -199,19 +211,21 @@ export async function apiFetch<TResponse = unknown>(
  */
 export function get<
   TPath extends keyof paths,
-  TResponse = paths[TPath] extends { get: { responses: { 200: { content: { 'application/json': infer R } } } } }
+  TResponse = paths[TPath] extends {
+    get: { responses: { 200: { content: { "application/json": infer R } } } };
+  }
     ? R
-    : unknown
+    : unknown,
 >(
   path: TPath,
   options?: {
     params?: PathParams<TPath & string>;
     query?: Record<string, unknown>;
     headers?: Record<string, string>;
-  }
+  },
 ): Promise<TResponse> {
   return apiFetch<TResponse>(path as string, {
-    method: 'GET',
+    method: "GET",
     ...options,
   });
 }
@@ -222,9 +236,11 @@ export function get<
 export function post<
   TPath extends keyof paths,
   TBody = unknown,
-  TResponse = paths[TPath] extends { post: { responses: { 200: { content: { 'application/json': infer R } } } } }
+  TResponse = paths[TPath] extends {
+    post: { responses: { 200: { content: { "application/json": infer R } } } };
+  }
     ? R
-    : unknown
+    : unknown,
 >(
   path: TPath,
   body?: TBody,
@@ -232,10 +248,10 @@ export function post<
     params?: PathParams<TPath & string>;
     query?: Record<string, unknown>;
     headers?: Record<string, string>;
-  }
+  },
 ): Promise<TResponse> {
   return apiFetch<TResponse>(path as string, {
-    method: 'POST',
+    method: "POST",
     body: body ? JSON.stringify(body) : undefined,
     ...options,
   });
@@ -247,9 +263,11 @@ export function post<
 export function put<
   TPath extends keyof paths,
   TBody = unknown,
-  TResponse = paths[TPath] extends { put: { responses: { 200: { content: { 'application/json': infer R } } } } }
+  TResponse = paths[TPath] extends {
+    put: { responses: { 200: { content: { "application/json": infer R } } } };
+  }
     ? R
-    : unknown
+    : unknown,
 >(
   path: TPath,
   body?: TBody,
@@ -257,10 +275,10 @@ export function put<
     params?: PathParams<TPath & string>;
     query?: Record<string, unknown>;
     headers?: Record<string, string>;
-  }
+  },
 ): Promise<TResponse> {
   return apiFetch<TResponse>(path as string, {
-    method: 'PUT',
+    method: "PUT",
     body: body ? JSON.stringify(body) : undefined,
     ...options,
   });
@@ -271,19 +289,23 @@ export function put<
  */
 export function del<
   TPath extends keyof paths,
-  TResponse = paths[TPath] extends { delete: { responses: { 200: { content: { 'application/json': infer R } } } } }
+  TResponse = paths[TPath] extends {
+    delete: {
+      responses: { 200: { content: { "application/json": infer R } } };
+    };
+  }
     ? R
-    : unknown
+    : unknown,
 >(
   path: TPath,
   options?: {
     params?: PathParams<TPath & string>;
     query?: Record<string, unknown>;
     headers?: Record<string, string>;
-  }
+  },
 ): Promise<TResponse> {
   return apiFetch<TResponse>(path as string, {
-    method: 'DELETE',
+    method: "DELETE",
     ...options,
   });
 }
