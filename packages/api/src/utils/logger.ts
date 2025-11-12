@@ -41,6 +41,22 @@ export function getErrorMessage(error: unknown, fallback = 'Unknown error'): str
   return fallback;
 }
 
+/**
+ * Extract error message from unknown error type
+ * @param error - Unknown error object
+ * @param fallback - Fallback message if error is not an Error instance
+ * @returns Error message string
+ */
+export function getErrorMessage(error: unknown, fallback = 'Unknown error'): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return fallback;
+}
+
 export const logger = {
   info: (message: string, metadata?: unknown) => log('info', message, metadata),
   warn: (message: string, metadata?: unknown) => log('warn', message, metadata),
