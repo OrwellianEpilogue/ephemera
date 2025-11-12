@@ -138,6 +138,16 @@ export const savedRequestWithBookSchema = savedRequestSchema.extend({
 
 export type SavedRequestWithBook = z.infer<typeof savedRequestWithBookSchema>;
 
+// Request stats schema
+export const requestStatsSchema = z.object({
+  active: z.number().describe("Number of active requests"),
+  fulfilled: z.number().describe("Number of fulfilled requests"),
+  cancelled: z.number().describe("Number of cancelled requests"),
+  total: z.number().describe("Total number of requests"),
+});
+
+export type RequestStats = z.infer<typeof requestStatsSchema>;
+
 // Search response schema
 export const searchResponseSchema = z.object({
   results: z.array(bookSchema).describe("Array of book results"),

@@ -2,6 +2,7 @@ import {
   downloadRequestsService,
   type RequestQueryParams,
 } from "./download-requests.js";
+import { requestsManager } from "./requests-manager.js";
 import { aaScraper } from "./scraper.js";
 import { queueManager } from "./queue-manager.js";
 import { appriseService } from "./apprise.js";
@@ -92,11 +93,8 @@ class RequestCheckerService {
               // Add to download queue
               const queueResult = await queueManager.addToQueue(firstBook.md5);
 
-              // Mark request as fulfilled
-              await downloadRequestsService.markFulfilled(
-                request.id,
-                firstBook.md5,
-              );
+              // Mark request as fulfilled (emits event)
+              await requestsManager.markFulfilled(request.id, firstBook.md5);
 
               console.log(
                 `[Request Checker] Request #${request.id} fulfilled with book ${firstBook.md5} (${queueResult.status})`,
@@ -182,8 +180,8 @@ class RequestCheckerService {
         // Add to download queue
         await queueManager.addToQueue(firstBook.md5);
 
-        // Mark request as fulfilled
-        await downloadRequestsService.markFulfilled(requestId, firstBook.md5);
+        // Mark request as fulfilled (emits event)
+        await requestsManager.markFulfilled(requestId, firstBook.md5);
 
         console.log(
           `[Request Checker] Single check: Request #${requestId} fulfilled with book ${firstBook.md5}`,

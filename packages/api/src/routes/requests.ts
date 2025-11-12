@@ -1,6 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { streamSSE } from "hono/streaming";
 import { downloadRequestsService } from "../services/download-requests.js";
+import {
+  requestsManager,
+  type RequestsUpdate,
+} from "../services/requests-manager.js";
 import {
   errorResponseSchema,
   requestQueryParamsSchema,
@@ -69,7 +74,7 @@ app.openapi(createRequestRoute, async (c) => {
 
     logger.info(`Creating download request for query: ${queryParams.q}`);
 
-    const request = await downloadRequestsService.createRequest(queryParams);
+    const request = await requestsManager.createRequest(queryParams);
 
     return c.json(request, 200);
   } catch (error: unknown) {
@@ -157,6 +162,111 @@ app.openapi(listRequestsRoute, async (c) => {
       500,
     );
   }
+});
+
+// SSE streaming endpoint for real-time request updates
+// IMPORTANT: Must come BEFORE /requests/stats route to avoid "stream" being interpreted as stats
+const requestsStreamRoute = createRoute({
+  method: "get",
+  path: "/requests/stream",
+  tags: ["Requests"],
+  summary: "Stream real-time request updates (SSE)",
+  description:
+    "Subscribe to real-time request and stats updates using Server-Sent Events. The connection will send updates whenever requests or stats change.",
+  responses: {
+    200: {
+      description: "SSE stream of request updates",
+      content: {
+        "text/event-stream": {
+          schema: z.object({
+            event: z.string().describe("Event type: requests-updated or ping"),
+            data: z.string().describe("JSON-encoded requests and stats data"),
+            id: z.string().optional().describe("Event ID"),
+          }),
+        },
+      },
+    },
+  },
+});
+
+app.openapi(requestsStreamRoute, async (c) => {
+  return streamSSE(c, async (stream) => {
+    let eventId = 0;
+    const clientId = Math.random().toString(36).substring(7);
+    let isActive = true;
+
+    logger.info(`[SSE] Requests client ${clientId} connected`);
+
+    // Send initial state (requests + stats)
+    const initialState = await requestsManager.getFullUpdate();
+    await stream.writeSSE({
+      data: JSON.stringify(initialState),
+      event: "requests-updated",
+      id: String(eventId++),
+    });
+
+    // Listen for request updates
+    const updateHandler = async (update: RequestsUpdate) => {
+      if (!isActive) return;
+
+      try {
+        await stream.writeSSE({
+          data: JSON.stringify(update),
+          event: "requests-updated",
+          id: String(eventId++),
+        });
+      } catch (error) {
+        logger.error(
+          `[SSE] Failed to send update to requests client ${clientId}:`,
+          error,
+        );
+        isActive = false;
+      }
+    };
+
+    requestsManager.on("requests-updated", updateHandler);
+
+    // Heartbeat to keep connection alive (every 30 seconds)
+    const heartbeatInterval = setInterval(async () => {
+      if (!isActive) {
+        clearInterval(heartbeatInterval);
+        return;
+      }
+
+      try {
+        await stream.writeSSE({
+          data: JSON.stringify({ timestamp: Date.now() }),
+          event: "ping",
+          id: String(eventId++),
+        });
+      } catch (error) {
+        logger.error(
+          `[SSE] Heartbeat failed for requests client ${clientId}:`,
+          error,
+        );
+        isActive = false;
+        clearInterval(heartbeatInterval);
+      }
+    }, 30000);
+
+    // Keep connection open by checking abort signal
+    try {
+      while (isActive && !c.req.raw.signal.aborted) {
+        await stream.sleep(1000);
+      }
+    } catch (error) {
+      logger.error(
+        `[SSE] Stream error for requests client ${clientId}:`,
+        error,
+      );
+    } finally {
+      // Cleanup
+      isActive = false;
+      clearInterval(heartbeatInterval);
+      requestsManager.off("requests-updated", updateHandler);
+      logger.info(`[SSE] Requests client ${clientId} disconnected`);
+    }
+  });
 });
 
 // Get stats route
@@ -249,7 +359,7 @@ app.openapi(deleteRequestRoute, async (c) => {
 
     logger.info(`Deleting request: ${id}`);
 
-    await downloadRequestsService.deleteRequest(id);
+    await requestsManager.deleteRequest(id);
 
     return c.json(
       {

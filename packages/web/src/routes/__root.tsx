@@ -24,7 +24,7 @@ import {
   IconExternalLink,
 } from "@tabler/icons-react";
 import { useQueue } from "../hooks/useQueue";
-import { useRequestStats } from "../hooks/useRequests";
+import { useRequests, useRequestStats } from "../hooks/useRequests";
 import { useAppSettings } from "../hooks/useSettings";
 import { VersionFooter } from "../components/VersionFooter";
 
@@ -34,14 +34,15 @@ function RootComponent() {
   const computedColorScheme = useComputedColorScheme("light", {
     getInitialValueInEffect: true,
   });
-  // Establish SSE connection at root level (stays alive throughout session)
+  // Establish SSE connections at root level (stays alive throughout session)
   const { data: queue } = useQueue({ notifyOnComplete: true, enableSSE: true });
+  useRequests(undefined, { enableSSE: true }); // Enable SSE for requests at root level
 
   const toggleColorScheme = () => {
     setColorScheme(computedColorScheme === "light" ? "dark" : "light");
   };
 
-  // Fetch request stats for badge
+  // Fetch request stats for badge (will be updated via SSE)
   const { data: requestStats } = useRequestStats();
 
   // Fetch app settings for library link

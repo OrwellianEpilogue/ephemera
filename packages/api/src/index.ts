@@ -117,7 +117,7 @@ app.onError((err, c) => {
 app.get("/api", (c) => {
   return c.json({
     name: "Ephemera API",
-    version: "1.0.0",
+    version: "1.1.0",
     description: "API for searching and downloading books from AA",
     endpoints: {
       search: "/api/search",
@@ -153,7 +153,7 @@ app.doc("/api/openapi.json", {
   openapi: "3.1.0",
   info: {
     title: "Ephemera API",
-    version: "1.0.0",
+    version: "1.1.0",
     description: "API for searching and downloading books from AA",
     contact: {
       name: "API Support",
