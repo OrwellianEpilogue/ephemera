@@ -58,6 +58,8 @@ class AppSettingsService {
       requestCheckInterval: '6h',
       timeFormat: '24h',
       dateFormat: 'eur',
+      libraryUrl: null,
+      libraryLinkLocation: 'sidebar',
       updatedAt: Date.now(),
     };
   }
@@ -81,6 +83,8 @@ class AppSettingsService {
         requestCheckInterval: updates.requestCheckInterval ?? existing[0]?.requestCheckInterval ?? '6h',
         timeFormat: updates.timeFormat ?? existing[0]?.timeFormat ?? '24h',
         dateFormat: updates.dateFormat ?? existing[0]?.dateFormat ?? 'eur',
+        libraryUrl: updates.libraryUrl !== undefined ? updates.libraryUrl : (existing[0]?.libraryUrl ?? null),
+        libraryLinkLocation: updates.libraryLinkLocation ?? existing[0]?.libraryLinkLocation ?? 'sidebar',
         updatedAt: Date.now(),
       };
 
@@ -128,6 +132,8 @@ class AppSettingsService {
           requestCheckInterval: '6h',
           timeFormat: '24h',
           dateFormat: 'eur',
+          libraryUrl: null,
+          libraryLinkLocation: 'sidebar',
           updatedAt: Date.now(),
         });
       }

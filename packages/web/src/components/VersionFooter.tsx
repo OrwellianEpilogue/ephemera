@@ -12,7 +12,7 @@ export function VersionFooter() {
   // Show loading state with placeholder
   if (isLoading || !versionInfo) {
     return (
-      <Box mt="auto" pt="md">
+      <Box pt="md" style={{ marginLeft: 15 }}>
         <Group justify="space-between" gap="xs">
           <Text size="xs" c="dimmed">Loading version...</Text>
         </Group>
@@ -21,7 +21,7 @@ export function VersionFooter() {
   }
 
   return (
-    <Box mt="auto" pt="md" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+    <Box pt="md" style={{ marginLeft: 15 }}>
       <Group justify="space-between" gap="xs">
         <Text size="xs" c="dimmed">
           v{versionInfo.currentVersion}

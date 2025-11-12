@@ -15,6 +15,20 @@
       "when": 1762945234788,
       "tag": "0001_fancy_katie_power",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1762955938365,
+      "tag": "0002_loving_mongoose",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1762956478473,
+      "tag": "0003_curved_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

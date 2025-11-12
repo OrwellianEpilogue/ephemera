@@ -1,0 +1,1 @@
+ALTER TABLE `app_settings` ADD `library_link_location` text DEFAULT 'sidebar' NOT NULL;

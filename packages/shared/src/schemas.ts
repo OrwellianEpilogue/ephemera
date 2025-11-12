@@ -331,6 +331,15 @@ export const requestCheckIntervalSchema = z.enum([
 
 export type RequestCheckInterval = z.infer<typeof requestCheckIntervalSchema>;
 
+// Library link location enum
+export const libraryLinkLocationSchema = z.enum([
+  'sidebar',
+  'header',
+  'both',
+]);
+
+export type LibraryLinkLocation = z.infer<typeof libraryLinkLocationSchema>;
+
 // App settings schema
 export const appSettingsSchema = z.object({
   id: z.number().describe('Settings ID (always 1)'),
@@ -339,6 +348,8 @@ export const appSettingsSchema = z.object({
   requestCheckInterval: requestCheckIntervalSchema.describe('How often to check download requests for new results: 30min, 1h, 6h, 12h, 24h, weekly (default: 6h)'),
   timeFormat: timeFormatSchema.describe('Time display format: 24h (24 hours) or ampm (12 hours with AM/PM)'),
   dateFormat: dateFormatSchema.describe('Date display format: us (MM/DD/YYYY) or eur (DD.MM.YYYY)'),
+  libraryUrl: z.string().url().nullable().describe('URL to external library (e.g., BookLore, Calibre-Web-Automated or other book management system)'),
+  libraryLinkLocation: libraryLinkLocationSchema.describe('Where to display the library link: sidebar or header'),
   updatedAt: z.string().datetime().describe('When settings were last updated'),
 });
 
@@ -351,6 +362,8 @@ export const updateAppSettingsSchema = z.object({
   requestCheckInterval: requestCheckIntervalSchema.optional().describe('How often to check download requests for new results'),
   timeFormat: timeFormatSchema.optional().describe('Time display format'),
   dateFormat: dateFormatSchema.optional().describe('Date display format'),
+  libraryUrl: z.string().url().nullable().optional().describe('URL to external library'),
+  libraryLinkLocation: libraryLinkLocationSchema.optional().describe('Where to display the library link'),
 });
 
 export type UpdateAppSettings = z.infer<typeof updateAppSettingsSchema>;

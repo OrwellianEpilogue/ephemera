@@ -20,9 +20,12 @@ import {
   IconSun,
   IconMoon,
   IconBookmark,
+  IconBook,
+  IconExternalLink,
 } from '@tabler/icons-react';
 import { useQueue } from '../hooks/useQueue';
 import { useRequestStats } from '../hooks/useRequests';
+import { useAppSettings } from '../hooks/useSettings';
 import { VersionFooter } from '../components/VersionFooter';
 
 function RootComponent() {
@@ -38,6 +41,9 @@ function RootComponent() {
 
   // Fetch request stats for badge
   const { data: requestStats } = useRequestStats();
+
+  // Fetch app settings for library link
+  const { data: settings } = useAppSettings();
 
   // Calculate queue badge counts
   const queueingCount = queue ? Object.keys(queue.queued).length : 0;
@@ -64,13 +70,27 @@ function RootComponent() {
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Title order={3}>Ephemera</Title>
           </Group>
-          <ActionIcon
-            variant="subtle"
-            onClick={toggleColorScheme}
-            aria-label="Toggle color scheme"
-          >
-            {computedColorScheme === 'light' ? <IconMoon size={20} /> : <IconSun size={20} />}
-          </ActionIcon>
+          <Group gap="xs">
+            {settings?.libraryUrl && (settings.libraryLinkLocation === 'header' || settings.libraryLinkLocation === 'both') && (
+              <ActionIcon
+                component="a"
+                href={settings.libraryUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="subtle"
+                aria-label="Library"
+              >
+                <IconBook size={20} />
+              </ActionIcon>
+            )}
+            <ActionIcon
+              variant="subtle"
+              onClick={toggleColorScheme}
+              aria-label="Toggle color scheme"
+            >
+              {computedColorScheme === 'light' ? <IconMoon size={20} /> : <IconSun size={20} />}
+            </ActionIcon>
+          </Group>
         </Group>
       </AppShell.Header>
 
@@ -111,12 +131,24 @@ function RootComponent() {
             }
             onClick={() => toggle()}
           />
+          {settings?.libraryUrl && (settings.libraryLinkLocation === 'sidebar' || settings.libraryLinkLocation === 'both') && (
+            <NavLink
+              component="a"
+              href={settings.libraryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              label="Library"
+              leftSection={<IconBook size={20} />}
+              rightSection={<IconExternalLink size={16} />}
+            />
+          )}
           <NavLink
             component={Link}
             to="/settings"
             label="Settings"
             leftSection={<IconSettings size={20} />}
             onClick={() => toggle()}
+            style={{ marginTop: 'auto', marginBottom: 0 }}
           />
           <VersionFooter />
         </Stack>

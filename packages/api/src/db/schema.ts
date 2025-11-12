@@ -93,6 +93,10 @@ export const appSettings = sqliteTable('app_settings', {
   dateFormat: text('date_format', {
     enum: ['us', 'eur']
   }).notNull().default('eur'),
+  libraryUrl: text('library_url'),
+  libraryLinkLocation: text('library_link_location', {
+    enum: ['sidebar', 'header', 'both']
+  }).notNull().default('sidebar'),
   updatedAt: integer('updated_at').notNull(),
 });
 

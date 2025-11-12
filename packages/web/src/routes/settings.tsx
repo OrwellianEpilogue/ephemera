@@ -3,7 +3,7 @@ import { Container, Title, Text, Paper, Stack, Radio, Group, Button, Loader, Cen
 import { IconInfoCircle, IconPlugConnected } from '@tabler/icons-react';
 import { useAppSettings, useUpdateAppSettings, useBookloreSettings, useUpdateBookloreSettings, useTestBookloreConnection } from '../hooks/useSettings';
 import { useState, useEffect } from 'react';
-import type { PostDownloadAction, TimeFormat, DateFormat, RequestCheckInterval } from '@ephemera/shared';
+import type { PostDownloadAction, TimeFormat, DateFormat, RequestCheckInterval, LibraryLinkLocation } from '@ephemera/shared';
 import { formatDate } from '@ephemera/shared';
 
 function SettingsComponent() {
@@ -19,6 +19,8 @@ function SettingsComponent() {
   const [requestCheckInterval, setRequestCheckInterval] = useState<RequestCheckInterval>('6h');
   const [timeFormat, setTimeFormat] = useState<TimeFormat>('24h');
   const [dateFormat, setDateFormat] = useState<DateFormat>('eur');
+  const [libraryUrl, setLibraryUrl] = useState<string>('');
+  const [libraryLinkLocation, setLibraryLinkLocation] = useState<LibraryLinkLocation>('sidebar');
 
   // Booklore settings state
   const [bookloreEnabled, setBookloreEnabled] = useState(false);
@@ -43,6 +45,8 @@ function SettingsComponent() {
       setRequestCheckInterval(settings.requestCheckInterval);
       setTimeFormat(settings.timeFormat);
       setDateFormat(settings.dateFormat);
+      setLibraryUrl(settings.libraryUrl || '');
+      setLibraryLinkLocation(settings.libraryLinkLocation);
     }
   }, [settings, bookloreSettings?.connected]);
 
@@ -61,7 +65,15 @@ function SettingsComponent() {
   }, [bookloreSettings]);
 
   const handleSaveApp = () => {
-    updateSettings.mutate({ postDownloadAction, bookRetentionDays, requestCheckInterval, timeFormat, dateFormat });
+    updateSettings.mutate({
+      postDownloadAction,
+      bookRetentionDays,
+      requestCheckInterval,
+      timeFormat,
+      dateFormat,
+      libraryUrl: libraryUrl || null,
+      libraryLinkLocation
+    });
   };
 
   const handleSaveBooklore = () => {
@@ -85,7 +97,9 @@ function SettingsComponent() {
     settings.bookRetentionDays !== bookRetentionDays ||
     settings.requestCheckInterval !== requestCheckInterval ||
     settings.timeFormat !== timeFormat ||
-    settings.dateFormat !== dateFormat
+    settings.dateFormat !== dateFormat ||
+    (settings.libraryUrl || '') !== libraryUrl ||
+    settings.libraryLinkLocation !== libraryLinkLocation
   );
   // Check if there are unsaved changes OR if this is authentication/re-authentication
   const hasBookloreChanges = bookloreSettings ? (
@@ -254,6 +268,49 @@ function SettingsComponent() {
                   value="us"
                   label="US Format"
                   description="MM/DD/YYYY (e.g., 12/31/2023)"
+                />
+              </Stack>
+            </Radio.Group>
+          </Stack>
+        </Paper>
+
+        {/* Library Link */}
+        <Paper p="md" withBorder>
+          <Stack gap="md">
+            <Title order={3}>Library Link</Title>
+            <Text size="sm" c="dimmed">
+              Add a link to your external library (e.g., BookLore, Calibre-Web-Automated or other book management system)
+            </Text>
+
+            <TextInput
+              label="Library URL"
+              placeholder="https://booklore.example.com"
+              value={libraryUrl}
+              onChange={(e) => setLibraryUrl(e.target.value)}
+              description="Enter the full URL to your library"
+            />
+
+            <Radio.Group
+              label="Link Location"
+              description="Choose where to display the library link"
+              value={libraryLinkLocation}
+              onChange={(value) => setLibraryLinkLocation(value as LibraryLinkLocation)}
+            >
+              <Stack gap="sm" mt="xs">
+                <Radio
+                  value="sidebar"
+                  label="Sidebar"
+                  description="Display the link in the sidebar navigation"
+                />
+                <Radio
+                  value="header"
+                  label="Header"
+                  description="Display the link in the header next to the theme toggle"
+                />
+                <Radio
+                  value="both"
+                  label="Sidebar & Header"
+                  description="Display the link in both the sidebar and header"
                 />
               </Stack>
             </Radio.Group>
