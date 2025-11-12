@@ -18,8 +18,10 @@ import {
   IconSettings,
   IconSun,
   IconMoon,
+  IconBookmark,
 } from '@tabler/icons-react';
 import { useQueue } from '../hooks/useQueue';
+import { useRequestStats } from '../hooks/useRequests';
 
 function RootComponent() {
   const [opened, { toggle }] = useDisclosure();
@@ -32,11 +34,17 @@ function RootComponent() {
     setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light');
   };
 
+  // Fetch request stats for badge
+  const { data: requestStats } = useRequestStats();
+
   // Calculate queue badge counts
   const queueingCount = queue ? Object.keys(queue.queued).length : 0;
   const downloadingCount = queue ? Object.keys(queue.downloading).length : 0;
   const delayedCount = queue ? Object.keys(queue.delayed).length : 0;
   const totalActiveCount = queueingCount + downloadingCount + delayedCount;
+
+  // Get fulfilled requests count for badge
+  const fulfilledCount = requestStats?.fulfilled || 0;
 
   return (
     <AppShell
@@ -81,6 +89,20 @@ function RootComponent() {
             totalActiveCount > 0 ? (
               <Badge size="sm" variant="filled" color="blue" circle>
                 {totalActiveCount}
+              </Badge>
+            ) : null
+          }
+          onClick={() => toggle()}
+        />
+        <NavLink
+          component={Link}
+          to="/requests"
+          label="Requests"
+          leftSection={<IconBookmark size={20} />}
+          rightSection={
+            fulfilledCount > 0 ? (
+              <Badge size="sm" variant="filled" color="green" circle>
+                {fulfilledCount}
               </Badge>
             ) : null
           }

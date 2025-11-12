@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Container, Title, Text, Paper, Stack, Radio, Group, Button, Loader, Center, Alert, TextInput, NumberInput, Switch, PasswordInput } from '@mantine/core';
+import { Container, Title, Text, Paper, Stack, Radio, Group, Button, Loader, Center, Alert, TextInput, NumberInput, Switch, PasswordInput, Select } from '@mantine/core';
 import { IconInfoCircle, IconPlugConnected } from '@tabler/icons-react';
 import { useAppSettings, useUpdateAppSettings, useBookloreSettings, useUpdateBookloreSettings, useTestBookloreConnection } from '../hooks/useSettings';
 import { useState, useEffect } from 'react';
-import type { PostDownloadAction, TimeFormat, DateFormat } from '@ephemera/shared';
+import type { PostDownloadAction, TimeFormat, DateFormat, RequestCheckInterval } from '@ephemera/shared';
 import { formatDate } from '@ephemera/shared';
 
 function SettingsComponent() {
@@ -16,6 +16,7 @@ function SettingsComponent() {
   // App settings state
   const [postDownloadAction, setPostDownloadAction] = useState<PostDownloadAction>('both');
   const [bookRetentionDays, setBookRetentionDays] = useState<number>(30);
+  const [requestCheckInterval, setRequestCheckInterval] = useState<RequestCheckInterval>('6h');
   const [timeFormat, setTimeFormat] = useState<TimeFormat>('24h');
   const [dateFormat, setDateFormat] = useState<DateFormat>('eur');
 
@@ -39,6 +40,7 @@ function SettingsComponent() {
         setPostDownloadAction(settings.postDownloadAction);
       }
       setBookRetentionDays(settings.bookRetentionDays);
+      setRequestCheckInterval(settings.requestCheckInterval);
       setTimeFormat(settings.timeFormat);
       setDateFormat(settings.dateFormat);
     }
@@ -59,7 +61,7 @@ function SettingsComponent() {
   }, [bookloreSettings]);
 
   const handleSaveApp = () => {
-    updateSettings.mutate({ postDownloadAction, bookRetentionDays, timeFormat, dateFormat });
+    updateSettings.mutate({ postDownloadAction, bookRetentionDays, requestCheckInterval, timeFormat, dateFormat });
   };
 
   const handleSaveBooklore = () => {
@@ -81,6 +83,7 @@ function SettingsComponent() {
   const hasAppChanges = settings && (
     settings.postDownloadAction !== postDownloadAction ||
     settings.bookRetentionDays !== bookRetentionDays ||
+    settings.requestCheckInterval !== requestCheckInterval ||
     settings.timeFormat !== timeFormat ||
     settings.dateFormat !== dateFormat
   );
@@ -125,7 +128,7 @@ function SettingsComponent() {
       <Stack gap="lg">
         <Title order={1}>Settings</Title>
 
-        {/* App Settings */}
+        {/* Post-Download Actions */}
         <Paper p="md" withBorder>
           <Stack gap="md">
             <Title order={3}>Post-Download Actions</Title>
@@ -167,19 +170,53 @@ function SettingsComponent() {
                 </Text>
               </Alert>
             )}
+          </Stack>
+        </Paper>
 
-            <NumberInput
-              label="Book Cache Retention Period"
-              description="Number of days to keep book search and download cache before auto-deleting them (0 = never delete, cleanup runs daily)"
-              placeholder="30"
-              value={bookRetentionDays}
-              onChange={(value) => setBookRetentionDays(Number(value) || 0)}
-              min={0}
-              max={365}
+        {/* Requests */}
+        <Paper p="md" withBorder>
+          <Stack gap="md">
+            <Title order={3}>Requests</Title>
+            <Text size="sm" c="dimmed">
+              Configure how saved book requests are checked
+            </Text>
+
+            <Select
+              label="Request Check Interval"
+              description="How often to automatically check saved book requests for new results"
+              placeholder="Select interval"
+              value={requestCheckInterval}
+              onChange={(value) => setRequestCheckInterval(value as RequestCheckInterval)}
+              data={[
+                { value: '1min', label: 'Every minute (Not recommended)' },
+                { value: '15min', label: 'Every 15 minutes' },
+                { value: '30min', label: 'Every 30 minutes' },
+                { value: '1h', label: 'Every hour' },
+                { value: '6h', label: 'Every 6 hours' },
+                { value: '12h', label: 'Every 12 hours' },
+                { value: '24h', label: 'Every 24 hours' },
+                { value: 'weekly', label: 'Weekly' },
+              ]}
               required
             />
 
-            <Title order={4} mt="md">Display Preferences</Title>
+            {requestCheckInterval === '1min' && (
+              <Alert icon={<IconInfoCircle size={16} />} color="red">
+                <Text size="sm">
+                  <strong>Warning:</strong> Checking every minute may result in excessive requests and could get you banned from the service. Use at your own risk.
+                </Text>
+              </Alert>
+            )}
+          </Stack>
+        </Paper>
+
+        {/* Display Preferences */}
+        <Paper p="md" withBorder>
+          <Stack gap="md">
+            <Title order={3}>Display Preferences</Title>
+            <Text size="sm" c="dimmed">
+              Customize how dates and times are displayed throughout the application
+            </Text>
 
             <Radio.Group
               label="Time Format"
@@ -190,13 +227,13 @@ function SettingsComponent() {
               <Stack gap="sm" mt="xs">
                 <Radio
                   value="24h"
-                  label="24-Hour"
-                  description="Display times in 24-hour format (e.g., 14:30)"
+                  label="24 Hours"
+                  description="Display times in 24 hours format (e.g., 14:30)"
                 />
                 <Radio
                   value="ampm"
-                  label="12-Hour (AM/PM)"
-                  description="Display times in 12-hour format with AM/PM (e.g., 2:30 PM)"
+                  label="12 Hours (AM/PM)"
+                  description="Display times in 12 hours format with AM/PM (e.g., 2:30 PM)"
                 />
               </Stack>
             </Radio.Group>
@@ -220,18 +257,40 @@ function SettingsComponent() {
                 />
               </Stack>
             </Radio.Group>
-
-            <Group justify="flex-end">
-              <Button
-                onClick={handleSaveApp}
-                disabled={!hasAppChanges}
-                loading={updateSettings.isPending}
-              >
-                Save Changes
-              </Button>
-            </Group>
           </Stack>
         </Paper>
+
+        {/* Cache */}
+        <Paper p="md" withBorder>
+          <Stack gap="md">
+            <Title order={3}>Cache</Title>
+            <Text size="sm" c="dimmed">
+              Configure cache retention settings
+            </Text>
+
+            <NumberInput
+              label="Book Cache Retention Period"
+              description="Number of days to keep book search and download cache before auto-deleting them (0 = never delete, cleanup runs daily)"
+              placeholder="30"
+              value={bookRetentionDays}
+              onChange={(value) => setBookRetentionDays(Number(value) || 0)}
+              min={0}
+              max={365}
+              required
+            />
+          </Stack>
+        </Paper>
+
+        {/* Save App Settings Button */}
+        <Group justify="flex-end">
+          <Button
+            onClick={handleSaveApp}
+            disabled={!hasAppChanges}
+            loading={updateSettings.isPending}
+          >
+            Save App Settings
+          </Button>
+        </Group>
 
         {/* Booklore Settings */}
         <Paper p="md" withBorder>

@@ -118,6 +118,7 @@ function QueuePage() {
           <Tabs.List>
             <Tabs.Tab
               value="all"
+              color="grape"
               leftSection={<IconList size={16} />}
               rightSection={
                 allDownloads.length > 0 ? (
@@ -132,6 +133,7 @@ function QueuePage() {
 
             <Tabs.Tab
               value="downloading"
+              color="blue"
               leftSection={<IconDownload size={16} />}
               rightSection={
                 filteredDownloading.length > 0 ? (
@@ -146,6 +148,7 @@ function QueuePage() {
 
             <Tabs.Tab
               value="queued"
+              color="gray"
               leftSection={<IconClock size={16} />}
               rightSection={
                 filteredQueued.length > 0 ? (
@@ -160,6 +163,7 @@ function QueuePage() {
 
             <Tabs.Tab
               value="delayed"
+              color="yellow"
               leftSection={<IconClock size={16} />}
               rightSection={
                 filteredDelayed.length > 0 ? (
@@ -174,6 +178,7 @@ function QueuePage() {
 
             <Tabs.Tab
               value="done"
+              color="teal"
               leftSection={<IconCheck size={16} />}
               rightSection={
                 filteredDone.length > 0 ? (
@@ -188,6 +193,7 @@ function QueuePage() {
 
             <Tabs.Tab
               value="available"
+              color="green"
               leftSection={<IconFolderCheck size={16} />}
               rightSection={
                 filteredAvailable.length > 0 ? (
@@ -202,6 +208,7 @@ function QueuePage() {
 
             <Tabs.Tab
               value="error"
+              color="red"
               leftSection={<IconAlertCircle size={16} />}
               rightSection={
                 filteredError.length > 0 ? (
@@ -216,6 +223,7 @@ function QueuePage() {
 
             <Tabs.Tab
               value="cancelled"
+              color="orange"
               leftSection={<IconX size={16} />}
               rightSection={
                 filteredCancelled.length > 0 ? (

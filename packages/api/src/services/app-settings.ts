@@ -55,6 +55,7 @@ class AppSettingsService {
       id: 1,
       postDownloadAction: 'both',
       bookRetentionDays: 30,
+      requestCheckInterval: '6h',
       timeFormat: '24h',
       dateFormat: 'eur',
       updatedAt: Date.now(),
@@ -77,6 +78,7 @@ class AppSettingsService {
         id: 1,
         postDownloadAction: updates.postDownloadAction ?? existing[0]?.postDownloadAction ?? 'both',
         bookRetentionDays: updates.bookRetentionDays ?? existing[0]?.bookRetentionDays ?? 30,
+        requestCheckInterval: updates.requestCheckInterval ?? existing[0]?.requestCheckInterval ?? '6h',
         timeFormat: updates.timeFormat ?? existing[0]?.timeFormat ?? '24h',
         dateFormat: updates.dateFormat ?? existing[0]?.dateFormat ?? 'eur',
         updatedAt: Date.now(),
@@ -118,11 +120,12 @@ class AppSettingsService {
         .limit(1);
 
       if (result.length === 0) {
-        console.log('[App Settings] Initializing default settings (postDownloadAction=both, bookRetentionDays=30, timeFormat=24h, dateFormat=eur)');
+        console.log('[App Settings] Initializing default settings (postDownloadAction=both, bookRetentionDays=30, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)');
         await db.insert(appSettings).values({
           id: 1,
           postDownloadAction: 'both',
           bookRetentionDays: 30,
+          requestCheckInterval: '6h',
           timeFormat: '24h',
           dateFormat: 'eur',
           updatedAt: Date.now(),

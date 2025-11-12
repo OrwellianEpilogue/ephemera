@@ -21,6 +21,22 @@ function log(level: LogLevel, message: string, ...args: any[]) {
   console.log(`${prefix} ${message}`, ...args);
 }
 
+/**
+ * Extract error message from unknown error type
+ * @param error - Unknown error object
+ * @param fallback - Fallback message if error is not an Error instance
+ * @returns Error message string
+ */
+export function getErrorMessage(error: unknown, fallback = 'Unknown error'): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return fallback;
+}
+
 export const logger = {
   info: (message: string, ...args: any[]) => log('info', message, ...args),
   warn: (message: string, ...args: any[]) => log('warn', message, ...args),

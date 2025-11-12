@@ -7,6 +7,7 @@ import {
   errorResponseSchema,
 } from '@ephemera/shared';
 import { logger } from '../utils/logger.js';
+import { startRequestChecker } from '../index.js';
 
 const app = new OpenAPIHono();
 
@@ -103,8 +104,16 @@ app.openapi(updateSettingsRoute, async (c) => {
 
     logger.info('[Settings API] Updating settings:', updates);
 
+    // Get current settings to compare
+    const currentSettings = await appSettingsService.getSettings();
     const updatedSettings = await appSettingsService.updateSettings(updates);
     const response = await appSettingsService.getSettingsForResponse();
+
+    // Restart request checker only if interval actually changed
+    if (updates.requestCheckInterval && currentSettings.requestCheckInterval !== updates.requestCheckInterval) {
+      logger.info(`[Settings API] Request check interval changed from ${currentSettings.requestCheckInterval} to ${updates.requestCheckInterval}, restarting checker`);
+      await startRequestChecker();
+    }
 
     logger.success('[Settings API] Settings updated successfully');
 

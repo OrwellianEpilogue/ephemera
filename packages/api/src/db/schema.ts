@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
+import type { RequestQueryParams } from '@ephemera/shared';
 
 export const downloads = sqliteTable('downloads', {
   md5: text('md5').primaryKey(),
@@ -83,6 +84,9 @@ export const appSettings = sqliteTable('app_settings', {
     enum: ['move_only', 'upload_only', 'both']
   }).notNull().default('both'),
   bookRetentionDays: integer('book_retention_days').notNull().default(30),
+  requestCheckInterval: text('request_check_interval', {
+    enum: ['1min', '15min', '30min', '1h', '6h', '12h', '24h', 'weekly']
+  }).notNull().default('6h'),
   timeFormat: text('time_format', {
     enum: ['24h', 'ampm']
   }).notNull().default('24h'),
@@ -130,14 +134,42 @@ export const books = sqliteTable('books', {
   lastSeenAt: integer('last_seen_at').notNull(),
 });
 
+export const downloadRequests = sqliteTable('download_requests', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+
+  // Search parameters (stores the full search query)
+  queryParams: text('query_params', { mode: 'json' }).notNull().$type<RequestQueryParams>(),
+
+  // Status tracking
+  status: text('status', {
+    enum: ['active', 'fulfilled', 'cancelled']
+  }).notNull().default('active'),
+
+  // Timestamps (stored as milliseconds)
+  createdAt: integer('created_at').notNull(),
+  lastCheckedAt: integer('last_checked_at'),
+  fulfilledAt: integer('fulfilled_at'),
+
+  // Reference to fulfilled book (if found)
+  fulfilledBookMd5: text('fulfilled_book_md5'),
+});
+
 // Relations
 export const booksRelations = relations(books, ({ many }) => ({
   downloads: many(downloads),
+  downloadRequests: many(downloadRequests),
 }));
 
 export const downloadsRelations = relations(downloads, ({ one }) => ({
   book: one(books, {
     fields: [downloads.md5],
+    references: [books.md5],
+  }),
+}));
+
+export const downloadRequestsRelations = relations(downloadRequests, ({ one }) => ({
+  fulfilledBook: one(books, {
+    fields: [downloadRequests.fulfilledBookMd5],
     references: [books.md5],
   }),
 }));
@@ -152,3 +184,5 @@ export type AppSettings = typeof appSettings.$inferSelect;
 export type NewAppSettings = typeof appSettings.$inferInsert;
 export type Book = typeof books.$inferSelect;
 export type NewBook = typeof books.$inferInsert;
+export type DownloadRequest = typeof downloadRequests.$inferSelect;
+export type NewDownloadRequest = typeof downloadRequests.$inferInsert;

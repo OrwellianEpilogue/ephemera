@@ -15,12 +15,14 @@ import { appSettingsService } from './services/app-settings.js';
 import { bookloreSettingsService } from './services/booklore-settings.js';
 import { bookloreTokenRefresher } from './services/booklore-token-refresher.js';
 import { bookCleanupService } from './services/book-cleanup.js';
+import { requestCheckerService } from './services/request-checker.js';
 import searchRoutes from './routes/search.js';
 import downloadRoutes from './routes/download.js';
 import queueRoutes from './routes/queue.js';
 import bookloreRoutes from './routes/booklore.js';
 import settingsRoutes from './routes/settings.js';
 import imageProxyRoutes from './routes/image-proxy.js';
+import requestsRoutes from './routes/requests.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -103,6 +105,7 @@ app.get('/api', (c) => {
       history: '/api/history',
       stats: '/api/stats',
       settings: '/api/settings',
+      requests: '/api/requests',
       booklore: '/api/booklore/*',
       imageProxy: '/api/proxy/image',
       docs: '/api/docs',
@@ -118,6 +121,7 @@ app.route('/api', queueRoutes);
 app.route('/api', settingsRoutes);
 app.route('/api', bookloreRoutes);
 app.route('/api', imageProxyRoutes);
+app.route('/api', requestsRoutes);
 
 // OpenAPI documentation
 app.doc('/api/openapi.json', {
@@ -148,6 +152,10 @@ app.doc('/api/openapi.json', {
     {
       name: 'Queue',
       description: 'Monitor download queue and history',
+    },
+    {
+      name: 'Requests',
+      description: 'Save and manage book search requests that are checked periodically',
     },
     {
       name: 'Settings',
@@ -233,6 +241,55 @@ setInterval(async () => {
     logger.error('Failed to cleanup old data:', error);
   }
 }, 24 * 60 * 60 * 1000);
+
+// Helper to convert request check interval to milliseconds
+function getIntervalMs(interval: string): number {
+  const intervals: Record<string, number> = {
+    '1min': 60 * 1000,
+    '15min': 15 * 60 * 1000,
+    '30min': 30 * 60 * 1000,
+    '1h': 60 * 60 * 1000,
+    '6h': 6 * 60 * 60 * 1000,
+    '12h': 12 * 60 * 60 * 1000,
+    '24h': 24 * 60 * 60 * 1000,
+    'weekly': 7 * 24 * 60 * 60 * 1000,
+  };
+  return intervals[interval] || intervals['6h']; // default to 6h
+}
+
+// Check download requests periodically based on settings
+let requestCheckerInterval: NodeJS.Timeout | null = null;
+
+export async function startRequestChecker() {
+  try {
+    const settings = await appSettingsService.getSettings();
+    const intervalMs = getIntervalMs(settings.requestCheckInterval);
+
+    logger.info(`Starting request checker with interval: ${settings.requestCheckInterval}`);
+
+    // Clear existing interval if any
+    if (requestCheckerInterval) {
+      clearInterval(requestCheckerInterval);
+    }
+
+    // Run immediately on startup
+    await requestCheckerService.checkAllRequests();
+
+    // Then run periodically
+    requestCheckerInterval = setInterval(async () => {
+      try {
+        await requestCheckerService.checkAllRequests();
+      } catch (error) {
+        logger.error('Failed to check download requests:', error);
+      }
+    }, intervalMs);
+  } catch (error) {
+    logger.error('Failed to start request checker:', error);
+  }
+}
+
+// Start request checker
+startRequestChecker();
 
 // Start server
 const port = parseInt(process.env.PORT || '3000');

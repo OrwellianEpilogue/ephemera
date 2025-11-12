@@ -31,6 +31,35 @@ export const searchQuerySchema = z.object({
 
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 
+// Request query params schema (for download requests)
+export const requestQueryParamsSchema = z.object({
+  q: z.string().describe('Search query'),
+  sort: z.string().optional().describe('Sort order'),
+  content: z.union([z.string(), z.array(z.string())]).optional().describe('Content type filter'),
+  ext: z.union([z.string(), z.array(z.string())]).optional().describe('File extension filter'),
+  lang: z.union([z.string(), z.array(z.string())]).optional().describe('Language filter'),
+  desc: z.boolean().optional().describe('Search in descriptions'),
+});
+
+export type RequestQueryParams = z.infer<typeof requestQueryParamsSchema>;
+
+// Saved request status (for periodic checking)
+export const savedRequestStatusSchema = z.enum(['active', 'fulfilled', 'cancelled']);
+export type SavedRequestStatus = z.infer<typeof savedRequestStatusSchema>;
+
+// Saved request schema (for periodic checking)
+export const savedRequestSchema = z.object({
+  id: z.number().describe('Request ID'),
+  queryParams: requestQueryParamsSchema.describe('Search parameters'),
+  status: savedRequestStatusSchema.describe('Request status'),
+  createdAt: z.number().describe('Creation timestamp'),
+  lastCheckedAt: z.number().nullable().describe('Last check timestamp'),
+  fulfilledAt: z.number().nullable().describe('Fulfillment timestamp'),
+  fulfilledBookMd5: z.string().nullable().describe('MD5 of fulfilled book'),
+});
+
+export type SavedRequest = z.infer<typeof savedRequestSchema>;
+
 // Download status schema (defined before bookSchema to avoid forward reference)
 export const downloadStatusSchema = z.enum([
   'queued',
@@ -66,6 +95,13 @@ export const bookSchema = z.object({
 });
 
 export type Book = z.infer<typeof bookSchema>;
+
+// Saved request with fulfilled book (API response type)
+export const savedRequestWithBookSchema = savedRequestSchema.extend({
+  fulfilledBook: bookSchema.nullable().optional().describe('Fulfilled book info if available'),
+});
+
+export type SavedRequestWithBook = z.infer<typeof savedRequestWithBookSchema>;
 
 // Search response schema
 export const searchResponseSchema = z.object({
@@ -281,12 +317,27 @@ export const dateFormatSchema = z.enum([
 
 export type DateFormat = z.infer<typeof dateFormatSchema>;
 
+// Request check interval enum
+export const requestCheckIntervalSchema = z.enum([
+  '1min',
+  '15min',
+  '30min',
+  '1h',
+  '6h',
+  '12h',
+  '24h',
+  'weekly',
+]);
+
+export type RequestCheckInterval = z.infer<typeof requestCheckIntervalSchema>;
+
 // App settings schema
 export const appSettingsSchema = z.object({
   id: z.number().describe('Settings ID (always 1)'),
   postDownloadAction: postDownloadActionSchema.describe('Action to perform after download completes: move_only (just move to INGEST_FOLDER), upload_only (upload to Booklore and delete file), both (move AND upload)'),
   bookRetentionDays: z.number().int().min(0).describe('Number of days to retain books before auto-deleting them (0 = never delete, default: 30)'),
-  timeFormat: timeFormatSchema.describe('Time display format: 24h (24-hour) or ampm (12-hour with AM/PM)'),
+  requestCheckInterval: requestCheckIntervalSchema.describe('How often to check download requests for new results: 30min, 1h, 6h, 12h, 24h, weekly (default: 6h)'),
+  timeFormat: timeFormatSchema.describe('Time display format: 24h (24 hours) or ampm (12 hours with AM/PM)'),
   dateFormat: dateFormatSchema.describe('Date display format: us (MM/DD/YYYY) or eur (DD.MM.YYYY)'),
   updatedAt: z.string().datetime().describe('When settings were last updated'),
 });
@@ -297,6 +348,7 @@ export type AppSettings = z.infer<typeof appSettingsSchema>;
 export const updateAppSettingsSchema = z.object({
   postDownloadAction: postDownloadActionSchema.optional().describe('Action to perform after download completes'),
   bookRetentionDays: z.number().int().min(0).optional().describe('Number of days to retain books before auto-deleting them (0 = never delete)'),
+  requestCheckInterval: requestCheckIntervalSchema.optional().describe('How often to check download requests for new results'),
   timeFormat: timeFormatSchema.optional().describe('Time display format'),
   dateFormat: dateFormatSchema.optional().describe('Date display format'),
 });

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router';
 import {
   Container,
   Title,
@@ -17,11 +17,12 @@ import {
   Checkbox,
   Accordion,
 } from '@mantine/core';
-import { IconSearch, IconFilter } from '@tabler/icons-react';
+import { IconSearch, IconFilter, IconBookmark } from '@tabler/icons-react';
 import { useSearch } from '../hooks/useSearch';
 import { BookCard } from '../components/BookCard';
 import type { SearchQuery } from '@ephemera/shared';
-import { SORT_OPTIONS, FILE_FORMATS, CONTENT_TYPES, LANGUAGES } from '@ephemera/shared';
+import { SORT_OPTIONS, FILE_FORMATS, CONTENT_TYPES, LANGUAGES, apiFetch } from '@ephemera/shared';
+import { useCreateRequest } from '../hooks/useRequests';
 
 // URL search params schema
 type SearchParams = {
@@ -40,8 +41,25 @@ function SearchPage() {
 
   // Local input state for typing (before submitting)
   const [searchInput, setSearchInput] = useState(urlParams.q || '');
+  const [existingRequestId, setExistingRequestId] = useState<number | null>(null);
 
   const observerTarget = useRef<HTMLDivElement>(null);
+
+  // Use the custom hook for creating requests
+  const createRequest = useCreateRequest();
+
+  const handleSaveRequest = () => {
+    // Build the query params object to save
+    const requestParams = {
+      q: urlParams.q,
+      sort: urlParams.sort,
+      content: urlParams.content,
+      ext: urlParams.ext,
+      lang: urlParams.lang,
+      desc: urlParams.desc,
+    };
+    createRequest.mutate(requestParams);
+  };
 
   // Build query params from URL - memoized to prevent infinite re-renders
   // Use JSON.stringify for array dependencies to compare values, not references
@@ -170,6 +188,46 @@ function SearchPage() {
 
   const allBooks = data?.pages.flatMap((page) => page.results) ?? [];
   const totalResults = data?.pages[0]?.pagination.estimated_total_results;
+
+  // Check for existing active request with same params
+  useEffect(() => {
+    const checkForExistingRequest = async () => {
+      if (!urlParams.q || allBooks.length > 0) {
+        // Only check when we have a query and no results
+        setExistingRequestId(null);
+        return;
+      }
+
+      try {
+        const activeRequests = await apiFetch<any[]>('/requests?status=active');
+
+        // Helper to normalize and compare query params
+        const normalizeParams = (params: any) => {
+          return JSON.stringify({
+            q: params.q || '',
+            sort: params.sort || 'relevant',
+            content: params.content || [],
+            ext: params.ext || [],
+            lang: params.lang || [],
+            desc: params.desc || false,
+          });
+        };
+
+        const currentParamsNormalized = normalizeParams(urlParams);
+        const matchingRequest = activeRequests?.find((request: any) => {
+          const requestParamsNormalized = normalizeParams(request.queryParams);
+          return currentParamsNormalized === requestParamsNormalized;
+        });
+
+        setExistingRequestId(matchingRequest?.id || null);
+      } catch (error) {
+        console.error('Failed to check for existing requests:', error);
+        setExistingRequestId(null);
+      }
+    };
+
+    checkForExistingRequest();
+  }, [urlParams.q, urlParams.sort, JSON.stringify(urlParams.content), JSON.stringify(urlParams.ext), JSON.stringify(urlParams.lang), urlParams.desc, allBooks.length]);
 
   // Infinite scroll observer - using refs to avoid recreating observer on every state change
   // Must create observer AFTER results exist, so target div is rendered
@@ -372,12 +430,41 @@ function SearchPage() {
               </>
             ) : (
               <Center p="xl">
-                <Stack align="center" gap="sm">
+                <Stack align="center" gap="md">
                   <IconFilter size={48} opacity={0.3} />
                   <Text c="dimmed">No results found for "{urlParams.q}"</Text>
                   <Text size="sm" c="dimmed">
                     Try adjusting your filters or search terms
                   </Text>
+                  {existingRequestId ? (
+                    <>
+                      <Text size="sm" c="dimmed">
+                        You already have an active request for this search
+                      </Text>
+                      <Button
+                        component={Link}
+                        to="/requests"
+                        leftSection={<IconBookmark size={16} />}
+                        variant="light"
+                      >
+                        View your requests
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        leftSection={<IconBookmark size={16} />}
+                        variant="light"
+                        onClick={handleSaveRequest}
+                        loading={createRequest.isPending}
+                      >
+                        Save this search as a request
+                      </Button>
+                      <Text size="xs" c="dimmed" style={{ maxWidth: '400px', textAlign: 'center' }}>
+                        Ephemera will automatically check for new results and download the book when it becomes available
+                      </Text>
+                    </>
+                  )}
                 </Stack>
               </Center>
             )}
