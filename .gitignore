@@ -43,6 +43,7 @@ app-example
 !README.md
 !CHANGELOG.md
 
+
 # generated folders
 /ios
 /android
@@ -50,4 +51,5 @@ app-example
 /.claude
 .tanstack
 packages/api/ingest
+packages/api/books
 .vite

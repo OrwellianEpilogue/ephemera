@@ -34,7 +34,7 @@ export const searchQuerySchema = z.object({
   acc: coerceArray
     .optional()
     .describe("Access type filters (e.g., aa_download, external_download)"),
-  src: coerceArray.optional().describe("Source filters (e.g., lgli, zlib, ia)"),
+  src: coerceArray.optional().describe("Source filters"),
   lang: coerceArray.optional().describe("Language filters (e.g., en, ru, zh)"),
   desc: z.coerce
     .boolean()

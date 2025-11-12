@@ -66,7 +66,7 @@ const getDownloadStatusBadge = (
           color="cyan"
           leftSection={<IconDownload size={12} />}
         >
-          Downloading {progress !== undefined ? `${progress}%` : ""}
+          Downloading {progress !== undefined ? `${Math.round(progress)}%` : ""}
         </Badge>
       );
     case "delayed":
@@ -201,7 +201,7 @@ export const BookCard = ({ book }: BookCardProps) => {
           {isAvailable
             ? "Already Downloaded"
             : isDownloading
-              ? `Downloading ${progress !== undefined ? `${progress}%` : "..."}`
+              ? `Downloading ${progress !== undefined ? `${Math.round(progress)}%` : "..."}`
               : isQueued
                 ? "In Queue"
                 : isDelayed

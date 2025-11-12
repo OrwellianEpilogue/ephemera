@@ -29,9 +29,17 @@ services:
     environment:
       # Required:
       AA_BASE_URL:
-      FLARESOLVERR_URL: http://flaresolverr:8191
+      # FlareSolverr is used for slow download fallback when API key is missing or quota exhausted
+      # Default: http://localhost:8191 (or http://flaresolverr:8191 in Docker)
+      FLARESOLVERR_URL: http://localhost:8191
 
       # Optional
+
+      # Alternative Download Source (optional)
+      # If set, LG fast download will be attempted before falling back to slow servers
+      # Leave empty to disable this feature
+      LG_BASE_URL: #https://gen.com
+
       AA_API_KEY:
       PUID: 1000
       PGID: 100

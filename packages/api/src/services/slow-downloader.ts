@@ -10,6 +10,7 @@ const AA_BASE_URL = process.env.AA_BASE_URL;
 const TEMP_FOLDER = process.env.DOWNLOAD_FOLDER || "./downloads";
 const FLARESOLVERR_URL =
   process.env.FLARESOLVERR_URL || "http://localhost:8191";
+const LG_BASE_URL = process.env.LG_BASE_URL || "";
 const SLOW_DOWNLOAD_TIMEOUT = parseInt(
   process.env.SLOW_DOWNLOAD_TIMEOUT || "300000",
   10,
@@ -59,6 +60,147 @@ export interface SlowDownloadResult {
 
 export class SlowDownloader {
   /**
+   * Try to download using LG fast download link
+   * Returns null if feature disabled, 404, or extraction fails
+   */
+  private async tryLgFastDownload(
+    md5: string,
+    downloadId: string,
+    onProgress?: (info: ProgressInfo) => void,
+  ): Promise<SlowDownloadResult | null> {
+    // Feature disabled if LG_BASE_URL not set
+    if (!LG_BASE_URL) {
+      return null;
+    }
+
+    try {
+      logger.info(`[${downloadId}] Attempting LG fast download...`);
+
+      onProgress?.({
+        status: "bypassing_protection",
+        message: "Trying LG fast download...",
+      });
+
+      // Request the LG ads page
+      const lgAdsUrl = `${LG_BASE_URL}/ads.php?md5=${md5}`;
+      logger.info(`[${downloadId}] Requesting: ${lgAdsUrl}`);
+
+      // Try direct fetch first (without FlareSolverr) to avoid ad scripts
+      logger.info(`[${downloadId}] Trying direct HTTP request (no JS)...`);
+      const directResponse = await fetch(lgAdsUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.5",
+          "Accept-Encoding": "gzip, deflate, br",
+          Connection: "keep-alive",
+          "Upgrade-Insecure-Requests": "1",
+        },
+      });
+
+      if (!directResponse.ok) {
+        logger.warn(
+          `[${downloadId}] Direct request failed with ${directResponse.status}, may need FlareSolverr`,
+        );
+        return null;
+      }
+
+      const html = await directResponse.text();
+      const finalUrl = directResponse.url;
+
+      logger.info(
+        `[${downloadId}] Got response from LG (${html.length} bytes)`,
+      );
+
+      // Check if we got redirected to an ad page (URL no longer contains LG domain)
+      const lgHostname = new URL(LG_BASE_URL).hostname;
+
+      // Check if we're still on LG domain (handle both direct domain and redirects)
+      if (!finalUrl.includes(lgHostname) && !finalUrl.includes("ads.php")) {
+        logger.warn(
+          `[${downloadId}] Got redirected away from LG (${lgHostname}) to: ${finalUrl}. Skipping LG download.`,
+        );
+        return null;
+      }
+
+      // Additional check: if HTML doesn't contain "get.php" at all, likely wrong page
+      if (!html.includes("get.php")) {
+        logger.warn(
+          `[${downloadId}] Page doesn't contain get.php link. Likely ad page or wrong content. URL: ${finalUrl}`,
+        );
+        return null;
+      }
+
+      // Extract the GET link from <a href="get.php?md5=...&key=..."><h2>GET</h2></a>
+      // Try multiple patterns to handle different HTML structures
+      const patterns = [
+        // Pattern 1: <a href="get.php..."><h2>GET</h2></a> (simple case from your example)
+        /<a\s+href=["']([^"']*get\.php\?md5=[^"']+&key=[^"']+)["'][^>]*>\s*<h2[^>]*>GET<\/h2>\s*<\/a>/i,
+        // Pattern 2: Just find any link with get.php and md5/key parameters
+        /<a[^>]+href=["']([^"']*get\.php\?md5=[^"']+&(?:amp;)?key=[^"']+)["']/i,
+        // Pattern 3: <h2>GET</h2> somewhere after href
+        /<a\s+href=["']([^"']*get\.php[^"']*)["'][^>]*>[\s\S]*?<h2[^>]*>GET<\/h2>/i,
+        // Pattern 4: Find get.php link anywhere with required params
+        /href=["']([^"']*get\.php\?[^"']*md5=[^"']*&[^"']*key=[^"']+)["']/i,
+      ];
+
+      let downloadUrl: string | null = null;
+
+      for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match && match[1]) {
+          downloadUrl = match[1];
+          logger.info(
+            `[${downloadId}] Matched with pattern: ${pattern.source.substring(0, 60)}...`,
+          );
+          break;
+        }
+      }
+
+      if (!downloadUrl) {
+        logger.warn(`[${downloadId}] Could not extract GET link from LG page`);
+        return null;
+      }
+
+      // Decode HTML entities
+      downloadUrl = downloadUrl
+        .replace(/&amp;/g, "&")
+        .replace(/&gt;/g, ">")
+        .replace(/&lt;/g, "<");
+
+      // Make URL absolute if relative
+      if (!downloadUrl.startsWith("http")) {
+        // Remove leading slash if present before joining
+        const cleanPath = downloadUrl.replace(/^\//, "");
+        downloadUrl = `${LG_BASE_URL}/${cleanPath}`;
+      }
+
+      logger.info(`[${downloadId}] Found LG download URL: ${downloadUrl}`);
+
+      // Download the file
+      const filePath = await this.downloadFile(
+        downloadUrl,
+        md5,
+        downloadId,
+        onProgress,
+      );
+
+      logger.success(`[${downloadId}] LG fast download completed: ${filePath}`);
+
+      return {
+        success: true,
+        filePath,
+      };
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      logger.warn(`[${downloadId}] LG fast download failed:`, errorMsg);
+      return null;
+    }
+  }
+
+  /**
    * Download a file using Anna's Archive slow download links
    * Automatically tries servers 0-5 until one succeeds
    */
@@ -68,6 +210,22 @@ export class SlowDownloader {
   ): Promise<SlowDownloadResult> {
     const downloadId = Math.random().toString(36).substring(7);
     logger.info(`[${downloadId}] Starting slow download for ${md5}`);
+
+    // Try LG fast download first (if enabled)
+    if (LG_BASE_URL) {
+      const lgResult = await this.tryLgFastDownload(
+        md5,
+        downloadId,
+        onProgress,
+      );
+      if (lgResult && lgResult.success) {
+        return lgResult;
+      }
+      // If failed or returned null, continue to slow servers
+      logger.info(
+        `[${downloadId}] LG fast download unavailable, trying slow servers...`,
+      );
+    }
 
     // Try each server in sequence
     for (let serverIndex = 0; serverIndex < MAX_SERVERS; serverIndex++) {
@@ -405,45 +563,8 @@ export class SlowDownloader {
 
     let filename = `${md5}.bin`;
 
-    // Try to extract filename from URL
-    try {
-      const url = new URL(downloadUrl);
-      const pathname = decodeURIComponent(url.pathname);
-      const pathSegments = pathname.split("/");
-      const lastSegment = pathSegments[pathSegments.length - 1];
-
-      if (lastSegment && lastSegment.includes(".")) {
-        const extMatch = lastSegment.match(/\.([^.]+)$/);
-        const extension = extMatch ? extMatch[1] : "bin";
-        let baseName = lastSegment.substring(0, lastSegment.lastIndexOf("."));
-
-        // Clean AA format: "Title -- Author -- Publisher..."
-        const parts = baseName.split(" -- ").map((p) => p.trim());
-        if (parts.length >= 2) {
-          baseName = `${parts[0]} - ${parts[1]}`;
-        }
-
-        // Remove invalid characters
-        baseName = baseName
-          .replace(/[<>:"/\\|?*]/g, "")
-          .replace(/©/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        // Limit length
-        if (baseName.length > 200) {
-          baseName = baseName.substring(0, 200).trim();
-        }
-
-        filename = `${baseName}.${extension}`;
-        logger.info(`[${downloadId}] Extracted filename: ${filename}`);
-      }
-    } catch (_e) {
-      logger.warn(`[${downloadId}] Could not extract filename from URL`);
-    }
-
-    // Try Content-Disposition if still default
-    if (filename === `${md5}.bin` && contentDisposition) {
+    // Try Content-Disposition FIRST (most reliable for downloads)
+    if (contentDisposition) {
       const filenameMatch = contentDisposition.match(
         /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
       );
@@ -452,6 +573,48 @@ export class SlowDownloader {
         logger.info(
           `[${downloadId}] Filename from Content-Disposition: ${filename}`,
         );
+      }
+    }
+
+    // If no Content-Disposition, try to extract filename from URL
+    if (filename === `${md5}.bin`) {
+      try {
+        const finalUrl = response.url || downloadUrl;
+        const url = new URL(finalUrl);
+        const pathname = decodeURIComponent(url.pathname);
+        const pathSegments = pathname.split("/");
+        const lastSegment = pathSegments[pathSegments.length - 1];
+
+        if (lastSegment && lastSegment.includes(".")) {
+          const extMatch = lastSegment.match(/\.([^.]+)$/);
+          const extension = extMatch ? extMatch[1] : "bin";
+          let baseName = lastSegment.substring(0, lastSegment.lastIndexOf("."));
+
+          // Clean AA format: "Title -- Author -- Publisher..."
+          const parts = baseName.split(" -- ").map((p) => p.trim());
+          if (parts.length >= 2) {
+            baseName = `${parts[0]} - ${parts[1]}`;
+          }
+
+          // Remove invalid characters
+          baseName = baseName
+            .replace(/[<>:"/\\|?*]/g, "")
+            .replace(/©/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+          // Limit length
+          if (baseName.length > 200) {
+            baseName = baseName.substring(0, 200).trim();
+          }
+
+          filename = `${baseName}.${extension}`;
+          logger.info(
+            `[${downloadId}] Extracted filename from URL: ${filename}`,
+          );
+        }
+      } catch (_e) {
+        logger.warn(`[${downloadId}] Could not extract filename from URL`);
       }
     }
 
