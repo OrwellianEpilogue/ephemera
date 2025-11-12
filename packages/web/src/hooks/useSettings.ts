@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, getErrorMessage } from '@ephemera/shared';
-import type { AppSettings, UpdateAppSettings, BookloreSettingsResponse, UpdateBookloreSettings, BookloreTestResponse } from '@ephemera/shared';
+import type { AppSettings, UpdateAppSettings, BookloreSettingsResponse, UpdateBookloreSettings, BookloreTestResponse, AppriseSettings, UpdateAppriseSettings, AppriseTestResponse } from '@ephemera/shared';
 import { notifications } from '@mantine/notifications';
 
 // Fetch app settings
@@ -108,6 +108,77 @@ export const useTestBookloreConnection = () => {
       notifications.show({
         title: 'Connection Test Failed',
         message: getErrorMessage(error) || 'Failed to test connection',
+        color: 'red',
+      });
+    },
+  });
+};
+
+// Fetch Apprise settings
+export const useAppriseSettings = () => {
+  return useQuery({
+    queryKey: ['appriseSettings'],
+    queryFn: () => apiFetch<AppriseSettings>('/apprise/settings'),
+  });
+};
+
+// Update Apprise settings
+export const useUpdateAppriseSettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (updates: UpdateAppriseSettings) => {
+      return apiFetch<AppriseSettings>('/apprise/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appriseSettings'] });
+      notifications.show({
+        title: 'Apprise Settings Updated',
+        message: 'Notification configuration has been saved successfully',
+        color: 'green',
+      });
+    },
+    onError: (error: unknown) => {
+      notifications.show({
+        title: 'Update Failed',
+        message: getErrorMessage(error) || 'Failed to update Apprise settings',
+        color: 'red',
+      });
+    },
+  });
+};
+
+// Test Apprise notification
+export const useTestAppriseNotification = () => {
+  return useMutation({
+    mutationFn: async () => {
+      return apiFetch<AppriseTestResponse>('/apprise/test', {
+        method: 'POST',
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        notifications.show({
+          title: 'Test Notification Sent',
+          message: data.message,
+          color: 'green',
+        });
+      } else {
+        notifications.show({
+          title: 'Test Failed',
+          message: data.message,
+          color: 'red',
+        });
+      }
+    },
+    onError: (error: unknown) => {
+      notifications.show({
+        title: 'Test Failed',
+        message: getErrorMessage(error) || 'Failed to send test notification',
         color: 'red',
       });
     },

@@ -1,6 +1,7 @@
 import { downloadRequestsService, type RequestQueryParams } from './download-requests.js';
 import { aaScraper } from './scraper.js';
 import { queueManager } from './queue-manager.js';
+import { appriseService } from './apprise.js';
 import { getErrorMessage } from '../utils/logger.js';
 import type { SearchQuery } from '@ephemera/shared';
 
@@ -88,6 +89,15 @@ class RequestCheckerService {
               console.log(
                 `[Request Checker] Request #${request.id} fulfilled with book ${firstBook.md5} (${queueResult.status})`
               );
+
+              // Send Apprise notification
+              await appriseService.send('request_fulfilled', {
+                query: request.queryParams.q,
+                bookTitle: firstBook.title,
+                bookAuthors: firstBook.authors,
+                bookMd5: firstBook.md5,
+              });
+
               foundCount++;
             } catch (queueError: unknown) {
               console.error(`[Request Checker] Error queuing download for request #${request.id}:`, getErrorMessage(queueError));

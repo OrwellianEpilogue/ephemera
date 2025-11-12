@@ -377,3 +377,67 @@ export const versionInfoSchema = z.object({
 });
 
 export type VersionInfo = z.infer<typeof versionInfoSchema>;
+
+// Apprise notification type enum
+export const appriseNotificationTypeSchema = z.enum([
+  'info',
+  'success',
+  'warning',
+  'failure',
+]);
+
+export type AppriseNotificationType = z.infer<typeof appriseNotificationTypeSchema>;
+
+// Apprise settings schema
+export const appriseSettingsSchema = z.object({
+  id: z.number().describe('Settings ID (always 1)'),
+  enabled: z.boolean().describe('Whether Apprise notifications are enabled'),
+  serverUrl: z.string().url().nullable().describe('Apprise server URL (e.g., http://apprise:8111/notify/apprise)'),
+  customHeaders: z.record(z.string(), z.string()).nullable().describe('Custom HTTP headers to send with requests'),
+  notifyOnNewRequest: z.boolean().describe('Send notification when a new download request is created'),
+  notifyOnDownloadError: z.boolean().describe('Send notification when a download fails with an error'),
+  notifyOnAvailable: z.boolean().describe('Send notification when a download completes and is moved to available'),
+  notifyOnDelayed: z.boolean().describe('Send notification when a download is delayed due to quota exhaustion'),
+  notifyOnUpdateAvailable: z.boolean().describe('Send notification when a new version is available'),
+  notifyOnRequestFulfilled: z.boolean().describe('Send notification when an automatic request search finds and queues a book'),
+  notifyOnBookQueued: z.boolean().describe('Send notification when a book is added to the download queue'),
+  updatedAt: z.string().datetime().describe('When settings were last updated'),
+});
+
+export type AppriseSettings = z.infer<typeof appriseSettingsSchema>;
+
+// Apprise settings update request schema
+export const updateAppriseSettingsSchema = z.object({
+  enabled: z.boolean().optional().describe('Enable/disable Apprise notifications'),
+  serverUrl: z.string().url().nullable().optional().describe('Apprise server URL'),
+  customHeaders: z.record(z.string(), z.string()).nullable().optional().describe('Custom HTTP headers'),
+  notifyOnNewRequest: z.boolean().optional().describe('Notify on new download request'),
+  notifyOnDownloadError: z.boolean().optional().describe('Notify on download error'),
+  notifyOnAvailable: z.boolean().optional().describe('Notify on download available'),
+  notifyOnDelayed: z.boolean().optional().describe('Notify on download delayed'),
+  notifyOnUpdateAvailable: z.boolean().optional().describe('Notify on update available'),
+  notifyOnRequestFulfilled: z.boolean().optional().describe('Notify on request fulfilled'),
+  notifyOnBookQueued: z.boolean().optional().describe('Notify on book queued'),
+}).refine(
+  (data) => {
+    // If enabling, require serverUrl
+    if (data.enabled === true && !data.serverUrl) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'When enabling Apprise, serverUrl is required',
+  }
+);
+
+export type UpdateAppriseSettings = z.infer<typeof updateAppriseSettingsSchema>;
+
+// Apprise test response schema
+export const appriseTestResponseSchema = z.object({
+  success: z.boolean().describe('Whether test notification was sent successfully'),
+  message: z.string().describe('Result message'),
+  serverUrl: z.string().describe('URL that was tested'),
+});
+
+export type AppriseTestResponse = z.infer<typeof appriseTestResponseSchema>;
