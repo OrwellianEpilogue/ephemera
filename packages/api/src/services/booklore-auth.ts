@@ -71,6 +71,8 @@ export async function login(
   try {
     const loginUrl = `${baseUrl}/api/v1/auth/login`;
 
+    console.log(`[Booklore Auth] Attempting login to ${baseUrl}`);
+
     const response = await fetch(loginUrl, {
       method: "POST",
       headers: {
@@ -83,18 +85,58 @@ export async function login(
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
+      let errorMessage = `${response.status} ${response.statusText}`;
 
-      if (response.status === 401) {
+      // Try to parse JSON error response
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          // Handle Booklore's error response format
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          } else if (typeof errorData === "string") {
+            errorMessage = errorData;
+          }
+        } else {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+      } catch (parseError) {
+        console.error(
+          "[Booklore Auth] Failed to parse error response:",
+          parseError,
+        );
+      }
+
+      if (response.status === 400 || response.status === 401) {
         return {
           success: false,
-          error: "Invalid username or password",
+          error: `Authentication failed: ${errorMessage}`,
+        };
+      }
+
+      if (response.status === 404) {
+        return {
+          success: false,
+          error: "Booklore API endpoint not found. Please check the base URL.",
+        };
+      }
+
+      if (response.status >= 500) {
+        return {
+          success: false,
+          error: `Booklore server error: ${errorMessage}`,
         };
       }
 
       return {
         success: false,
-        error: `Login failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
+        error: `Login failed: ${errorMessage}`,
       };
     }
 
@@ -141,9 +183,26 @@ export async function login(
       },
     };
   } catch (error) {
+    let errorMessage = "Login request failed";
+
+    if (error instanceof Error) {
+      if (
+        error.message.includes("fetch failed") ||
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("ETIMEDOUT") ||
+        error.message.includes("ENOTFOUND")
+      ) {
+        errorMessage = `Cannot connect to Booklore at ${baseUrl}. Please check the URL and ensure the server is running.`;
+      } else {
+        errorMessage = `Login request failed: ${error.message}`;
+      }
+    } else {
+      errorMessage = `Login request failed: ${String(error)}`;
+    }
+
     return {
       success: false,
-      error: `Login request failed: ${error instanceof Error ? error.message : String(error)}`,
+      error: errorMessage,
     };
   }
 }
@@ -172,7 +231,32 @@ export async function refreshAccessToken(
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
+      let errorMessage = `${response.status} ${response.statusText}`;
+
+      // Try to parse JSON error response
+      try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          } else if (typeof errorData === "string") {
+            errorMessage = errorData;
+          }
+        } else {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+      } catch (parseError) {
+        console.error(
+          "[Booklore Auth] Failed to parse error response:",
+          parseError,
+        );
+      }
 
       if (response.status === 401) {
         return {
@@ -181,9 +265,23 @@ export async function refreshAccessToken(
         };
       }
 
+      if (response.status === 404) {
+        return {
+          success: false,
+          error: "Booklore API endpoint not found. Please check the base URL.",
+        };
+      }
+
+      if (response.status >= 500) {
+        return {
+          success: false,
+          error: `Booklore server error: ${errorMessage}`,
+        };
+      }
+
       return {
         success: false,
-        error: `Token refresh failed: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
+        error: `Token refresh failed: ${errorMessage}`,
       };
     }
 

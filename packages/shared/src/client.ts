@@ -175,15 +175,26 @@ export async function apiFetch<TResponse = unknown>(
 
       try {
         errorResponse = await response.json();
-        if (
-          errorResponse &&
-          typeof errorResponse === "object" &&
-          "error" in errorResponse
-        ) {
-          errorMessage = String(errorResponse.error);
+        if (errorResponse && typeof errorResponse === "object") {
+          // Check for 'details' field first (more specific), then 'error' field
+          if ("details" in errorResponse && errorResponse.details) {
+            errorMessage = String(errorResponse.details);
+          } else if ("error" in errorResponse && errorResponse.error) {
+            errorMessage = String(errorResponse.error);
+          } else if ("message" in errorResponse && errorResponse.message) {
+            errorMessage = String(errorResponse.message);
+          }
         }
       } catch {
-        // Response is not JSON
+        // Response is not JSON, try to get text
+        try {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        } catch {
+          // Unable to get response body
+        }
       }
 
       throw new ApiError(errorMessage, response.status, errorResponse);

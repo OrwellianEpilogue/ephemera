@@ -134,12 +134,49 @@ app.openapi(updateSettingsRoute, async (c) => {
   } catch (error: unknown) {
     const errorMessage = getErrorMessage(error);
     logger.error("[Booklore API] Update settings error:", errorMessage);
+
+    // Determine appropriate status code based on error type
+    let statusCode: 400 | 500 = 500;
+    let userMessage = "Failed to update Booklore settings";
+
+    if (
+      errorMessage.includes("authentication failed") ||
+      errorMessage.includes("Invalid credentials") ||
+      errorMessage.includes("Invalid username or password")
+    ) {
+      statusCode = 400;
+      userMessage = "Authentication failed. Please check your credentials.";
+    } else if (
+      errorMessage.includes("required") ||
+      errorMessage.includes("validation failed") ||
+      errorMessage.includes("Valid library ID") ||
+      errorMessage.includes("Valid path ID")
+    ) {
+      statusCode = 400;
+      userMessage = "Invalid configuration";
+    } else if (
+      errorMessage.includes("not found") ||
+      errorMessage.includes("endpoint not found")
+    ) {
+      statusCode = 400;
+      userMessage = "Booklore API not found. Please check the base URL.";
+    } else if (errorMessage.includes("server error")) {
+      statusCode = 500;
+      userMessage = "Booklore server error";
+    } else if (
+      errorMessage.includes("request failed") ||
+      errorMessage.includes("fetch")
+    ) {
+      statusCode = 500;
+      userMessage = "Cannot connect to Booklore";
+    }
+
     return c.json(
       {
-        error: "Failed to update Booklore settings",
+        error: userMessage,
         details: errorMessage,
       },
-      errorMessage.includes("required") ? 400 : 500,
+      statusCode,
     );
   }
 });
