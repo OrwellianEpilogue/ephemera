@@ -160,6 +160,68 @@ app.openapi(queueStreamRoute, async (c) => {
   });
 });
 
+// Clear completed downloads
+const clearQueueRoute = createRoute({
+  method: "delete",
+  path: "/queue",
+  tags: ["Queue"],
+  summary: "Clear completed downloads",
+  description:
+    "Delete all downloads with status: done, available, error, or cancelled. Active downloads (queued, downloading, delayed) are not affected. This will emit an SSE event to update connected clients.",
+  responses: {
+    200: {
+      description: "Queue cleared successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            deletedCount: z.number().describe("Number of downloads deleted"),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    500: {
+      description: "Server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(clearQueueRoute, async (c) => {
+  try {
+    logger.info("Clear queue request received");
+
+    const deletedCount = await queueManager.clearCompletedDownloads();
+
+    return c.json(
+      {
+        success: true,
+        deletedCount,
+        message:
+          deletedCount > 0
+            ? `Successfully cleared ${deletedCount} download(s)`
+            : "No downloads to clear",
+      },
+      200,
+    );
+  } catch (error: unknown) {
+    logger.error("Clear queue error:", error);
+
+    return c.json(
+      {
+        error: "Failed to clear queue",
+        details: getErrorMessage(error),
+      },
+      500,
+    );
+  }
+});
+
 // Get specific download status
 const downloadStatusRoute = createRoute({
   method: "get",

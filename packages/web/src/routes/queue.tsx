@@ -12,6 +12,8 @@ import {
   Card,
   TextInput,
   Box,
+  Button,
+  Modal,
 } from "@mantine/core";
 import {
   IconDownload,
@@ -23,12 +25,14 @@ import {
   IconRefresh,
   IconList,
   IconSearch,
+  IconTrash,
 } from "@tabler/icons-react";
 import { useQueue } from "../hooks/useQueue";
 import { DownloadItem } from "../components/DownloadItem";
 import { useState, useMemo, useCallback, useRef } from "react";
 import type { QueueItem } from "@ephemera/shared";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useClearQueue } from "../hooks/useDownload";
 
 // Virtualized list component for better performance with large lists
 function VirtualizedDownloadList({ items }: { items: QueueItem[] }) {
@@ -86,6 +90,8 @@ function QueuePage() {
   // 1. Call ALL hooks first (before any conditional returns)
   const { data: queue, isLoading, isError } = useQueue({ enableSSE: false });
   const [searchQuery, setSearchQuery] = useState("");
+  const [clearModalOpened, setClearModalOpened] = useState(false);
+  const clearQueue = useClearQueue();
 
   // 2. Convert queue records to arrays (with safe fallbacks) - memoized to prevent recalculation
   const downloading = useMemo(
@@ -193,6 +199,15 @@ function QueuePage() {
 
   const totalActive = downloading.length + queued.length + delayed.length;
 
+  // Count clearable downloads (done, available, error, cancelled)
+  const clearableCount =
+    done.length + available.length + error.length + cancelled.length;
+
+  const handleClearQueue = () => {
+    clearQueue.mutate();
+    setClearModalOpened(false);
+  };
+
   // 4. NOW handle conditional returns (after all hooks are called)
   if (isLoading) {
     return (
@@ -222,17 +237,28 @@ function QueuePage() {
     <Container size="xl">
       <Stack gap="lg">
         <Group justify="space-between">
-          <Title order={1}>Download Queue</Title>
-          {totalActive > 0 && (
-            <Badge
-              size="lg"
-              variant="filled"
-              color="blue"
-              leftSection={<IconRefresh size={16} />}
-            >
-              {totalActive} active
-            </Badge>
-          )}
+          <Group>
+            <Title order={1}>Download Queue</Title>
+            {totalActive > 0 && (
+              <Badge
+                size="lg"
+                variant="filled"
+                color="blue"
+                leftSection={<IconRefresh size={16} />}
+              >
+                {totalActive} active
+              </Badge>
+            )}
+          </Group>
+          <Button
+            leftSection={<IconTrash size={16} />}
+            color="red"
+            variant="light"
+            onClick={() => setClearModalOpened(true)}
+            disabled={clearableCount === 0}
+          >
+            Clear Queue
+          </Button>
         </Group>
 
         <TextInput
@@ -242,6 +268,46 @@ function QueuePage() {
           onChange={(event) => setSearchQuery(event.currentTarget.value)}
           size="md"
         />
+
+        {/* Clear Queue Confirmation Modal */}
+        <Modal
+          opened={clearModalOpened}
+          onClose={() => setClearModalOpened(false)}
+          title="Clear Queue"
+          centered
+        >
+          <Stack gap="md">
+            <Text>
+              Are you sure you want to clear <strong>{clearableCount}</strong>{" "}
+              download{clearableCount !== 1 ? "s" : ""}?
+            </Text>
+            <Text size="sm" c="dimmed">
+              This will delete all completed, available, error, and cancelled
+              downloads from the queue. Active downloads (queued, downloading,
+              delayed) will not be affected.
+            </Text>
+            <Text size="sm" c="dimmed" fs="italic">
+              Note: Downloaded files will remain on disk.
+            </Text>
+            <Group justify="flex-end" gap="sm">
+              <Button
+                variant="subtle"
+                color="gray"
+                onClick={() => setClearModalOpened(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                color="red"
+                onClick={handleClearQueue}
+                loading={clearQueue.isPending}
+                leftSection={<IconTrash size={16} />}
+              >
+                Clear {clearableCount} Download{clearableCount !== 1 ? "s" : ""}
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
 
         <Tabs defaultValue="all">
           <Tabs.List>

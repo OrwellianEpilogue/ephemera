@@ -125,3 +125,34 @@ export const useDeleteDownload = () => {
     },
   });
 };
+
+export const useClearQueue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<{
+      deletedCount: number;
+      message: string;
+    }> => {
+      return apiFetch("/queue", {
+        method: "DELETE",
+      }) as Promise<{ deletedCount: number; message: string }>;
+    },
+    onSuccess: (data) => {
+      notifications.show({
+        title: "Queue Cleared",
+        message: data.message,
+        color: "green",
+      });
+      // Invalidate queue to trigger refetch (backup in case SSE is delayed)
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+    onError: (error: Error) => {
+      notifications.show({
+        title: "Clear Queue Failed",
+        message: error.message || "Failed to clear queue",
+        color: "red",
+      });
+    },
+  });
+};

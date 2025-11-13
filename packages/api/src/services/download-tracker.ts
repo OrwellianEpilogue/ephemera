@@ -161,6 +161,26 @@ export class DownloadTracker {
     }
   }
 
+  async deleteByStatuses(statuses: DownloadStatus[]): Promise<number> {
+    try {
+      if (statuses.length === 0) return 0;
+
+      const result = await db
+        .delete(downloads)
+        .where(or(...statuses.map((status) => eq(downloads.status, status))))
+        .returning();
+
+      const deletedCount = result.length;
+      logger.info(
+        `Deleted ${deletedCount} download records with statuses: ${statuses.join(", ")}`,
+      );
+      return deletedCount;
+    } catch (error) {
+      logger.error(`Failed to delete downloads by statuses:`, error);
+      throw error;
+    }
+  }
+
   // Quota tracking methods
   async updateQuotaInfo(
     md5: string,

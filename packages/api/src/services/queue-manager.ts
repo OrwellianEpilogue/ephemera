@@ -8,7 +8,11 @@ import { bookloreUploader } from "./booklore-uploader.js";
 import { appSettingsService } from "./app-settings.js";
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
-import type { QueueResponse, QueueItem } from "@ephemera/shared";
+import type {
+  QueueResponse,
+  QueueItem,
+  DownloadStatus,
+} from "@ephemera/shared";
 import { getErrorMessage } from "@ephemera/shared";
 import type { Download } from "../db/schema.js";
 
@@ -619,6 +623,47 @@ export class QueueManager extends EventEmitter {
     }
 
     return false;
+  }
+
+  async clearCompletedDownloads(): Promise<number> {
+    const CLEARABLE_STATUSES: DownloadStatus[] = [
+      "done",
+      "available",
+      "error",
+      "cancelled",
+    ];
+
+    try {
+      // Get all downloads with clearable statuses
+      const downloadsToClear = await Promise.all(
+        CLEARABLE_STATUSES.map((status) => downloadTracker.getByStatus(status)),
+      );
+
+      // Flatten the array and get MD5s
+      const md5sToClear = downloadsToClear.flat().map((d) => d.md5);
+
+      // Remove from in-memory queue (if any are present)
+      md5sToClear.forEach((md5) => {
+        const index = this.queue.findIndex((q) => q.md5 === md5);
+        if (index >= 0) {
+          this.queue.splice(index, 1);
+        }
+      });
+
+      // Delete from database by statuses
+      const deletedCount =
+        await downloadTracker.deleteByStatuses(CLEARABLE_STATUSES);
+
+      if (deletedCount > 0) {
+        await this.emitQueueUpdate();
+        logger.info(`Cleared ${deletedCount} completed downloads`);
+      }
+
+      return deletedCount;
+    } catch (error) {
+      logger.error("Failed to clear completed downloads:", error);
+      throw error;
+    }
   }
 
   async retryDownload(
