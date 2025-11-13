@@ -1,5 +1,20 @@
 # @ephemera/web
 
+## 1.2.2
+
+### Patch Changes
+
+- - feat: add manual queue clearing
+  - feat: allow deleting downloads manually (#25)
+  - fix: queue performance (#28)
+  - fix: download cancelling race conditions (#27)
+  - fix: book language detection and display (#26)
+  - fix docker flaresolverr url defaults and healthchecks
+  - fix 'search in descriptions and metadata' filter checkbox see #24
+  - fix badge sizes when count > 9 see #23
+- Updated dependencies
+  - @ephemera/shared@1.2.2
+
 ## 1.2.1
 
 ### Patch Changes
