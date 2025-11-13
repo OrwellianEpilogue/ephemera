@@ -1,6 +1,6 @@
 import { db } from "../db/index.js";
 import { books, type Book, type NewBook } from "../db/schema.js";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { Book as SharedBook } from "@ephemera/shared";
 
 export class BookService {
@@ -165,9 +165,7 @@ export class BookService {
   async getBooksByMd5s(md5s: string[]): Promise<Book[]> {
     if (md5s.length === 0) return [];
 
-    // Use IN query to get multiple books at once
-    const results = await db.select().from(books).all();
-    return results.filter((book) => md5s.includes(book.md5));
+    return await db.select().from(books).where(inArray(books.md5, md5s)).all();
   }
 
   /**

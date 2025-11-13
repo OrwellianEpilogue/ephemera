@@ -670,24 +670,55 @@ export class QueueManager extends EventEmitter {
   }
 
   async getQueueStatus(): Promise<QueueResponse> {
-    const allDownloads = await downloadTracker.getByStatus("queued");
-    const downloading = await downloadTracker.getByStatus("downloading");
-    const done = await downloadTracker.getByStatus("done");
-    const available = await downloadTracker.getByStatus("available");
-    const delayed = await downloadTracker.getByStatus("delayed");
-    const error = await downloadTracker.getByStatus("error");
-    const cancelled = await downloadTracker.getByStatus("cancelled");
+    const allDownloadsFromDb = await downloadTracker.getAll();
+
+    const allDownloads: Download[] = [];
+    const downloading: Download[] = [];
+    const done: Download[] = [];
+    const available: Download[] = [];
+    const delayed: Download[] = [];
+    const error: Download[] = [];
+    const cancelled: Download[] = [];
+
+    for (const download of allDownloadsFromDb) {
+      switch (download.status) {
+        case "queued":
+          allDownloads.push(download);
+          break;
+        case "downloading":
+          downloading.push(download);
+          break;
+        case "done":
+          done.push(download);
+          break;
+        case "available":
+          available.push(download);
+          break;
+        case "delayed":
+          delayed.push(download);
+          break;
+        case "error":
+          error.push(download);
+          break;
+        case "cancelled":
+          cancelled.push(download);
+          break;
+      }
+    }
+
+    // Sort each array by queuedAt descending
+    const sortByQueuedAt = (a: Download, b: Download) =>
+      (b.queuedAt || 0) - (a.queuedAt || 0);
+    allDownloads.sort(sortByQueuedAt);
+    downloading.sort(sortByQueuedAt);
+    done.sort(sortByQueuedAt);
+    available.sort(sortByQueuedAt);
+    delayed.sort(sortByQueuedAt);
+    error.sort(sortByQueuedAt);
+    cancelled.sort(sortByQueuedAt);
 
     // Get all unique MD5s
-    const allMd5s = [
-      ...allDownloads,
-      ...downloading,
-      ...done,
-      ...available,
-      ...delayed,
-      ...error,
-      ...cancelled,
-    ].map((d) => d.md5);
+    const allMd5s = allDownloadsFromDb.map((d) => d.md5);
 
     // Fetch all books for these downloads
     const books = await bookService.getBooksByMd5s(allMd5s);

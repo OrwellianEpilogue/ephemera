@@ -121,7 +121,7 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-export const DownloadItem = ({ item }: DownloadItemProps) => {
+const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const cancelDownload = useCancelDownload();
   const retryDownload = useRetryDownload();
   const deleteDownload = useDeleteDownload();
@@ -397,3 +397,24 @@ export const DownloadItem = ({ item }: DownloadItemProps) => {
     </Card>
   );
 };
+
+// Memoize component to prevent unnecessary re-renders
+// Only re-render when key properties change
+export const DownloadItem = memo(
+  DownloadItemComponent,
+  (prevProps, nextProps) => {
+    const prev = prevProps.item;
+    const next = nextProps.item;
+
+    // Re-render only if these specific properties change
+    return (
+      prev.md5 === next.md5 &&
+      prev.status === next.status &&
+      prev.progress === next.progress &&
+      prev.speed === next.speed &&
+      prev.eta === next.eta &&
+      prev.error === next.error &&
+      prev.countdownSeconds === next.countdownSeconds
+    );
+  },
+);

@@ -30,6 +30,15 @@ export class DownloadTracker {
     }
   }
 
+  async getAll(): Promise<Download[]> {
+    try {
+      return await db.select().from(downloads).all();
+    } catch (error) {
+      logger.error("Failed to get all downloads:", error);
+      throw error;
+    }
+  }
+
   async update(
     md5: string,
     data: Partial<NewDownload>,

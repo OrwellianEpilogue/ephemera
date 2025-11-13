@@ -11,6 +11,7 @@ import {
   Group,
   Card,
   TextInput,
+  Box,
 } from "@mantine/core";
 import {
   IconDownload,
@@ -25,22 +26,93 @@ import {
 } from "@tabler/icons-react";
 import { useQueue } from "../hooks/useQueue";
 import { DownloadItem } from "../components/DownloadItem";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import type { QueueItem } from "@ephemera/shared";
+import { useVirtualizer } from "@tanstack/react-virtual";
+
+// Virtualized list component for better performance with large lists
+function VirtualizedDownloadList({ items }: { items: QueueItem[] }) {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 180, // Estimated height of DownloadItem card
+    overscan: 5, // Render 5 extra items above and below viewport for smooth scrolling
+  });
+
+  return (
+    <Box
+      ref={parentRef}
+      style={{
+        height: "calc(100vh - 300px)", // Adjust based on header/tabs height
+        overflow: "auto",
+      }}
+    >
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+          const item = items[virtualItem.index];
+          // Guard against undefined items
+          if (!item) return null;
+
+          return (
+            <div
+              key={item.md5}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualItem.start}px)`,
+                paddingBottom: "1rem", // Gap between items (matches Mantine Stack gap="md")
+              }}
+            >
+              <DownloadItem item={item} />
+            </div>
+          );
+        })}
+      </div>
+    </Box>
+  );
+}
 
 function QueuePage() {
   // 1. Call ALL hooks first (before any conditional returns)
   const { data: queue, isLoading, isError } = useQueue({ enableSSE: false });
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 2. Convert queue records to arrays (with safe fallbacks)
-  const downloading = Object.values(queue?.downloading || {});
-  const queued = Object.values(queue?.queued || {});
-  const available = Object.values(queue?.available || {});
-  const done = Object.values(queue?.done || {});
-  const delayed = Object.values(queue?.delayed || {});
-  const error = Object.values(queue?.error || {});
-  const cancelled = Object.values(queue?.cancelled || {});
+  // 2. Convert queue records to arrays (with safe fallbacks) - memoized to prevent recalculation
+  const downloading = useMemo(
+    () => Object.values(queue?.downloading || {}),
+    [queue?.downloading],
+  );
+  const queued = useMemo(
+    () => Object.values(queue?.queued || {}),
+    [queue?.queued],
+  );
+  const available = useMemo(
+    () => Object.values(queue?.available || {}),
+    [queue?.available],
+  );
+  const done = useMemo(() => Object.values(queue?.done || {}), [queue?.done]);
+  const delayed = useMemo(
+    () => Object.values(queue?.delayed || {}),
+    [queue?.delayed],
+  );
+  const error = useMemo(
+    () => Object.values(queue?.error || {}),
+    [queue?.error],
+  );
+  const cancelled = useMemo(
+    () => Object.values(queue?.cancelled || {}),
+    [queue?.cancelled],
+  );
 
   // 3. Define all callbacks and memos
   const filterDownloads = useCallback(
@@ -337,11 +409,7 @@ function QueuePage() {
           {/* All Tab */}
           <Tabs.Panel value="all" pt="md">
             {allDownloads.length > 0 ? (
-              <Stack gap="md">
-                {allDownloads.map((item) => (
-                  <DownloadItem key={item.md5} item={item} />
-                ))}
-              </Stack>
+              <VirtualizedDownloadList items={allDownloads} />
             ) : (
               <Center p="xl">
                 <Stack align="center" gap="sm">
@@ -355,11 +423,7 @@ function QueuePage() {
           {/* Downloading Tab */}
           <Tabs.Panel value="downloading" pt="md">
             {filteredDownloading.length > 0 ? (
-              <Stack gap="md">
-                {filteredDownloading.map((item) => (
-                  <DownloadItem key={item.md5} item={item} />
-                ))}
-              </Stack>
+              <VirtualizedDownloadList items={filteredDownloading} />
             ) : (
               <Center p="xl">
                 <Stack align="center" gap="sm">
@@ -377,11 +441,7 @@ function QueuePage() {
           {/* Queued Tab */}
           <Tabs.Panel value="queued" pt="md">
             {filteredQueued.length > 0 ? (
-              <Stack gap="md">
-                {filteredQueued.map((item) => (
-                  <DownloadItem key={item.md5} item={item} />
-                ))}
-              </Stack>
+              <VirtualizedDownloadList items={filteredQueued} />
             ) : (
               <Center p="xl">
                 <Stack align="center" gap="sm">
@@ -399,11 +459,7 @@ function QueuePage() {
           {/* Available Tab */}
           <Tabs.Panel value="available" pt="md">
             {filteredAvailable.length > 0 ? (
-              <Stack gap="md">
-                {filteredAvailable.map((item) => (
-                  <DownloadItem key={item.md5} item={item} />
-                ))}
-              </Stack>
+              <VirtualizedDownloadList items={filteredAvailable} />
             ) : (
               <Center p="xl">
                 <Stack align="center" gap="sm">
@@ -421,11 +477,7 @@ function QueuePage() {
           {/* Done Tab */}
           <Tabs.Panel value="done" pt="md">
             {filteredDone.length > 0 ? (
-              <Stack gap="md">
-                {filteredDone.map((item) => (
-                  <DownloadItem key={item.md5} item={item} />
-                ))}
-              </Stack>
+              <VirtualizedDownloadList items={filteredDone} />
             ) : (
               <Center p="xl">
                 <Stack align="center" gap="sm">
@@ -453,11 +505,7 @@ function QueuePage() {
                     </Text>
                   </Group>
                 </Card>
-                <Stack gap="md">
-                  {filteredDelayed.map((item) => (
-                    <DownloadItem key={item.md5} item={item} />
-                  ))}
-                </Stack>
+                <VirtualizedDownloadList items={filteredDelayed} />
               </>
             ) : (
               <Center p="xl">
@@ -486,11 +534,7 @@ function QueuePage() {
                     </Text>
                   </Group>
                 </Card>
-                <Stack gap="md">
-                  {filteredError.map((item) => (
-                    <DownloadItem key={item.md5} item={item} />
-                  ))}
-                </Stack>
+                <VirtualizedDownloadList items={filteredError} />
               </>
             ) : (
               <Center p="xl">
@@ -509,11 +553,7 @@ function QueuePage() {
           {/* Cancelled Tab */}
           <Tabs.Panel value="cancelled" pt="md">
             {filteredCancelled.length > 0 ? (
-              <Stack gap="md">
-                {filteredCancelled.map((item) => (
-                  <DownloadItem key={item.md5} item={item} />
-                ))}
-              </Stack>
+              <VirtualizedDownloadList items={filteredCancelled} />
             ) : (
               <Center p="xl">
                 <Stack align="center" gap="sm">
