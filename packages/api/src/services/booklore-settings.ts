@@ -171,6 +171,9 @@ class BookloreSettingsService {
         hasLibraryAndPath,
       );
       if (validationError) {
+        console.error(
+          `[Booklore Settings] Configuration validation failed: ${validationError}`,
+        );
         throw new Error(validationError);
       }
 
@@ -182,6 +185,10 @@ class BookloreSettingsService {
         mergedUpdates.username &&
         mergedUpdates.password
       ) {
+        console.log(
+          `[Booklore Settings] Attempting authentication with base URL: ${mergedUpdates.baseUrl}`,
+        );
+
         const loginResult = await bookloreLogin(
           mergedUpdates.baseUrl,
           mergedUpdates.username,
@@ -189,10 +196,15 @@ class BookloreSettingsService {
         );
 
         if (!loginResult.success) {
+          console.error(
+            `[Booklore Settings] Authentication failed: ${loginResult.error}`,
+          );
           throw new Error(
             `Booklore authentication failed: ${loginResult.error}`,
           );
         }
+
+        console.log("[Booklore Settings] Authentication successful");
 
         tokens = loginResult.tokens!;
 
