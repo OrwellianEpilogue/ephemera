@@ -1,5 +1,10 @@
 services:
   ephemera:
+    # Available tags:
+    # - latest: Latest stable release (recommended for production)
+    # - dev: Latest development build (for testing new features)
+    # - 1.2.3: Specific version
+    # - dev-sha-abc1234: Specific dev build
     image: ghcr.io/orwellianepilogue/ephemera:latest
     container_name: ephemera
     restart: unless-stopped

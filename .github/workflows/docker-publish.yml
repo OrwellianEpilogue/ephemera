@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*.*.*"
+    branches:
+      - dev
   workflow_dispatch:
 
 env:
@@ -40,16 +42,20 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Tag with 'latest' on main branch
-            type=raw,value=latest,enable={{is_default_branch}}
-            # Tag with git short SHA for branch pushes
-            type=sha,prefix=sha-,format=short,enable=${{ github.ref_type == 'branch' }}
+            # Tag with 'latest' only for version tags (not branch pushes)
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+            # Tag with 'dev' for dev branch pushes
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            # Tag with dev-sha for dev branch (e.g., dev-sha-abc1234)
+            type=sha,prefix=dev-sha-,format=short,enable=${{ github.ref == 'refs/heads/dev' }}
+            # Tag with git short SHA for other branch pushes
+            type=sha,prefix=sha-,format=short,enable=${{ github.ref_type == 'branch' && github.ref != 'refs/heads/dev' }}
             # Tag with semantic version on tags
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            # Tag with branch name
-            type=ref,event=branch
+            # Tag with branch name (for branches other than dev)
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/dev' }}
             # Tag with PR number
             type=ref,event=pr
           labels: |
@@ -97,5 +103,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pull Command" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          fi
           echo '```' >> $GITHUB_STEP_SUMMARY

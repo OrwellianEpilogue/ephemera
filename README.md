@@ -96,6 +96,37 @@ services:
       retries: 3
 ```
 
+### Docker Image Tags
+
+The following Docker image tags are available:
+
+| Tag | Description | Update Frequency |
+|-----|-------------|------------------|
+| `latest` | Latest stable release | On version tags (v*.*.* releases) |
+| `dev` | Latest development build | On commits to dev branch |
+| `1.2.3` | Specific version | Never (immutable) |
+| `1.2` | Latest patch of minor version | On patch releases |
+| `1` | Latest minor/patch of major version | On minor/patch releases |
+| `dev-sha-abc1234` | Specific dev build | Never (immutable) |
+
+#### Examples
+
+```bash
+# Production (stable release)
+docker pull ghcr.io/orwellianepilogue/ephemera:latest
+
+# Development (latest dev branch)
+docker pull ghcr.io/orwellianepilogue/ephemera:dev
+
+# Specific version
+docker pull ghcr.io/orwellianepilogue/ephemera:1.2.2
+
+# Specific dev build
+docker pull ghcr.io/orwellianepilogue/ephemera:dev-sha-7aa9d68
+```
+
+> **Note:** The `latest` tag always points to the most recent stable release. If you want to test new features before they're released, use the `dev` tag.
+
 ### Required Environment Variables
 
 Only two variables are required:
