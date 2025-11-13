@@ -18,6 +18,7 @@ import { bookloreTokenRefresher } from "./services/booklore-token-refresher.js";
 import { bookCleanupService } from "./services/book-cleanup.js";
 import { requestCheckerService } from "./services/request-checker.js";
 import { versionService } from "./services/version.js";
+import { indexerSettingsService } from "./services/indexer-settings.js";
 import searchRoutes from "./routes/search.js";
 import downloadRoutes from "./routes/download.js";
 import queueRoutes from "./routes/queue.js";
@@ -27,6 +28,10 @@ import imageProxyRoutes from "./routes/image-proxy.js";
 import requestsRoutes from "./routes/requests.js";
 import versionRoutes from "./routes/version.js";
 import appriseRoutes from "./routes/apprise.js";
+import newznabRoutes from "./routes/newznab.js";
+import sabnzbdRoutes from "./routes/sabnzbd.js";
+import indexerRoutes from "./routes/indexer.js";
+import filesystemRoutes from "./routes/filesystem.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -72,6 +77,9 @@ await bookloreSettingsService.initializeDefaults();
 
 // Initialize Apprise settings with defaults
 await appriseService.initializeDefaults();
+
+// Initialize Indexer settings with defaults
+await indexerSettingsService.getSettings();
 
 // Start Booklore token refresher service
 bookloreTokenRefresher.start();
@@ -131,6 +139,8 @@ app.get("/api", (c) => {
       apprise: "/api/apprise/*",
       imageProxy: "/api/proxy/image",
       version: "/api/version",
+      newznab: "/newznab/api",
+      sabnzbd: "/sabnzbd/api",
       docs: "/api/docs",
       openapi: "/api/openapi.json",
     },
@@ -147,6 +157,10 @@ app.route("/api", appriseRoutes);
 app.route("/api", imageProxyRoutes);
 app.route("/api", requestsRoutes);
 app.route("/api", versionRoutes);
+app.route("/api", indexerRoutes);
+app.route("/api", filesystemRoutes);
+app.route("/newznab", newznabRoutes);
+app.route("/sabnzbd", sabnzbdRoutes);
 
 // OpenAPI documentation
 app.doc("/api/openapi.json", {

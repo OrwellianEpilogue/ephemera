@@ -1,38 +1,36 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import { execSync } from "child_process";
+import { readFileSync, writeFileSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 
 // Get version from API package
 function getVersion() {
   const apiPackageJson = JSON.parse(
-    readFileSync(join(process.cwd(), 'packages/api/package.json'), 'utf-8')
+    readFileSync(join(process.cwd(), "packages/api/package.json"), "utf-8"),
   );
   return apiPackageJson.version;
 }
 
 // Extract changelog for current version
 function extractChangelog(version) {
-  const changelogPath = join(process.cwd(), 'packages/api/CHANGELOG.md');
+  const changelogPath = join(process.cwd(), "packages/api/CHANGELOG.md");
 
   try {
-    const changelog = readFileSync(changelogPath, 'utf-8');
+    const changelog = readFileSync(changelogPath, "utf-8");
 
     // Match the version section in the changelog
     const versionRegex = new RegExp(
-      `##\\s*\\[?${version.replace(/\./g, '\\.')}\\]?[\\s\\S]*?(?=\\n##\\s|$)`,
-      'i'
+      `##\\s*\\[?${version.replace(/\./g, "\\.")}\\]?[\\s\\S]*?(?=\\n##\\s|$)`,
+      "i",
     );
 
     const match = changelog.match(versionRegex);
 
     if (match) {
       // Remove the version header line and clean up
-      let content = match[0]
-        .replace(/^##\s*\[?[\d.]+\]?.*\n+/, '')
-        .trim();
+      let content = match[0].replace(/^##\s*\[?[\d.]+\]?.*\n+/, "").trim();
 
       if (content) {
         return content;
@@ -42,37 +40,37 @@ function extractChangelog(version) {
     // Try web package if API changelog doesn't have content
     return getChangelogFromWeb(version);
   } catch (error) {
-    console.warn('Warning: Could not read API CHANGELOG.md, trying web package...');
+    console.warn(
+      "Warning: Could not read API CHANGELOG.md, trying web package...",
+    );
     return getChangelogFromWeb(version);
   }
 }
 
 function getChangelogFromWeb(version) {
-  const webChangelogPath = join(process.cwd(), 'packages/web/CHANGELOG.md');
+  const webChangelogPath = join(process.cwd(), "packages/web/CHANGELOG.md");
 
   try {
-    const changelog = readFileSync(webChangelogPath, 'utf-8');
+    const changelog = readFileSync(webChangelogPath, "utf-8");
     const versionRegex = new RegExp(
-      `##\\s*\\[?${version.replace(/\./g, '\\.')}\\]?[\\s\\S]*?(?=\\n##\\s|$)`,
-      'i'
+      `##\\s*\\[?${version.replace(/\./g, "\\.")}\\]?[\\s\\S]*?(?=\\n##\\s|$)`,
+      "i",
     );
 
     const match = changelog.match(versionRegex);
 
     if (match) {
-      let content = match[0]
-        .replace(/^##\s*\[?[\d.]+\]?.*\n+/, '')
-        .trim();
+      let content = match[0].replace(/^##\s*\[?[\d.]+\]?.*\n+/, "").trim();
 
       if (content) {
         return content;
       }
     }
   } catch (error) {
-    console.warn('Warning: Could not read web CHANGELOG.md');
+    console.warn("Warning: Could not read web CHANGELOG.md");
   }
 
-  return 'Version bump';
+  return "Version bump";
 }
 
 // Create commit with version and changelog
@@ -84,8 +82,8 @@ function createCommit(version, changelog) {
 
   try {
     console.log(`Creating commit for version ${version}...`);
-    execSync(`git commit -F "${tempFile}"`, { stdio: 'inherit' });
-    console.log('✓ Commit created successfully');
+    execSync(`git commit -F "${tempFile}"`, { stdio: "inherit" });
+    console.log("✓ Commit created successfully");
   } finally {
     // Clean up temp file
     try {
@@ -96,13 +94,13 @@ function createCommit(version, changelog) {
 
 // Main execution
 function main() {
-  console.log('Creating version commit with changelog...\n');
+  console.log("Creating version commit with changelog...\n");
 
   const version = getVersion();
   console.log(`Version: ${version}`);
 
   const changelog = extractChangelog(version);
-  console.log('\nChangelog extracted.\n');
+  console.log("\nChangelog extracted.\n");
 
   createCommit(version, changelog);
 }

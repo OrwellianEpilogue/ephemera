@@ -50,6 +50,34 @@
       "when": 1762972621289,
       "tag": "0006_peaceful_dazzler",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1763024416067,
+      "tag": "0007_brown_tiger_shark",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1763031739828,
+      "tag": "0008_public_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1763040428687,
+      "tag": "0009_nosy_ironclad",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1763042482715,
+      "tag": "0010_steep_hex",
+      "breakpoints": true
     }
   ]
 }

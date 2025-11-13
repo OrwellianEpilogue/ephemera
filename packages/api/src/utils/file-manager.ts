@@ -103,6 +103,43 @@ export class FileManager {
     }
   }
 
+  async moveToIndexerDirectory(
+    tempPath: string,
+    baseDir: string,
+    useCategoryDir: boolean,
+  ): Promise<string> {
+    try {
+      // Create base directory if it doesn't exist
+      await mkdir(baseDir, { recursive: true });
+
+      // If using category directory, add 'ephemera' subdirectory
+      const targetDir = useCategoryDir ? join(baseDir, "ephemera") : baseDir;
+      await mkdir(targetDir, { recursive: true });
+
+      // Get the original filename
+      const fileName = basename(tempPath);
+
+      // Build the final destination path
+      const finalPath = join(targetDir, fileName);
+
+      logger.info(
+        `Moving file from temp ${tempPath} to indexer directory ${finalPath}`,
+      );
+
+      // Move the file
+      await rename(tempPath, finalPath);
+
+      logger.success(`File moved to indexer directory: ${finalPath}`);
+      return finalPath;
+    } catch (error) {
+      logger.error(
+        `Failed to move file to indexer directory from ${tempPath}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   async validateDownload(
     path: string,
     expectedSize?: number,

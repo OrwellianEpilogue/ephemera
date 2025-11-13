@@ -12,6 +12,13 @@ export const downloads = sqliteTable("downloads", {
   format: text("format"),
   year: integer("year"),
 
+  // Download source tracking
+  downloadSource: text("download_source", {
+    enum: ["web", "indexer", "api"],
+  })
+    .notNull()
+    .default("web"),
+
   // Status tracking
   status: text("status", {
     enum: [
@@ -94,11 +101,34 @@ export const bookloreSettings = sqliteTable("booklore_settings", {
 
 export const appSettings = sqliteTable("app_settings", {
   id: integer("id").primaryKey().default(1),
-  postDownloadAction: text("post_download_action", {
-    enum: ["move_only", "upload_only", "both"],
+
+  // Post-download actions (checkboxes)
+  postDownloadMoveToIngest: integer("post_download_move_to_ingest", {
+    mode: "boolean",
   })
     .notNull()
-    .default("both"),
+    .default(true),
+  postDownloadUploadToBooklore: integer("post_download_upload_to_booklore", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
+  postDownloadMoveToIndexer: integer("post_download_move_to_indexer", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
+  postDownloadDeleteTemp: integer("post_download_delete_temp", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+
+  // Legacy field - will be removed after migration
+  postDownloadAction: text("post_download_action", {
+    enum: ["move_only", "upload_only", "both"],
+  }),
+
   bookRetentionDays: integer("book_retention_days").notNull().default(30),
   bookSearchCacheDays: integer("book_search_cache_days").notNull().default(7),
   requestCheckInterval: text("request_check_interval", {
@@ -233,6 +263,45 @@ export const appriseSettings = sqliteTable("apprise_settings", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const indexerSettings = sqliteTable("indexer_settings", {
+  id: integer("id").primaryKey().default(1),
+
+  // Base URL for both services (configurable)
+  baseUrl: text("base_url").notNull().default("http://localhost:8286"),
+
+  // Newznab settings
+  newznabEnabled: integer("newznab_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  newznabApiKey: text("newznab_api_key"),
+
+  // SABnzbd settings
+  sabnzbdEnabled: integer("sabnzbd_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  sabnzbdApiKey: text("sabnzbd_api_key"),
+
+  // Indexer download directories
+  indexerCompletedDir: text("indexer_completed_dir")
+    .notNull()
+    .default("/downloads/complete"),
+  indexerIncompleteDir: text("indexer_incomplete_dir")
+    .notNull()
+    .default("/downloads/incomplete"),
+  indexerCategoryDir: integer("indexer_category_dir", { mode: "boolean" })
+    .notNull()
+    .default(false),
+
+  // Indexer-only mode - only show indexer downloads in SABnzbd APIs
+  indexerOnlyMode: integer("indexer_only_mode", { mode: "boolean" })
+    .notNull()
+    .default(false),
+
+  // Timestamps
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 // Relations
 export const booksRelations = relations(books, ({ many }) => ({
   downloads: many(downloads),
@@ -270,3 +339,5 @@ export type DownloadRequest = typeof downloadRequests.$inferSelect;
 export type NewDownloadRequest = typeof downloadRequests.$inferInsert;
 export type AppriseSettings = typeof appriseSettings.$inferSelect;
 export type NewAppriseSettings = typeof appriseSettings.$inferInsert;
+export type IndexerSettings = typeof indexerSettings.$inferSelect;
+export type NewIndexerSettings = typeof indexerSettings.$inferInsert;

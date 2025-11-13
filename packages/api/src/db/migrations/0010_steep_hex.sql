@@ -1,0 +1,1 @@
+ALTER TABLE `indexer_settings` ADD `indexer_only_mode` integer DEFAULT false NOT NULL;

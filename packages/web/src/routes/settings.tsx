@@ -28,6 +28,7 @@ import {
   IconPlus,
   IconSettings,
   IconUpload,
+  IconServer,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -42,7 +43,6 @@ import {
 } from "../hooks/useSettings";
 import { useState, useEffect } from "react";
 import type {
-  PostDownloadAction,
   TimeFormat,
   DateFormat,
   RequestCheckInterval,
@@ -52,10 +52,12 @@ import type {
 } from "@ephemera/shared";
 import { formatDate } from "@ephemera/shared";
 import { z } from "zod";
+import { IndexerSettings } from "../components/IndexerSettings";
+import { useIndexerSettings } from "../hooks/use-indexer-settings";
 
 const settingsSearchSchema = z.object({
   tab: z
-    .enum(["general", "notifications", "booklore"])
+    .enum(["general", "notifications", "booklore", "indexer"])
     .optional()
     .default("general"),
 });
@@ -78,6 +80,7 @@ function SettingsComponent() {
     isLoading: loadingApprise,
     isError: errorApprise,
   } = useAppriseSettings();
+  const { data: indexerSettings } = useIndexerSettings();
   const updateSettings = useUpdateAppSettings();
   const updateBooklore = useUpdateBookloreSettings();
   const updateApprise = useUpdateAppriseSettings();
@@ -88,9 +91,16 @@ function SettingsComponent() {
   const { data: librariesData, isLoading: loadingLibraries } =
     useBookloreLibraries(!!bookloreSettings?.connected);
 
-  // App settings state
-  const [postDownloadAction, setPostDownloadAction] =
-    useState<PostDownloadAction>("both");
+  // App settings state - Post-download checkboxes
+  const [postDownloadMoveToIngest, setPostDownloadMoveToIngest] =
+    useState<boolean>(true);
+  const [postDownloadUploadToBooklore, setPostDownloadUploadToBooklore] =
+    useState<boolean>(false);
+  const [postDownloadMoveToIndexer, setPostDownloadMoveToIndexer] =
+    useState<boolean>(false);
+  const [postDownloadDeleteTemp, setPostDownloadDeleteTemp] =
+    useState<boolean>(true);
+
   const [bookRetentionDays, setBookRetentionDays] = useState<number>(30);
   const [bookSearchCacheDays, setUndownloadedBookRetentionDays] =
     useState<number>(7);
@@ -131,15 +141,15 @@ function SettingsComponent() {
     if (settings) {
       // If Booklore is not connected and user has upload-related action selected,
       // reset to move_only
-      if (
-        !bookloreSettings?.connected &&
-        (settings.postDownloadAction === "upload_only" ||
-          settings.postDownloadAction === "both")
-      ) {
-        setPostDownloadAction("move_only");
-      } else {
-        setPostDownloadAction(settings.postDownloadAction);
-      }
+      // Load checkbox states
+      setPostDownloadMoveToIngest(settings.postDownloadMoveToIngest ?? true);
+      setPostDownloadUploadToBooklore(
+        bookloreSettings?.connected
+          ? (settings.postDownloadUploadToBooklore ?? false)
+          : false,
+      );
+      setPostDownloadMoveToIndexer(settings.postDownloadMoveToIndexer ?? false);
+      setPostDownloadDeleteTemp(settings.postDownloadDeleteTemp ?? true);
       setBookRetentionDays(settings.bookRetentionDays);
       setUndownloadedBookRetentionDays(settings.bookSearchCacheDays);
       setRequestCheckInterval(settings.requestCheckInterval);
@@ -149,6 +159,24 @@ function SettingsComponent() {
       setLibraryLinkLocation(settings.libraryLinkLocation);
     }
   }, [settings, bookloreSettings?.connected]);
+
+  // Automatically uncheck "Move to Indexer Directory" when indexers are disabled
+  useEffect(() => {
+    if (
+      indexerSettings &&
+      !indexerSettings.newznabEnabled &&
+      !indexerSettings.sabnzbdEnabled
+    ) {
+      // If indexers are disabled, uncheck the move to indexer directory option
+      if (postDownloadMoveToIndexer) {
+        setPostDownloadMoveToIndexer(false);
+        // Also save this change to the backend
+        updateSettings.mutate({
+          postDownloadMoveToIndexer: false,
+        });
+      }
+    }
+  }, [indexerSettings?.newznabEnabled, indexerSettings?.sabnzbdEnabled]);
 
   useEffect(() => {
     if (bookloreSettings) {
@@ -191,7 +219,10 @@ function SettingsComponent() {
 
   const handleSaveApp = () => {
     updateSettings.mutate({
-      postDownloadAction,
+      postDownloadMoveToIngest,
+      postDownloadUploadToBooklore,
+      postDownloadMoveToIndexer,
+      postDownloadDeleteTemp,
       bookRetentionDays,
       bookSearchCacheDays,
       requestCheckInterval,
@@ -248,7 +279,10 @@ function SettingsComponent() {
 
   const hasAppChanges =
     settings &&
-    (settings.postDownloadAction !== postDownloadAction ||
+    (settings.postDownloadMoveToIngest !== postDownloadMoveToIngest ||
+      settings.postDownloadUploadToBooklore !== postDownloadUploadToBooklore ||
+      settings.postDownloadMoveToIndexer !== postDownloadMoveToIndexer ||
+      settings.postDownloadDeleteTemp !== postDownloadDeleteTemp ||
       settings.bookRetentionDays !== bookRetentionDays ||
       settings.bookSearchCacheDays !== bookSearchCacheDays ||
       settings.requestCheckInterval !== requestCheckInterval ||
@@ -340,6 +374,9 @@ function SettingsComponent() {
             <Tabs.Tab value="booklore" leftSection={<IconUpload size={16} />}>
               Booklore
             </Tabs.Tab>
+            <Tabs.Tab value="indexer" leftSection={<IconServer size={16} />}>
+              Indexer
+            </Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="general" pt="lg">
@@ -353,38 +390,55 @@ function SettingsComponent() {
                     downloaded
                   </Text>
 
-                  <Radio.Group
-                    value={postDownloadAction}
-                    onChange={(value) =>
-                      setPostDownloadAction(value as PostDownloadAction)
-                    }
-                  >
-                    <Stack gap="sm">
-                      <Radio
-                        value="move_only"
-                        label="Move Only"
-                        description="Move downloaded files to your configured ingest folder"
-                      />
-                      <Radio
-                        value="upload_only"
-                        label="Upload Only"
-                        description="Upload to Booklore and delete the local file (requires Booklore configuration)"
-                        disabled={
-                          !bookloreSettings?.enabled ||
-                          !bookloreSettings?.connected
-                        }
-                      />
-                      <Radio
-                        value="both"
-                        label="Move and Upload"
-                        description="Move to ingest folder AND upload to Booklore (requires Booklore configuration)"
-                        disabled={
-                          !bookloreSettings?.enabled ||
-                          !bookloreSettings?.connected
-                        }
-                      />
-                    </Stack>
-                  </Radio.Group>
+                  <Stack gap="md">
+                    <Checkbox
+                      checked={postDownloadMoveToIngest}
+                      onChange={(event) =>
+                        setPostDownloadMoveToIngest(event.currentTarget.checked)
+                      }
+                      label="Move to Ingest"
+                      description="Move downloaded files to your configured ingest folder"
+                    />
+
+                    <Checkbox
+                      checked={postDownloadUploadToBooklore}
+                      onChange={(event) =>
+                        setPostDownloadUploadToBooklore(
+                          event.currentTarget.checked,
+                        )
+                      }
+                      label="Upload to Booklore"
+                      description="Upload to Booklore library (requires Booklore configuration)"
+                      disabled={
+                        !bookloreSettings?.enabled ||
+                        !bookloreSettings?.connected
+                      }
+                    />
+
+                    <Checkbox
+                      checked={postDownloadMoveToIndexer}
+                      onChange={(event) =>
+                        setPostDownloadMoveToIndexer(
+                          event.currentTarget.checked,
+                        )
+                      }
+                      label="Move to Indexer Directory"
+                      description="Move to separate directory for indexer downloads (SABnzbd/Readarr)"
+                      disabled={
+                        !indexerSettings?.newznabEnabled &&
+                        !indexerSettings?.sabnzbdEnabled
+                      }
+                    />
+
+                    <Checkbox
+                      checked={postDownloadDeleteTemp}
+                      onChange={(event) =>
+                        setPostDownloadDeleteTemp(event.currentTarget.checked)
+                      }
+                      label="Delete Temporary Files"
+                      description="Remove temporary download files after processing"
+                    />
+                  </Stack>
 
                   {(!bookloreSettings?.enabled ||
                     !bookloreSettings?.connected) && (
@@ -1040,6 +1094,10 @@ function SettingsComponent() {
                 </Stack>
               </Paper>
             </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="indexer" pt="lg">
+            <IndexerSettings />
           </Tabs.Panel>
         </Tabs>
       </Stack>

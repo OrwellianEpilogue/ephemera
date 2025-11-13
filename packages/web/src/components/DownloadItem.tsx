@@ -19,6 +19,9 @@ import {
   IconCheck,
   IconAlertCircle,
   IconTrash,
+  IconWorld,
+  IconServer,
+  IconApi,
 } from "@tabler/icons-react";
 import type { QueueItem } from "@ephemera/shared";
 import { formatDate, formatTime as formatTimeOfDay } from "@ephemera/shared";
@@ -121,6 +124,45 @@ const getStatusIcon = (status: string) => {
   }
 };
 
+const getSourceIcon = (source?: string) => {
+  switch (source) {
+    case "web":
+      return <IconWorld size={14} />;
+    case "indexer":
+      return <IconServer size={14} />;
+    case "api":
+      return <IconApi size={14} />;
+    default:
+      return null;
+  }
+};
+
+const getSourceColor = (source?: string) => {
+  switch (source) {
+    case "web":
+      return "cyan";
+    case "indexer":
+      return "indigo";
+    case "api":
+      return "grape";
+    default:
+      return "gray";
+  }
+};
+
+const getSourceLabel = (source?: string) => {
+  switch (source) {
+    case "web":
+      return "Web";
+    case "indexer":
+      return "Indexer";
+    case "api":
+      return "API";
+    default:
+      return source || "Unknown";
+  }
+};
+
 const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const cancelDownload = useCancelDownload();
   const retryDownload = useRetryDownload();
@@ -220,6 +262,17 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
             >
               {item.status.toUpperCase()}
             </Badge>
+
+            {item.downloadSource && (
+              <Badge
+                size="sm"
+                variant="light"
+                color={getSourceColor(item.downloadSource)}
+                leftSection={getSourceIcon(item.downloadSource)}
+              >
+                {getSourceLabel(item.downloadSource)}
+              </Badge>
+            )}
 
             {item.format && (
               <Badge size="sm" variant="light" color="blue">

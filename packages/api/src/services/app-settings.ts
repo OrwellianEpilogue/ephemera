@@ -53,7 +53,11 @@ class AppSettingsService {
   private getDefaults(): AppSettings {
     return {
       id: 1,
-      postDownloadAction: "both",
+      postDownloadAction: null, // Legacy field
+      postDownloadMoveToIngest: true,
+      postDownloadUploadToBooklore: false,
+      postDownloadMoveToIndexer: false,
+      postDownloadDeleteTemp: true,
       bookRetentionDays: 30,
       bookSearchCacheDays: 7,
       requestCheckInterval: "6h",
@@ -79,10 +83,23 @@ class AppSettingsService {
 
       const settingsData = {
         id: 1,
-        postDownloadAction:
-          updates.postDownloadAction ??
-          existing[0]?.postDownloadAction ??
-          "both",
+        postDownloadAction: null, // Legacy field - always null after migration
+        postDownloadMoveToIngest:
+          updates.postDownloadMoveToIngest ??
+          existing[0]?.postDownloadMoveToIngest ??
+          true,
+        postDownloadUploadToBooklore:
+          updates.postDownloadUploadToBooklore ??
+          existing[0]?.postDownloadUploadToBooklore ??
+          false,
+        postDownloadMoveToIndexer:
+          updates.postDownloadMoveToIndexer ??
+          existing[0]?.postDownloadMoveToIndexer ??
+          false,
+        postDownloadDeleteTemp:
+          updates.postDownloadDeleteTemp ??
+          existing[0]?.postDownloadDeleteTemp ??
+          true,
         bookRetentionDays:
           updates.bookRetentionDays ?? existing[0]?.bookRetentionDays ?? 30,
         bookSearchCacheDays:
@@ -141,11 +158,15 @@ class AppSettingsService {
 
       if (result.length === 0) {
         console.log(
-          "[App Settings] Initializing default settings (postDownloadAction=both, bookRetentionDays=30, bookSearchCacheDays=7, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)",
+          "[App Settings] Initializing default settings (moveToIngest=true, uploadToBooklore=false, moveToIndexer=false, deleteTemp=true, bookRetentionDays=30, bookSearchCacheDays=7, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)",
         );
         await db.insert(appSettings).values({
           id: 1,
-          postDownloadAction: "both",
+          postDownloadAction: null, // Legacy field
+          postDownloadMoveToIngest: true,
+          postDownloadUploadToBooklore: false,
+          postDownloadMoveToIndexer: false,
+          postDownloadDeleteTemp: true,
           bookRetentionDays: 30,
           bookSearchCacheDays: 7,
           requestCheckInterval: "6h",

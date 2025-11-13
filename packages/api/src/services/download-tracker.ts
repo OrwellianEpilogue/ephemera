@@ -272,6 +272,29 @@ export class DownloadTracker {
     }
   }
 
+  async getByStatuses(statuses: DownloadStatus[]): Promise<Download[]> {
+    try {
+      if (statuses.length === 0) return [];
+
+      return await db
+        .select()
+        .from(downloads)
+        .where(or(...statuses.map((s) => eq(downloads.status, s))))
+        .orderBy(desc(downloads.queuedAt));
+    } catch (error) {
+      logger.error(`Failed to get downloads by statuses:`, error);
+      throw error;
+    }
+  }
+
+  async getByMd5(md5: string): Promise<Download | undefined> {
+    return this.get(md5);
+  }
+
+  async updateStatus(md5: string, status: DownloadStatus): Promise<void> {
+    await this.update(md5, { status });
+  }
+
   async getStatusByMd5s(
     md5s: string[],
   ): Promise<Array<{ md5: string; status: DownloadStatus }>> {
@@ -446,6 +469,8 @@ export class DownloadTracker {
       quotaCheckedAt: download.quotaCheckedAt
         ? new Date(download.quotaCheckedAt).toISOString()
         : undefined,
+      // Download source
+      downloadSource: download.downloadSource || undefined,
       // Countdown tracking
       countdownSeconds: download.countdownSeconds || undefined,
       countdownStartedAt: download.countdownStartedAt

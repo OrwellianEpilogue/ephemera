@@ -288,6 +288,11 @@ export const queueItemSchema = z.object({
   language: z.string().optional().describe("Language code from books table"),
   year: z.number().optional().describe("Publication year from books table"),
   size: z.number().optional().describe("File size in bytes from books table"),
+  // Download source tracking
+  downloadSource: z
+    .enum(["web", "indexer", "api"])
+    .optional()
+    .describe("Source of the download request"),
 });
 
 export type QueueItem = z.infer<typeof queueItemSchema>;
@@ -564,7 +569,7 @@ export type BookloreLibrariesResponse = z.infer<
   typeof bookloreLibrariesResponseSchema
 >;
 
-// Post-download action enum
+// Post-download action enum (legacy - kept for migration)
 export const postDownloadActionSchema = z.enum([
   "move_only",
   "upload_only",
@@ -572,6 +577,11 @@ export const postDownloadActionSchema = z.enum([
 ]);
 
 export type PostDownloadAction = z.infer<typeof postDownloadActionSchema>;
+
+// Download source enum
+export const downloadSourceSchema = z.enum(["web", "indexer", "api"]);
+
+export type DownloadSource = z.infer<typeof downloadSourceSchema>;
 
 // Time format enum
 export const timeFormatSchema = z.enum(["24h", "ampm"]);
@@ -605,9 +615,29 @@ export type LibraryLinkLocation = z.infer<typeof libraryLinkLocationSchema>;
 // App settings schema
 export const appSettingsSchema = z.object({
   id: z.number().describe("Settings ID (always 1)"),
-  postDownloadAction: postDownloadActionSchema.describe(
-    "Action to perform after download completes: move_only (just move to INGEST_FOLDER), upload_only (upload to Booklore and delete file), both (move AND upload)",
-  ),
+
+  // Post-download actions (checkboxes)
+  postDownloadMoveToIngest: z
+    .boolean()
+    .describe("Move completed downloads to the ingest folder"),
+  postDownloadUploadToBooklore: z
+    .boolean()
+    .describe("Upload completed downloads to Booklore"),
+  postDownloadMoveToIndexer: z
+    .boolean()
+    .describe("Move indexer downloads to the indexer completed directory"),
+  postDownloadDeleteTemp: z
+    .boolean()
+    .describe("Delete temporary files after post-processing"),
+
+  // Legacy field (kept for migration)
+  postDownloadAction: postDownloadActionSchema
+    .nullable()
+    .optional()
+    .describe(
+      "Legacy: Action to perform after download completes (deprecated)",
+    ),
+
   bookRetentionDays: z
     .number()
     .int()
@@ -648,9 +678,24 @@ export type AppSettings = z.infer<typeof appSettingsSchema>;
 
 // App settings update request schema
 export const updateAppSettingsSchema = z.object({
-  postDownloadAction: postDownloadActionSchema
+  // Post-download actions (checkboxes)
+  postDownloadMoveToIngest: z
+    .boolean()
     .optional()
-    .describe("Action to perform after download completes"),
+    .describe("Move completed downloads to the ingest folder"),
+  postDownloadUploadToBooklore: z
+    .boolean()
+    .optional()
+    .describe("Upload completed downloads to Booklore"),
+  postDownloadMoveToIndexer: z
+    .boolean()
+    .optional()
+    .describe("Move indexer downloads to the indexer completed directory"),
+  postDownloadDeleteTemp: z
+    .boolean()
+    .optional()
+    .describe("Delete temporary files after post-processing"),
+
   bookRetentionDays: z
     .number()
     .int()

@@ -86,6 +86,9 @@ export default [
       "**/*.generated.ts", // Other auto-generated files
       "**/generated/**", // Generated directories
       "packages/shared/src/generated/**", // OpenAPI generated code
+      "**/dev-dist/**", // Vite development build directory
+      "scripts/**", // Build scripts
+      "**/scripts/**", // All scripts directories
     ],
   },
 

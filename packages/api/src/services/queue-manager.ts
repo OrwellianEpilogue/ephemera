@@ -8,6 +8,7 @@ import { bookloreUploader } from "./booklore-uploader.js";
 import { appSettingsService } from "./app-settings.js";
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
+import { indexerSettingsService } from "./indexer-settings.js";
 import type {
   QueueResponse,
   QueueItem,
@@ -89,6 +90,7 @@ export class QueueManager extends EventEmitter {
 
   async addToQueue(
     md5: string,
+    downloadSource: "web" | "indexer" | "api" = "web",
   ): Promise<{ status: string; position?: number; existing?: Download }> {
     // Get book data from database (should already exist from search)
     const book = await bookService.getBook(md5);
@@ -130,14 +132,22 @@ export class QueueManager extends EventEmitter {
         });
       }
     } else {
-      // Create new download record
+      // Create new download record with full book metadata
       await downloadTracker.create({
         md5,
         title,
         status: "queued",
+        downloadSource,
         pathIndex,
         domainIndex,
         queuedAt: Date.now(),
+        author: book?.authors?.join(", ") || null,
+        publisher: book?.publisher || null,
+        language: book?.language || null,
+        format: book?.format || null,
+        year: book?.year || null,
+        filename: book?.filename || null,
+        size: book?.size || null,
       });
     }
 
@@ -404,81 +414,61 @@ export class QueueManager extends EventEmitter {
       return;
     }
 
-    // Get post-download action setting
+    // Get post-download settings
     const appSettings = await appSettingsService.getSettings();
-    const postDownloadAction = appSettings.postDownloadAction;
+    const {
+      postDownloadMoveToIngest,
+      postDownloadUploadToBooklore,
+      postDownloadMoveToIndexer,
+      postDownloadDeleteTemp,
+    } = appSettings;
 
-    logger.info(`[Post-Download] Action: ${postDownloadAction}`);
+    logger.info(
+      `[Post-Download] Settings: moveToIngest=${postDownloadMoveToIngest}, uploadToBooklore=${postDownloadUploadToBooklore}, moveToIndexer=${postDownloadMoveToIndexer}, deleteTemp=${postDownloadDeleteTemp}`,
+    );
 
     try {
-      switch (postDownloadAction) {
-        case "move_only": {
-          // Just move to final destination
-          const finalPath = await fileManager.moveToFinalDestination(
-            result.filePath,
-          );
-          await downloadTracker.markAvailable(md5, finalPath);
-          this.emitQueueUpdate();
-          logger.success(`${title} is now available at: ${finalPath}`);
+      let finalPath: string | null = result.filePath;
+      let movedToFinal = false;
 
-          // Send Apprise notification for download available
-          await appriseService.send("available", {
-            title: item.title,
-            authors: book?.authors,
-            md5,
-            finalPath,
-            format: download.format,
-          });
+      // Check if this is an indexer download
+      const isIndexerDownload = download.downloadSource === "indexer";
 
-          break;
-        }
+      // Step 1: Move to appropriate directory based on source
+      if (isIndexerDownload && postDownloadMoveToIndexer) {
+        // Move to indexer directory
+        const indexerSettings = await indexerSettingsService.getSettings();
+        finalPath = await fileManager.moveToIndexerDirectory(
+          result.filePath,
+          indexerSettings.indexerCompletedDir,
+          indexerSettings.indexerCategoryDir,
+        );
+        movedToFinal = true;
+        logger.info(`[Post-Download] Moved to indexer directory: ${finalPath}`);
+      } else if (!isIndexerDownload && postDownloadMoveToIngest) {
+        // Move to regular ingest directory for non-indexer downloads
+        finalPath = await fileManager.moveToFinalDestination(result.filePath);
+        movedToFinal = true;
+        logger.info(`[Post-Download] Moved to ingest directory: ${finalPath}`);
+      }
 
-        case "upload_only": {
-          // Upload to Booklore and delete temp file
-          const isEnabled = await bookloreSettingsService.isEnabled();
+      // Step 2: Upload to Booklore if enabled
+      if (postDownloadUploadToBooklore) {
+        const isEnabled = await bookloreSettingsService.isEnabled();
 
-          if (!isEnabled) {
-            logger.error(`[Booklore] Cannot upload - Booklore is not enabled`);
-            await downloadTracker.markError(
-              md5,
-              "Post-download action is upload_only but Booklore is not enabled",
-            );
-            this.emitQueueUpdate();
-            return;
-          }
-
+        if (isEnabled) {
           try {
             logger.info(`[Booklore] Uploading ${title}...`);
             await downloadTracker.markUploadPending(md5);
             await downloadTracker.markUploadStarted(md5);
 
-            const uploadResult = await bookloreUploader.uploadFile(
-              result.filePath,
-            );
+            const uploadResult = await bookloreUploader.uploadFile(finalPath);
 
             if (uploadResult.success) {
               await downloadTracker.markUploadCompleted(md5);
               logger.success(
                 `[Booklore] Successfully uploaded ${title} to Booklore`,
               );
-
-              // Delete temp file after successful upload
-              await fileManager.deleteFile(result.filePath);
-              logger.info(
-                `[Post-Download] Deleted temp file after upload: ${result.filePath}`,
-              );
-
-              // Mark as available without a local path (file only exists in Booklore)
-              await downloadTracker.markAvailable(md5, null);
-              this.emitQueueUpdate();
-
-              // Send Apprise notification for download available (uploaded to Booklore)
-              await appriseService.send("available", {
-                title: item.title,
-                md5,
-                finalPath: "Booklore",
-                format: download.format,
-              });
             } else {
               await downloadTracker.markUploadFailed(
                 md5,
@@ -487,93 +477,66 @@ export class QueueManager extends EventEmitter {
               logger.error(
                 `[Booklore] Failed to upload ${title}: ${uploadResult.error}`,
               );
-              await downloadTracker.markError(
-                md5,
-                `Upload failed: ${uploadResult.error}`,
-              );
-              this.emitQueueUpdate();
-            }
-          } catch (bookloreError: unknown) {
-            const errorMsg = getErrorMessage(bookloreError);
-            logger.error(`[Booklore] Upload error:`, bookloreError);
-            await downloadTracker.markUploadFailed(md5, errorMsg);
-            await downloadTracker.markError(md5, `Upload error: ${errorMsg}`);
-            this.emitQueueUpdate();
-          }
-          break;
-        }
-
-        case "both": {
-          // Move to final destination AND upload to Booklore
-          const finalPath = await fileManager.moveToFinalDestination(
-            result.filePath,
-          );
-          await downloadTracker.markAvailable(md5, finalPath);
-          this.emitQueueUpdate();
-          logger.success(`${title} is now available at: ${finalPath}`);
-
-          // Send Apprise notification for download available
-          await appriseService.send("available", {
-            title: item.title,
-            authors: book?.authors,
-            md5,
-            finalPath,
-            format: download.format,
-          });
-
-          // Upload to Booklore if enabled
-          // This is wrapped in try-catch to ensure upload failures don't affect download completion
-          try {
-            const isEnabled = await bookloreSettingsService.isEnabled();
-
-            if (isEnabled) {
-              logger.info(`[Booklore] Uploading ${title}...`);
-              await downloadTracker.markUploadPending(md5);
-              await downloadTracker.markUploadStarted(md5);
-
-              const uploadResult = await bookloreUploader.uploadFile(finalPath);
-
-              if (uploadResult.success) {
-                await downloadTracker.markUploadCompleted(md5);
-                logger.success(
-                  `[Booklore] Successfully uploaded ${title} to Booklore`,
-                );
-              } else {
-                await downloadTracker.markUploadFailed(
-                  md5,
-                  uploadResult.error || "Unknown error",
-                );
-                logger.error(
-                  `[Booklore] Failed to upload ${title}: ${uploadResult.error}`,
-                );
-              }
-            } else {
-              logger.warn(
-                `[Booklore] Skipping upload for ${title} - Booklore is not enabled or not fully configured (baseUrl, token, libraryId, pathId required)`,
-              );
             }
           } catch (bookloreError: unknown) {
             // Log but don't fail the download
+            const errorMsg = getErrorMessage(bookloreError);
             logger.error(
               `[Booklore] Upload error (non-critical):`,
               bookloreError,
             );
             await downloadTracker
-              .markUploadFailed(md5, getErrorMessage(bookloreError))
+              .markUploadFailed(md5, errorMsg)
               .catch(() => {});
           }
-          break;
-        }
-
-        default: {
-          logger.error(`[Post-Download] Unknown action: ${postDownloadAction}`);
-          await downloadTracker.markError(
-            md5,
-            `Unknown post-download action: ${postDownloadAction}`,
+        } else {
+          logger.warn(
+            `[Booklore] Skipping upload for ${title} - Booklore is not enabled or not fully configured`,
           );
-          this.emitQueueUpdate();
         }
       }
+
+      // Step 3: Delete temp file if requested and file was moved
+      if (
+        postDownloadDeleteTemp &&
+        movedToFinal &&
+        finalPath !== result.filePath
+      ) {
+        try {
+          await fileManager.deleteFile(result.filePath);
+          logger.info(`[Post-Download] Deleted temp file: ${result.filePath}`);
+        } catch (deleteError) {
+          logger.warn(
+            `[Post-Download] Failed to delete temp file: ${result.filePath}`,
+            deleteError,
+          );
+        }
+      }
+
+      // Mark as available
+      await downloadTracker.markAvailable(md5, movedToFinal ? finalPath : null);
+      this.emitQueueUpdate();
+
+      if (movedToFinal) {
+        logger.success(`${title} is now available at: ${finalPath}`);
+      } else if (postDownloadUploadToBooklore) {
+        logger.success(`${title} has been uploaded to Booklore`);
+      } else {
+        logger.success(`${title} download completed`);
+      }
+
+      // Send Apprise notification for download available
+      await appriseService.send("available", {
+        title: item.title,
+        authors: book?.authors,
+        md5,
+        finalPath: movedToFinal
+          ? finalPath
+          : postDownloadUploadToBooklore
+            ? "Booklore"
+            : result.filePath,
+        format: download.format,
+      });
     } catch (error: unknown) {
       const errorMsg = getErrorMessage(error);
       logger.error(`Failed to complete post-download action:`, error);
@@ -869,6 +832,14 @@ export class QueueManager extends EventEmitter {
 
   isDownloading(md5: string): boolean {
     return this.currentDownload === md5;
+  }
+
+  removeFromQueue(md5: string): void {
+    const index = this.queue.findIndex((item) => item.md5 === md5);
+    if (index !== -1) {
+      this.queue.splice(index, 1);
+      this.emitQueueUpdate();
+    }
   }
 }
 
