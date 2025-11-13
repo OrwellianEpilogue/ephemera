@@ -92,6 +92,7 @@ export async function login(
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
           const errorData = await response.json();
+          console.error("[Booklore Auth] Error response data:", errorData);
           // Handle Booklore's error response format
           if (errorData.message) {
             errorMessage = errorData.message;
@@ -99,6 +100,9 @@ export async function login(
             errorMessage = errorData.error;
           } else if (typeof errorData === "string") {
             errorMessage = errorData;
+          } else {
+            // If it's an object but doesn't have expected fields, stringify it
+            errorMessage = JSON.stringify(errorData);
           }
         } else {
           const errorText = await response.text();

@@ -75,6 +75,18 @@ export function isErrorWithStack(error: unknown): error is { stack: string } {
  * Use this in catch blocks: catch (error: unknown) { ... }
  */
 export function getErrorMessage(error: unknown): string {
+  // Handle ApiError from client.ts
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "ApiError" &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
   if (isErrorWithMessage(error)) {
     return error.message;
   }
