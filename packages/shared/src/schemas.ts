@@ -495,13 +495,7 @@ export const updateBookloreSettingsSchema = z
     (data) => {
       // If enabling, require all necessary fields
       if (data.enabled === true) {
-        return (
-          data.baseUrl &&
-          data.username &&
-          data.password &&
-          data.libraryId &&
-          data.pathId
-        );
+        return data.baseUrl && data.username && data.password;
       }
       return true;
     },
