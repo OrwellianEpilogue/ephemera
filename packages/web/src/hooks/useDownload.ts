@@ -156,3 +156,77 @@ export const useClearQueue = () => {
     },
   });
 };
+
+interface DownloadFileParams {
+  md5: string;
+  title: string;
+  format?: string;
+  authors?: string[];
+  year?: number;
+  language?: string;
+}
+
+export const useDownloadFile = () => {
+  return useMutation({
+    mutationFn: async ({
+      md5,
+      title,
+      format,
+      authors,
+      year,
+      language,
+    }: DownloadFileParams) => {
+      // Get the base URL from the current location
+      const baseUrl = globalThis.window.location.origin;
+      const downloadUrl = `${baseUrl}/api/download/${md5}/file`;
+
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+
+      // Generate filename with author, year, and language
+      const safeTitle = title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
+      const parts = [safeTitle];
+
+      // Add first author if available
+      if (authors && authors.length > 0 && authors[0]) {
+        const firstAuthor = authors[0].replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
+        if (firstAuthor) parts.push(firstAuthor);
+      }
+
+      // Add year if available
+      if (year) {
+        parts.push(year.toString());
+      }
+
+      // Add language if available
+      if (language) {
+        parts.push(language.toUpperCase());
+      }
+
+      const extension = (format || "pdf").toLowerCase();
+      link.download = `${parts.join(" - ")}.${extension}`;
+
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      return { success: true };
+    },
+    onSuccess: (_, { title }) => {
+      notifications.show({
+        title: "Download Started",
+        message: `Downloading "${title}"`,
+        color: "blue",
+      });
+    },
+    onError: (error: Error, { title }) => {
+      notifications.show({
+        title: "Download Failed",
+        message: error.message || `Failed to download "${title}"`,
+        color: "red",
+      });
+    },
+  });
+};
