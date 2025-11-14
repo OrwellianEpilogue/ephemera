@@ -3,6 +3,10 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { queueManager } from "../services/queue-manager.js";
 import { errorResponseSchema, getErrorMessage } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
+import { downloadTracker } from "../services/download-tracker.js";
+import { existsSync } from "fs";
+import { readFile } from "fs/promises";
+import { extname } from "path";
 
 const app = new OpenAPIHono();
 
@@ -333,6 +337,158 @@ app.openapi(retryRoute, async (c) => {
       {
         error: "Failed to retry download",
         details: errorMessage,
+      },
+      500,
+    );
+  }
+});
+
+const fileRoute = createRoute({
+  method: "get",
+  path: "/download/{md5}/file",
+  tags: ["Download"],
+  summary: "Download a file",
+  description:
+    "Download a file that has been downloaded to the server. Only works for downloads with status 'available' or 'done'.",
+  request: {
+    params: z.object({
+      md5: z
+        .string()
+        .regex(/^[a-f0-9]{32}$/)
+        .describe("MD5 hash of the book"),
+    }),
+  },
+  responses: {
+    200: {
+      description: "File downloaded successfully",
+      content: {
+        "application/octet-stream": {
+          schema: z.any(),
+        },
+      },
+    },
+    404: {
+      description: "Download not found or file not available",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(fileRoute, async (c) => {
+  try {
+    const { md5 } = c.req.valid("param");
+
+    logger.info(`File download request for: ${md5}`);
+
+    // Get the download record
+    const download = await downloadTracker.get(md5);
+
+    if (!download) {
+      return c.json(
+        {
+          error: "Download not found",
+          details: `No download record found for MD5: ${md5}`,
+        },
+        404,
+      );
+    }
+
+    // Check if download is in correct status
+    if (download.status !== "available" && download.status !== "done") {
+      return c.json(
+        {
+          error: "File not available",
+          details: `Download status is '${download.status}'. File can only be downloaded when status is 'available' or 'done'.`,
+        },
+        404,
+      );
+    }
+
+    // Determine which path to use
+    const filePath =
+      download.status === "available" ? download.finalPath : download.tempPath;
+
+    if (!filePath) {
+      return c.json(
+        {
+          error: "File path not found",
+          details: "The download record does not have a file path.",
+        },
+        404,
+      );
+    }
+
+    // Check if file exists
+    if (!existsSync(filePath)) {
+      logger.error(`File not found at path: ${filePath}`);
+      return c.json(
+        {
+          error: "File not found",
+          details: "The file has been moved or deleted from the server.",
+        },
+        404,
+      );
+    }
+
+    // Read the file
+    const fileContent = await readFile(filePath);
+
+    // Generate filename for download
+    const format = (
+      download.format ||
+      extname(filePath).slice(1) ||
+      "pdf"
+    ).toLowerCase();
+    const title = download.title || "book";
+    const safeTitle = title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
+
+    // Build filename with author, year, and language
+    const parts = [safeTitle];
+
+    // Add author if available (in downloads table it's a single string)
+    if (download.author) {
+      const safeAuthor = download.author.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
+      if (safeAuthor) parts.push(safeAuthor);
+    }
+
+    // Add year if available
+    if (download.year) {
+      parts.push(download.year.toString());
+    }
+
+    // Add language if available
+    if (download.language) {
+      parts.push(download.language.toUpperCase());
+    }
+
+    const filename = `${parts.join(" - ")}.${format}`;
+
+    // Set appropriate headers
+    c.header("Content-Type", "application/octet-stream");
+    c.header("Content-Disposition", `attachment; filename="${filename}"`);
+    c.header("Content-Length", fileContent.length.toString());
+
+    // Return the file
+    return c.body(fileContent);
+  } catch (error: unknown) {
+    logger.error("File download error:", error);
+
+    return c.json(
+      {
+        error: "Failed to download file",
+        details: getErrorMessage(error),
       },
       500,
     );

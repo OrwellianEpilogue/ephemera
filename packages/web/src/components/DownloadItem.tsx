@@ -19,6 +19,7 @@ import {
   IconCheck,
   IconAlertCircle,
   IconTrash,
+  IconDownload,
   IconWorld,
   IconServer,
   IconApi,
@@ -29,6 +30,7 @@ import {
   useCancelDownload,
   useRetryDownload,
   useDeleteDownload,
+  useDownloadFile,
 } from "../hooks/useDownload";
 import { useAppSettings } from "../hooks/useSettings";
 import { useState, useEffect, memo } from "react";
@@ -167,6 +169,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const cancelDownload = useCancelDownload();
   const retryDownload = useRetryDownload();
   const deleteDownload = useDeleteDownload();
+  const downloadFile = useDownloadFile();
   const { data: settings } = useAppSettings();
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
 
@@ -183,10 +186,22 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
     setDeleteModalOpened(false);
   };
 
+  const handleDownload = () => {
+    downloadFile.mutate({
+      md5: item.md5,
+      title: item.title,
+      format: item.format,
+      authors: item.authors,
+      year: item.year,
+      language: item.language,
+    });
+  };
+
   const canCancel = ["queued", "downloading", "delayed"].includes(item.status);
   const canDelete = ["done", "available", "error", "cancelled"].includes(
     item.status,
   );
+  const canDownload = ["done", "available"].includes(item.status);
   const showProgress = item.status === "downloading";
 
   // Use settings for date/time formatting, fall back to defaults
@@ -235,6 +250,18 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                     loading={cancelDownload.isPending}
                   >
                     <IconX size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {canDownload && (
+                <Tooltip label="Download file">
+                  <ActionIcon
+                    color="green"
+                    variant="subtle"
+                    onClick={handleDownload}
+                    loading={downloadFile.isPending}
+                  >
+                    <IconDownload size={16} />
                   </ActionIcon>
                 </Tooltip>
               )}
