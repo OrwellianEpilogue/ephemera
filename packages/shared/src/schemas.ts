@@ -134,6 +134,16 @@ export const savedRequestWithBookSchema = savedRequestSchema.extend({
     .nullable()
     .optional()
     .describe("Fulfilled book info if available"),
+  // User information (for multi-user support)
+  userId: z.string().describe("ID of user who created this request"),
+  userName: z
+    .string()
+    .optional()
+    .describe("Name of user who created this request"),
+  userEmail: z
+    .string()
+    .optional()
+    .describe("Email of user who created this request"),
 });
 
 export type SavedRequestWithBook = z.infer<typeof savedRequestWithBookSchema>;
@@ -293,6 +303,16 @@ export const queueItemSchema = z.object({
     .enum(["web", "indexer", "api"])
     .optional()
     .describe("Source of the download request"),
+  // User information (for multi-user support)
+  userId: z.string().describe("ID of user who queued this download"),
+  userName: z
+    .string()
+    .optional()
+    .describe("Name of user who queued this download"),
+  userEmail: z
+    .string()
+    .optional()
+    .describe("Email of user who queued this download"),
 });
 
 export type QueueItem = z.infer<typeof queueItemSchema>;

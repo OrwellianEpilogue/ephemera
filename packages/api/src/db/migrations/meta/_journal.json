@@ -78,6 +78,27 @@
       "when": 1763042482715,
       "tag": "0010_steep_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1763141322364,
+      "tag": "0011_lonely_garia",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1763146408923,
+      "tag": "0012_rich_random",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1763149022912,
+      "tag": "0013_orange_betty_ross",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { requireAuth } from "../lib/route-auth";
 import {
   Container,
   Title,
@@ -29,6 +30,7 @@ import {
   IconSettings,
   IconUpload,
   IconServer,
+  IconUsers,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -54,10 +56,16 @@ import { formatDate } from "@ephemera/shared";
 import { z } from "zod";
 import { IndexerSettings } from "../components/IndexerSettings";
 import { useIndexerSettings } from "../hooks/use-indexer-settings";
+import { useAuth, usePermissions } from "../hooks/useAuth";
+import { lazy, Suspense } from "react";
+
+// Lazy load heavy components
+const UsersManagement = lazy(() => import("../components/UsersManagement"));
+const OIDCManagement = lazy(() => import("../components/OIDCManagement"));
 
 const settingsSearchSchema = z.object({
   tab: z
-    .enum(["general", "notifications", "booklore", "indexer"])
+    .enum(["general", "notifications", "booklore", "indexer", "users", "oidc"])
     .optional()
     .default("general"),
 });
@@ -65,6 +73,8 @@ const settingsSearchSchema = z.object({
 function SettingsComponent() {
   const navigate = useNavigate({ from: "/settings" });
   const { tab } = Route.useSearch();
+  const { isAdmin } = useAuth();
+  const { data: permissions } = usePermissions();
   const {
     data: settings,
     isLoading: loadingApp,
@@ -326,6 +336,10 @@ function SettingsComponent() {
   const isLoading = loadingApp || loadingBooklore || loadingApprise;
   const isError = errorApp || errorBooklore || errorApprise;
 
+  // Check if user has permission to configure notifications
+  const hasNotificationPermission =
+    isAdmin || permissions?.canConfigureNotifications;
+
   if (isLoading) {
     return (
       <Container size="md">
@@ -356,7 +370,13 @@ function SettingsComponent() {
           onChange={(value) =>
             navigate({
               search: {
-                tab: value as "general" | "notifications" | "booklore",
+                tab: value as
+                  | "general"
+                  | "notifications"
+                  | "booklore"
+                  | "indexer"
+                  | "users"
+                  | "oidc",
               },
             })
           }
@@ -377,6 +397,19 @@ function SettingsComponent() {
             <Tabs.Tab value="indexer" leftSection={<IconServer size={16} />}>
               Indexer
             </Tabs.Tab>
+            {isAdmin && (
+              <>
+                <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
+                  Users
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="oidc"
+                  leftSection={<IconPlugConnected size={16} />}
+                >
+                  OIDC
+                </Tabs.Tab>
+              </>
+            )}
           </Tabs.List>
 
           <Tabs.Panel value="general" pt="lg">
@@ -645,6 +678,16 @@ function SettingsComponent() {
 
           <Tabs.Panel value="notifications" pt="lg">
             <Stack gap="lg">
+              {!hasNotificationPermission && (
+                <Alert icon={<IconInfoCircle size={16} />} color="blue">
+                  <Text size="sm">
+                    <strong>Permission Required:</strong> You don't have
+                    permission to configure notification settings. Contact an
+                    administrator to request access.
+                  </Text>
+                </Alert>
+              )}
+
               {/* Apprise Notifications */}
               <Paper p="md" withBorder>
                 <Stack gap="md">
@@ -671,6 +714,7 @@ function SettingsComponent() {
                       }
                       label="Enabled"
                       size="lg"
+                      disabled={!hasNotificationPermission}
                     />
                   </Group>
 
@@ -683,6 +727,7 @@ function SettingsComponent() {
                         onChange={(e) => setAppriseServerUrl(e.target.value)}
                         description="Your Apprise API endpoint URL"
                         required
+                        disabled={!hasNotificationPermission}
                       />
 
                       {/* Custom Headers */}
@@ -701,6 +746,7 @@ function SettingsComponent() {
                                 { key: "", value: "" },
                               ])
                             }
+                            disabled={!hasNotificationPermission}
                           >
                             Add Header
                           </Button>
@@ -719,6 +765,7 @@ function SettingsComponent() {
                                 }
                               }}
                               style={{ flex: 1 }}
+                              disabled={!hasNotificationPermission}
                             />
                             <TextInput
                               placeholder="Header value"
@@ -732,6 +779,7 @@ function SettingsComponent() {
                                 }
                               }}
                               style={{ flex: 1 }}
+                              disabled={!hasNotificationPermission}
                             />
                             <ActionIcon
                               color="red"
@@ -741,6 +789,7 @@ function SettingsComponent() {
                                   customHeaders.filter((_, i) => i !== index),
                                 );
                               }}
+                              disabled={!hasNotificationPermission}
                             >
                               <IconTrash size={16} />
                             </ActionIcon>
@@ -759,6 +808,7 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnNewRequest(e.currentTarget.checked)
                           }
+                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Download error (max retries reached)"
@@ -766,6 +816,7 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnDownloadError(e.currentTarget.checked)
                           }
+                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Download available (moved to final destination)"
@@ -773,6 +824,7 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnAvailable(e.currentTarget.checked)
                           }
+                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Download delayed (quota exhausted)"
@@ -780,6 +832,7 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnDelayed(e.currentTarget.checked)
                           }
+                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Update available"
@@ -787,6 +840,7 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnUpdateAvailable(e.currentTarget.checked)
                           }
+                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Request fulfilled (automatic search found book)"
@@ -794,6 +848,7 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnRequestFulfilled(e.currentTarget.checked)
                           }
+                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Book queued for download"
@@ -801,6 +856,7 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnBookQueued(e.currentTarget.checked)
                           }
+                          disabled={!hasNotificationPermission}
                         />
                       </Stack>
 
@@ -810,13 +866,17 @@ function SettingsComponent() {
                           leftSection={<IconBell size={16} />}
                           onClick={handleTestApprise}
                           loading={testApprise.isPending}
-                          disabled={!appriseServerUrl}
+                          disabled={
+                            !appriseServerUrl || !hasNotificationPermission
+                          }
                         >
                           Send Test Notification
                         </Button>
                         <Button
                           onClick={handleSaveApprise}
-                          disabled={!hasAppriseChanges}
+                          disabled={
+                            !hasAppriseChanges || !hasNotificationPermission
+                          }
                           loading={updateApprise.isPending}
                         >
                           Save Settings
@@ -1099,6 +1159,34 @@ function SettingsComponent() {
           <Tabs.Panel value="indexer" pt="lg">
             <IndexerSettings />
           </Tabs.Panel>
+
+          {isAdmin && (
+            <>
+              <Tabs.Panel value="users" pt="lg">
+                <Suspense
+                  fallback={
+                    <Center p="xl">
+                      <Loader size="lg" />
+                    </Center>
+                  }
+                >
+                  <UsersManagement />
+                </Suspense>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="oidc" pt="lg">
+                <Suspense
+                  fallback={
+                    <Center p="xl">
+                      <Loader size="lg" />
+                    </Center>
+                  }
+                >
+                  <OIDCManagement />
+                </Suspense>
+              </Tabs.Panel>
+            </>
+          )}
         </Tabs>
       </Stack>
     </Container>
@@ -1106,6 +1194,9 @@ function SettingsComponent() {
 }
 
 export const Route = createFileRoute("/settings")({
+  beforeLoad: async () => {
+    await requireAuth();
+  },
   component: SettingsComponent,
   validateSearch: settingsSearchSchema,
 });

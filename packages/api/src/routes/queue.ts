@@ -10,6 +10,7 @@ import {
   statsResponseSchema,
   errorResponseSchema,
   type QueueResponse,
+  type QueueItem,
   getErrorMessage,
 } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
@@ -46,7 +47,36 @@ const queueStatusRoute = createRoute({
 
 app.openapi(queueStatusRoute, async (c) => {
   try {
+    const user = c.get("user"); // Set by requireAuth middleware
+
     const status = await queueManager.getQueueStatus();
+
+    // If user is not admin, filter queue to only show their downloads
+    if (user.role !== "admin") {
+      // Get all downloads for this user
+      const userDownloads = await downloadTracker.getByUser(user.id);
+      const userMd5s = new Set(userDownloads.map((d) => d.md5));
+
+      // Filter each status record (they are objects/records, not arrays)
+      const filterRecord = (record: Record<string, QueueItem>) => {
+        const filtered: Record<string, QueueItem> = {};
+        for (const [key, value] of Object.entries(record)) {
+          if (userMd5s.has(key)) {
+            filtered[key] = value;
+          }
+        }
+        return filtered;
+      };
+
+      status.available = filterRecord(status.available);
+      status.queued = filterRecord(status.queued);
+      status.downloading = filterRecord(status.downloading);
+      status.done = filterRecord(status.done);
+      status.error = filterRecord(status.error);
+      status.cancelled = filterRecord(status.cancelled);
+      status.delayed = filterRecord(status.delayed);
+    }
+
     return c.json(status, 200);
   } catch (error: unknown) {
     logger.error("Queue status error:", error);

@@ -10,6 +10,8 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { initializeDatabase } from "./db/index.js";
 import { logger } from "./utils/logger.js";
+import { auth } from "./auth.js";
+import { requireAuth, requireAdmin } from "./middleware/auth.js";
 import { searchCacheManager } from "./services/search-cache.js";
 import { appSettingsService } from "./services/app-settings.js";
 import { bookloreSettingsService } from "./services/booklore-settings.js";
@@ -32,6 +34,11 @@ import newznabRoutes from "./routes/newznab.js";
 import sabnzbdRoutes from "./routes/sabnzbd.js";
 import indexerRoutes from "./routes/indexer.js";
 import filesystemRoutes from "./routes/filesystem.js";
+import permissionsRoutes from "./routes/permissions.js";
+import setupRoutes from "./routes/setup.js";
+import usersRoutes from "./routes/users.js";
+import oidcProvidersRoutes from "./routes/oidc-providers.js";
+import authRoutes from "./routes/auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -120,7 +127,25 @@ app.use("*", async (c, next) => {
   // Use hono logger for all other requests
   return honoLogger()(c, next);
 });
-app.use("*", cors());
+
+// CORS configuration - allow credentials from frontend dev server and production
+app.use(
+  "*",
+  cors({
+    origin: (origin) => {
+      // Allow requests from Vite dev server and production origin
+      const allowedOrigins = [
+        "http://localhost:5222", // Vite dev server (primary)
+        "http://localhost:5223", // Vite dev server (backup port)
+        "http://localhost:8286", // Production (same origin)
+      ];
+      return allowedOrigins.includes(origin) ? origin : "http://localhost:8286";
+    },
+    credentials: true,
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
 // Error handling middleware
 app.onError((err, c) => {
@@ -143,6 +168,9 @@ app.get(API_BASE_PATH, (c) => {
     description: "API for searching and downloading books from AA",
     apiBasePath: API_BASE_PATH,
     endpoints: {
+      auth: `${API_BASE_PATH}/auth/*`,
+      authMethods: `${API_BASE_PATH}/auth/methods`,
+      setup: `${API_BASE_PATH}/setup/*`,
       search: `${API_BASE_PATH}/search`,
       download: `${API_BASE_PATH}/download/:md5`,
       queue: `${API_BASE_PATH}/queue`,
@@ -150,6 +178,7 @@ app.get(API_BASE_PATH, (c) => {
       stats: `${API_BASE_PATH}/stats`,
       settings: `${API_BASE_PATH}/settings`,
       requests: `${API_BASE_PATH}/requests`,
+      permissions: `${API_BASE_PATH}/permissions`,
       booklore: `${API_BASE_PATH}/booklore/*`,
       apprise: `${API_BASE_PATH}/apprise/*`,
       imageProxy: `${API_BASE_PATH}/proxy/image`,
@@ -162,20 +191,54 @@ app.get(API_BASE_PATH, (c) => {
   });
 });
 
+// Mount Better Auth - must come before other routes that need auth
+app.on(["POST", "GET"], `${API_BASE_PATH}/auth/*`, (c) => {
+  return auth.handler(c.req.raw);
+});
+
+// Apply authentication middleware to protected routes
+app.use(`${API_BASE_PATH}/download/*`, requireAuth);
+app.use(`${API_BASE_PATH}/queue/*`, requireAuth);
+app.use(`${API_BASE_PATH}/requests/*`, requireAuth);
+app.use(`${API_BASE_PATH}/booklore/*`, requireAuth);
+app.use(`${API_BASE_PATH}/apprise/*`, requireAuth);
+app.use(`${API_BASE_PATH}/indexer/*`, requireAuth);
+app.use(`${API_BASE_PATH}/permissions`, requireAuth);
+
+// Apply admin middleware to admin-only routes (except GET /oidc-providers for login page)
+app.use(`${API_BASE_PATH}/settings/*`, requireAuth, requireAdmin);
+app.use(`${API_BASE_PATH}/filesystem/*`, requireAuth, requireAdmin);
+app.use(`${API_BASE_PATH}/users/*`, requireAuth, requireAdmin);
+// OIDC providers: GET is public (for login page), POST/PATCH/DELETE require admin
+app.use(`${API_BASE_PATH}/oidc-providers`, async (c, next) => {
+  if (c.req.method === "GET") {
+    return next(); // Public read for login page
+  }
+  // Apply auth first, then admin check
+  await requireAuth(c, async () => {
+    await requireAdmin(c, next);
+  });
+});
+
 // Mount API routes
-app.route(API_BASE_PATH, searchRoutes);
-app.route(API_BASE_PATH, downloadRoutes);
-app.route(API_BASE_PATH, queueRoutes);
-app.route(API_BASE_PATH, settingsRoutes);
-app.route(API_BASE_PATH, bookloreRoutes);
-app.route(API_BASE_PATH, appriseRoutes);
-app.route(API_BASE_PATH, imageProxyRoutes);
-app.route(API_BASE_PATH, requestsRoutes);
-app.route(API_BASE_PATH, versionRoutes);
-app.route(API_BASE_PATH, indexerRoutes);
-app.route(API_BASE_PATH, filesystemRoutes);
-app.route("/newznab", newznabRoutes);
-app.route("/sabnzbd", sabnzbdRoutes);
+app.route(`${API_BASE_PATH}/setup`, setupRoutes); // Public (for initial setup)
+app.route(`${API_BASE_PATH}/auth`, authRoutes); // Public (for login page)
+app.route(API_BASE_PATH, searchRoutes); // Public for now
+app.route(API_BASE_PATH, downloadRoutes); // Protected (middleware applied above)
+app.route(API_BASE_PATH, queueRoutes); // Protected
+app.route(API_BASE_PATH, settingsRoutes); // Admin only
+app.route(API_BASE_PATH, bookloreRoutes); // Protected
+app.route(API_BASE_PATH, appriseRoutes); // Protected
+app.route(API_BASE_PATH, imageProxyRoutes); // Public
+app.route(API_BASE_PATH, requestsRoutes); // Protected
+app.route(API_BASE_PATH, versionRoutes); // Public
+app.route(API_BASE_PATH, indexerRoutes); // Protected
+app.route(API_BASE_PATH, filesystemRoutes); // Admin only
+app.route(API_BASE_PATH, permissionsRoutes); // Protected
+app.route(`${API_BASE_PATH}/users`, usersRoutes); // Admin only
+app.route(`${API_BASE_PATH}/oidc-providers`, oidcProvidersRoutes); // Admin only
+app.route("/newznab", newznabRoutes); // Public (has API key auth)
+app.route("/sabnzbd", sabnzbdRoutes); // Public (has API key auth)
 
 // OpenAPI documentation
 app.doc(`${API_BASE_PATH}/openapi.json`, {

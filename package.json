@@ -50,8 +50,12 @@
   "lint-staged": {
     "*.{ts,tsx}": [
       "prettier --write",
-      "eslint --fix --max-warnings 0",
+      "eslint --fix --max-warnings 0 --no-warn-ignored",
       "bash -c 'pnpm type-check'"
     ]
+  },
+  "dependencies": {
+    "@node-rs/bcrypt": "^1.10.7",
+    "better-auth-credentials-plugin": "^0.3.0"
   }
 }
