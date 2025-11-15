@@ -57,10 +57,11 @@ const downloadRoute = createRoute({
 app.openapi(downloadRoute, async (c) => {
   try {
     const { md5 } = c.req.valid("param");
+    const user = c.get("user"); // Set by requireAuth middleware
 
-    logger.info(`Download request for: ${md5}`);
+    logger.info(`Download request for: ${md5} by user ${user.id}`);
 
-    const result = await queueManager.addToQueue(md5);
+    const result = await queueManager.addToQueue(md5, user.id);
 
     if (result.status === "already_downloaded") {
       return c.json(

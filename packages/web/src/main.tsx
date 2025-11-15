@@ -11,6 +11,22 @@ import { configureClient } from "@ephemera/shared";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 
+// Unregister any existing service workers from old PWA implementation
+// This ensures users who had the PWA version don't have stale cached content
+/* eslint-disable no-undef */
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister().then((success) => {
+        if (success) {
+          console.log("[Service Worker] Unregistered old service worker");
+        }
+      });
+    }
+  });
+}
+/* eslint-enable no-undef */
+
 const customPrimaryLight = [
   "#ebe9ff",
   "#d1cdff",
@@ -58,14 +74,41 @@ declare module "@tanstack/react-router" {
   }
 }
 
-// Create a query client
+// Create a query client with global error handling
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 30, // 30 seconds
       gcTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
+      retry: (failureCount, error: unknown) => {
+        // Don't retry on 401 (authentication) or 403 (forbidden) errors
+        if (error && typeof error === "object" && "status" in error) {
+          const statusError = error as { status: number };
+          if (statusError.status === 401 || statusError.status === 403) {
+            return false;
+          }
+        }
+        // Retry other errors once
+        return failureCount < 1;
+      },
       refetchOnWindowFocus: false,
+    },
+    mutations: {
+      onError: (error: unknown) => {
+        // Handle 401 errors globally - redirect to login
+        if (
+          error &&
+          typeof error === "object" &&
+          "status" in error &&
+          error.status === 401
+        ) {
+          console.warn(
+            "[Query Client] 401 Unauthorized - redirecting to login",
+          );
+          /* eslint-disable-next-line no-undef */
+          window.location.href = "/login";
+        }
+      },
     },
   },
 });

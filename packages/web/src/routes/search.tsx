@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { requireAuth } from "../lib/route-auth";
 import {
   Container,
   Title,
@@ -565,6 +566,9 @@ function SearchPage() {
 }
 
 export const Route = createFileRoute("/search")({
+  beforeLoad: async () => {
+    await requireAuth();
+  },
   component: SearchPage,
   validateSearch: (search: Record<string, unknown>): SearchParams => {
     // Helper to parse arrays from URL

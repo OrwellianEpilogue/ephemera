@@ -1,4 +1,9 @@
-import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  Link,
+  Outlet,
+  useRouterState,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import {
   AppShell,
@@ -27,6 +32,7 @@ import { useQueue } from "../hooks/useQueue";
 import { useRequests, useRequestStats } from "../hooks/useRequests";
 import { useAppSettings } from "../hooks/useSettings";
 import { VersionFooter } from "../components/VersionFooter";
+import { UserMenu } from "../components/UserMenu";
 
 function RootComponent() {
   const [opened, { toggle }] = useDisclosure();
@@ -34,9 +40,18 @@ function RootComponent() {
   const computedColorScheme = useComputedColorScheme("light", {
     getInitialValueInEffect: true,
   });
+
+  // Get current route to determine if we should show the app shell
+  const router = useRouterState();
+  const currentPath = router.location.pathname;
+  const isAuthPage = currentPath === "/login" || currentPath === "/setup";
+
   // Establish SSE connections at root level (stays alive throughout session)
-  const { data: queue } = useQueue({ notifyOnComplete: true, enableSSE: true });
-  useRequests(undefined, { enableSSE: true }); // Enable SSE for requests at root level
+  const { data: queue } = useQueue({
+    notifyOnComplete: true,
+    enableSSE: !isAuthPage,
+  });
+  useRequests(undefined, { enableSSE: !isAuthPage }); // Enable SSE for requests at root level
 
   const toggleColorScheme = () => {
     setColorScheme(computedColorScheme === "light" ? "dark" : "light");
@@ -56,6 +71,16 @@ function RootComponent() {
 
   // Get active requests count for badge
   const activeCount = requestStats?.active || 0;
+
+  // If on auth pages (login/setup), render without app shell
+  if (isAuthPage) {
+    return (
+      <>
+        <Outlet />
+        <TanStackRouterDevtools position="bottom-right" />
+      </>
+    );
+  }
 
   return (
     <AppShell
@@ -104,6 +129,7 @@ function RootComponent() {
                 <IconSun size={20} />
               )}
             </ActionIcon>
+            <UserMenu />
           </Group>
         </Group>
       </AppShell.Header>

@@ -1,6 +1,157 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import type { RequestQueryParams } from "@ephemera/shared";
+
+// Better Auth tables
+export const user = sqliteTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: integer("email_verified", { mode: "boolean" })
+    .default(false)
+    .notNull(),
+  image: text("image"),
+  role: text("role", { enum: ["admin", "user"] })
+    .notNull()
+    .default("user"),
+  banned: integer("banned", { mode: "boolean" }).default(false).notNull(),
+  banReason: text("ban_reason"),
+  banExpiresAt: integer("ban_expires_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const session = sqliteTable("session", {
+  id: text("id").primaryKey(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .$onUpdate(() => new Date())
+    .notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+});
+
+export const account = sqliteTable("account", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: integer("access_token_expires_at", {
+    mode: "timestamp_ms",
+  }),
+  refreshTokenExpiresAt: integer("refresh_token_expires_at", {
+    mode: "timestamp_ms",
+  }),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const verification = sqliteTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// SSO Provider (for OIDC/OAuth2 providers)
+export const ssoProvider = sqliteTable("sso_provider", {
+  id: text("id").primaryKey(),
+  providerId: text("provider_id").notNull().unique(),
+  issuer: text("issuer").notNull(),
+  oidcConfig: text("oidc_config").notNull(), // JSON string with clientId, clientSecret, etc.
+  domain: text("domain"), // Optional domain for email-based routing
+  organizationId: text("organization_id"), // Optional, for multi-tenant support
+  userId: text("user_id"), // Who created this provider
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// Multi-user extension tables
+export const userPermissions = sqliteTable("user_permissions", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  canDeleteDownloads: integer("can_delete_downloads", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  canConfigureNotifications: integer("can_configure_notifications", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+  canManageRequests: integer("can_manage_requests", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  canAccessSettings: integer("can_access_settings", { mode: "boolean" })
+    .notNull()
+    .default(false),
+});
+
+export const appConfig = sqliteTable("app_config", {
+  id: integer("id").primaryKey().default(1),
+  isSetupComplete: integer("is_setup_complete", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  authMethod: text("auth_method"),
+  searcherBaseUrl: text("searcher_base_url"),
+  searcherApiKey: text("searcher_api_key"),
+  quickBaseUrl: text("quick_base_url"),
+  downloadFolder: text("download_folder").notNull().default("./downloads"),
+  ingestFolder: text("ingest_folder").notNull().default("/path/to/final/books"),
+  retryAttempts: integer("retry_attempts").notNull().default(3),
+  requestTimeout: integer("request_timeout").notNull().default(30000),
+  searchCacheTtl: integer("search_cache_ttl").notNull().default(300),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const calibreConfig = sqliteTable("calibre_config", {
+  id: integer("id").primaryKey().default(1),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  dbPath: text("db_path"),
+  baseUrl: text("base_url"),
+});
 
 export const downloads = sqliteTable("downloads", {
   md5: text("md5").primaryKey(),
@@ -11,6 +162,11 @@ export const downloads = sqliteTable("downloads", {
   language: text("language"),
   format: text("format"),
   year: integer("year"),
+
+  // User ownership
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
 
   // Download source tracking
   downloadSource: text("download_source", {
@@ -202,6 +358,11 @@ export const books = sqliteTable("books", {
 export const downloadRequests = sqliteTable("download_requests", {
   id: integer("id").primaryKey({ autoIncrement: true }),
 
+  // User ownership
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+
   // Search parameters (stores the full search query)
   queryParams: text("query_params", { mode: "json" })
     .notNull()
@@ -303,6 +464,27 @@ export const indexerSettings = sqliteTable("indexer_settings", {
 });
 
 // Relations
+export const userRelations = relations(user, ({ many, one }) => ({
+  sessions: many(session),
+  accounts: many(account),
+  downloads: many(downloads),
+  downloadRequests: many(downloadRequests),
+  permissions: one(userPermissions, {
+    fields: [user.id],
+    references: [userPermissions.userId],
+  }),
+}));
+
+export const userPermissionsRelations = relations(
+  userPermissions,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [userPermissions.userId],
+      references: [user.id],
+    }),
+  }),
+);
+
 export const booksRelations = relations(books, ({ many }) => ({
   downloads: many(downloads),
   downloadRequests: many(downloadRequests),
@@ -313,6 +495,10 @@ export const downloadsRelations = relations(downloads, ({ one }) => ({
     fields: [downloads.md5],
     references: [books.md5],
   }),
+  user: one(user, {
+    fields: [downloads.userId],
+    references: [user.id],
+  }),
 }));
 
 export const downloadRequestsRelations = relations(
@@ -322,9 +508,32 @@ export const downloadRequestsRelations = relations(
       fields: [downloadRequests.fulfilledBookMd5],
       references: [books.md5],
     }),
+    user: one(user, {
+      fields: [downloadRequests.userId],
+      references: [user.id],
+    }),
   }),
 );
 
+// Better Auth types
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
+export type Session = typeof session.$inferSelect;
+export type NewSession = typeof session.$inferInsert;
+export type Account = typeof account.$inferSelect;
+export type NewAccount = typeof account.$inferInsert;
+export type Verification = typeof verification.$inferSelect;
+export type NewVerification = typeof verification.$inferInsert;
+
+// Multi-user extension types
+export type UserPermissions = typeof userPermissions.$inferSelect;
+export type NewUserPermissions = typeof userPermissions.$inferInsert;
+export type AppConfig = typeof appConfig.$inferSelect;
+export type NewAppConfig = typeof appConfig.$inferInsert;
+export type CalibreConfig = typeof calibreConfig.$inferSelect;
+export type NewCalibreConfig = typeof calibreConfig.$inferInsert;
+
+// Existing types
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
 export type SearchCache = typeof searchCache.$inferSelect;

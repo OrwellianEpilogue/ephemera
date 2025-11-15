@@ -90,6 +90,7 @@ export class QueueManager extends EventEmitter {
 
   async addToQueue(
     md5: string,
+    userId: string,
     downloadSource: "web" | "indexer" | "api" = "web",
   ): Promise<{ status: string; position?: number; existing?: Download }> {
     // Get book data from database (should already exist from search)
@@ -138,6 +139,7 @@ export class QueueManager extends EventEmitter {
         title,
         status: "queued",
         downloadSource,
+        userId,
         pathIndex,
         domainIndex,
         queuedAt: Date.now(),
@@ -732,10 +734,16 @@ export class QueueManager extends EventEmitter {
     const books = await bookService.getBooksByMd5s(allMd5s);
     const booksMap = new Map(books.map((book) => [book.md5, book]));
 
+    // Fetch all users for these downloads
+    const uniqueUserIds = [...new Set(allDownloadsFromDb.map((d) => d.userId))];
+    const users = await this.getUsersByIds(uniqueUserIds);
+    const usersMap = new Map(users.map((user) => [user.id, user]));
+
     // Helper to convert download to queue item with book details
     const toQueueItem = (d: Download): QueueItem => {
       const queueItem = downloadTracker.downloadToQueueItem(d);
       const book = booksMap.get(d.md5);
+      const user = usersMap.get(d.userId);
 
       if (book) {
         // Ensure authors is always an array (handle both string and array types)
@@ -752,7 +760,7 @@ export class QueueManager extends EventEmitter {
           }
         }
 
-        // Add book metadata
+        // Add book metadata and user info
         return {
           ...queueItem,
           authors,
@@ -762,10 +770,19 @@ export class QueueManager extends EventEmitter {
           language: book.language || undefined,
           year: book.year || undefined,
           size: book.size || undefined,
-        };
+          userId: d.userId,
+          userName: user?.name || undefined,
+          userEmail: user?.email || undefined,
+        } as QueueItem;
       }
 
-      return queueItem;
+      // No book metadata, but still include user info
+      return {
+        ...queueItem,
+        userId: d.userId,
+        userName: user?.name || undefined,
+        userEmail: user?.email || undefined,
+      } as QueueItem;
     };
 
     return {
@@ -787,6 +804,35 @@ export class QueueManager extends EventEmitter {
     };
   }
 
+  /**
+   * Fetch users by IDs for including in queue items
+   */
+  private async getUsersByIds(
+    userIds: string[],
+  ): Promise<Array<{ id: string; name: string; email: string }>> {
+    if (userIds.length === 0) return [];
+
+    try {
+      const { db } = await import("../db/index.js");
+      const { user } = await import("../db/schema.js");
+      const { inArray } = await import("drizzle-orm");
+
+      const users = await db
+        .select({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        })
+        .from(user)
+        .where(inArray(user.id, userIds));
+
+      return users;
+    } catch (error) {
+      logger.error("Failed to fetch users for queue items:", error);
+      return [];
+    }
+  }
+
   async getDownloadStatus(md5: string): Promise<QueueItem | null> {
     const download = await downloadTracker.get(md5);
     if (!download) {
@@ -797,6 +843,11 @@ export class QueueManager extends EventEmitter {
 
     // Try to fetch book details
     const book = await bookService.getBook(md5);
+
+    // Fetch user details
+    const users = await this.getUsersByIds([download.userId]);
+    const user = users[0];
+
     if (book) {
       // Ensure authors is always an array (handle both string and array types)
       let authors: string[] | undefined = undefined;
@@ -820,10 +871,18 @@ export class QueueManager extends EventEmitter {
         format: book.format || undefined,
         language: book.language || undefined,
         year: book.year || undefined,
-      };
+        userId: download.userId,
+        userName: user?.name || undefined,
+        userEmail: user?.email || undefined,
+      } as QueueItem;
     }
 
-    return queueItem;
+    return {
+      ...queueItem,
+      userId: download.userId,
+      userName: user?.name || undefined,
+      userEmail: user?.email || undefined,
+    } as QueueItem;
   }
 
   getQueueLength(): number {

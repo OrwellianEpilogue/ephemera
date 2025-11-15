@@ -161,11 +161,12 @@ export async function apiFetch<TResponse = unknown>(
   }
 
   try {
-    // Make request
+    // Make request with credentials included for auth cookies
     const response = await fetch(fullUrl, {
       ...fetchOptions,
       headers,
       signal: combinedSignal,
+      credentials: "include", // Always include cookies for Better Auth sessions
     });
 
     // Handle errors

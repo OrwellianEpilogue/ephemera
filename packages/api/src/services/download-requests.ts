@@ -55,10 +55,14 @@ class DownloadRequestsService {
    */
   async createRequest(
     queryParams: RequestQueryParams,
+    userId: string,
   ): Promise<DownloadRequest> {
     try {
       // Check for duplicate active request
-      const existing = await this.findDuplicateActiveRequest(queryParams);
+      const existing = await this.findDuplicateActiveRequest(
+        queryParams,
+        userId,
+      );
       if (existing) {
         throw new Error(
           "An active request with these search parameters already exists",
@@ -68,6 +72,7 @@ class DownloadRequestsService {
       const now = Date.now();
       const newRequest: NewDownloadRequest = {
         queryParams,
+        userId,
         status: "active",
         createdAt: now,
         lastCheckedAt: null,
@@ -94,32 +99,61 @@ class DownloadRequestsService {
    */
   async getAllRequests(
     statusFilter?: "active" | "fulfilled" | "cancelled",
+    userId?: string,
   ): Promise<DownloadRequestWithBook[]> {
     try {
-      const query = db
+      const { user } = await import("../db/schema.js");
+
+      let query = db
         .select({
           request: downloadRequests,
           book: books,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          },
         })
         .from(downloadRequests)
         .leftJoin(books, eq(downloadRequests.fulfilledBookMd5, books.md5))
+        .leftJoin(user, eq(downloadRequests.userId, user.id))
         .orderBy(desc(downloadRequests.createdAt));
 
-      let results;
+      // Build where clause
+      const conditions = [];
       if (statusFilter) {
-        results = await query.where(eq(downloadRequests.status, statusFilter));
+        conditions.push(eq(downloadRequests.status, statusFilter));
+      }
+      if (userId) {
+        conditions.push(eq(downloadRequests.userId, userId));
+      }
+
+      let results;
+      if (conditions.length > 0) {
+        // @ts-expect-error - drizzle-orm where clause typing issue
+        results = await query.where(...conditions);
       } else {
         results = await query;
       }
 
-      return results.map(({ request, book }) => ({
+      return results.map(({ request, book, user: requestUser }) => ({
         ...request,
         fulfilledBook: convertDbBookToSharedBook(book),
+        userId: request.userId,
+        userName: requestUser?.name || undefined,
+        userEmail: requestUser?.email || undefined,
       }));
     } catch (error) {
       console.error("[Download Requests] Error fetching requests:", error);
       throw error;
     }
+  }
+
+  /**
+   * Get requests by user ID
+   */
+  async getRequestsByUser(userId: string): Promise<DownloadRequestWithBook[]> {
+    return this.getAllRequests(undefined, userId);
   }
 
   /**
@@ -291,10 +325,11 @@ class DownloadRequestsService {
   }
 
   /**
-   * Check if a duplicate active request exists with the same query params
+   * Check if a duplicate active request exists with the same query params for a user
    */
   private async findDuplicateActiveRequest(
     queryParams: RequestQueryParams,
+    userId: string,
   ): Promise<DownloadRequest | null> {
     try {
       const activeRequests = await db
@@ -302,9 +337,10 @@ class DownloadRequestsService {
         .from(downloadRequests)
         .where(eq(downloadRequests.status, "active"));
 
-      // Find matching query params
+      // Find matching query params for this user
       const duplicate = activeRequests.find((request) => {
         return (
+          request.userId === userId &&
           JSON.stringify(request.queryParams) === JSON.stringify(queryParams)
         );
       });

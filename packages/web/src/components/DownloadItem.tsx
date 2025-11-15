@@ -31,6 +31,8 @@ import {
   useDeleteDownload,
 } from "../hooks/useDownload";
 import { useAppSettings } from "../hooks/useSettings";
+import { useAuth, usePermissions } from "../hooks/useAuth";
+import { UserBadge } from "./UserBadge";
 import { useState, useEffect, memo } from "react";
 
 interface DownloadItemProps {
@@ -168,6 +170,8 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const retryDownload = useRetryDownload();
   const deleteDownload = useDeleteDownload();
   const { data: settings } = useAppSettings();
+  const { isAdmin } = useAuth();
+  const { data: permissions } = usePermissions();
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
 
   const handleCancel = () => {
@@ -188,6 +192,9 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
     item.status,
   );
   const showProgress = item.status === "downloading";
+
+  // Check if user has permission to delete/cancel downloads
+  const hasDeletePermission = isAdmin || permissions?.canDeleteDownloads;
 
   // Use settings for date/time formatting, fall back to defaults
   const timeFormat = settings?.timeFormat ?? "24h";
@@ -226,7 +233,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               )}
             </div>
             <Group gap="xs">
-              {canCancel && (
+              {canCancel && hasDeletePermission && (
                 <Tooltip label="Cancel download">
                   <ActionIcon
                     color="red"
@@ -238,7 +245,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                   </ActionIcon>
                 </Tooltip>
               )}
-              {canDelete && (
+              {canDelete && hasDeletePermission && (
                 <Tooltip label="Delete download">
                   <ActionIcon
                     color="red"
@@ -272,6 +279,16 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               >
                 {getSourceLabel(item.downloadSource)}
               </Badge>
+            )}
+
+            {/* Show user badge for admins */}
+            {isAdmin && item.userId && (
+              <UserBadge
+                userId={item.userId}
+                userName={item.userName}
+                userEmail={item.userEmail}
+                size="sm"
+              />
             )}
 
             {item.format && (

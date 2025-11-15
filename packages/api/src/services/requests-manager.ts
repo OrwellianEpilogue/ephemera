@@ -37,8 +37,11 @@ export class RequestsManager extends EventEmitter {
   /**
    * Create a new download request
    */
-  async createRequest(queryParams: RequestQueryParams) {
-    const request = await downloadRequestsService.createRequest(queryParams);
+  async createRequest(queryParams: RequestQueryParams, userId: string) {
+    const request = await downloadRequestsService.createRequest(
+      queryParams,
+      userId,
+    );
     await this.emitRequestsUpdate();
     return request;
   }

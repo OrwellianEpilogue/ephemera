@@ -13,23 +13,29 @@ services:
       - "8286:8286"
 
     environment:
-      # Required:
-      AA_BASE_URL:
+      # Infrastructure Settings (still configured via environment)
       # FlareSolverr is used for slow download fallback when API key is missing or quota exhausted
-      # Default: http://127.0.0.1:8191 (or http://flaresolverr:8191 in Docker)
-      FLARESOLVERR_URL: http://127.0.0.1:8191
+      FLARESOLVERR_URL: http://flaresolverr:8191
+      PORT: 8286
+      DB_PATH: /app/data/database.db
 
-      # Optional
-
-      # Alternative Download Source (optional)
-      # If set, LG fast download will be attempted before falling back to slow servers
-      # Leave empty to disable this feature
-      # li, bz, etc.
-      LG_BASE_URL: #https://gen.com
-
-      AA_API_KEY:
+      # File System Permissions
       PUID: 1000
       PGID: 100
+
+      # Application Settings (now configured via web UI setup wizard)
+      # The following settings are DEPRECATED and will be ignored if set:
+      # - AA_BASE_URL (configured in setup wizard)
+      # - AA_API_KEY (configured in setup wizard)
+      # - LG_BASE_URL (configured in setup wizard)
+      # - DOWNLOAD_FOLDER (configured in setup wizard)
+      # - INGEST_FOLDER (configured in setup wizard)
+      # - RETRY_ATTEMPTS (configured in settings)
+      # - REQUEST_TIMEOUT (configured in settings)
+      # - SEARCH_CACHE_TTL (configured in settings)
+      #
+      # On first run, the setup wizard will prompt you to configure these settings.
+      # Existing deployments will migrate settings to the database automatically.
 
     volumes:
       - ./data:/app/data
