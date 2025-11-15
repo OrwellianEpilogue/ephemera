@@ -90,8 +90,11 @@ class RequestCheckerService {
             );
 
             try {
-              // Add to download queue
-              const queueResult = await queueManager.addToQueue(firstBook.md5);
+              // Add to download queue using the request owner's user ID
+              const queueResult = await queueManager.addToQueue(
+                firstBook.md5,
+                request.userId,
+              );
 
               // Mark request as fulfilled (emits event)
               await requestsManager.markFulfilled(request.id, firstBook.md5);
@@ -177,8 +180,8 @@ class RequestCheckerService {
       if (searchResult.results.length > 0) {
         const firstBook = searchResult.results[0];
 
-        // Add to download queue
-        await queueManager.addToQueue(firstBook.md5);
+        // Add to download queue using the request owner's user ID
+        await queueManager.addToQueue(firstBook.md5, request.userId);
 
         // Mark request as fulfilled (emits event)
         await requestsManager.markFulfilled(requestId, firstBook.md5);

@@ -70,11 +70,15 @@ const createRequestRoute = createRoute({
 
 app.openapi(createRequestRoute, async (c) => {
   try {
+    const user = c.get("user"); // Set by requireAuth middleware
+
     const queryParams = await c.req.json();
 
-    logger.info(`Creating download request for query: ${queryParams.q}`);
+    logger.info(
+      `Creating download request for query: ${queryParams.q} by user ${user.id}`,
+    );
 
-    const request = await requestsManager.createRequest(queryParams);
+    const request = await requestsManager.createRequest(queryParams, user.id);
 
     return c.json(request, 200);
   } catch (error: unknown) {
@@ -142,12 +146,20 @@ const listRequestsRoute = createRoute({
 
 app.openapi(listRequestsRoute, async (c) => {
   try {
+    const user = c.get("user"); // Set by requireAuth middleware
+
     const { status } = c.req.query();
 
-    logger.info(`Listing requests${status ? ` (status: ${status})` : ""}`);
+    logger.info(
+      `Listing requests${status ? ` (status: ${status})` : ""} for user ${user.id}`,
+    );
+
+    // Admins see all requests, regular users only see their own
+    const userId = user.role === "admin" ? undefined : user.id;
 
     const requests = await downloadRequestsService.getAllRequests(
       status as "active" | "fulfilled" | "cancelled" | undefined,
+      userId,
     );
 
     return c.json(requests, 200);

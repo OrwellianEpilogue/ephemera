@@ -30,11 +30,31 @@ export class DownloadTracker {
     }
   }
 
-  async getAll(): Promise<Download[]> {
+  async getAll(userId?: string): Promise<Download[]> {
     try {
+      if (userId) {
+        return await db
+          .select()
+          .from(downloads)
+          .where(eq(downloads.userId, userId))
+          .all();
+      }
       return await db.select().from(downloads).all();
     } catch (error) {
       logger.error("Failed to get all downloads:", error);
+      throw error;
+    }
+  }
+
+  async getByUser(userId: string): Promise<Download[]> {
+    try {
+      return await db
+        .select()
+        .from(downloads)
+        .where(eq(downloads.userId, userId))
+        .orderBy(desc(downloads.queuedAt));
+    } catch (error) {
+      logger.error(`Failed to get downloads for user ${userId}:`, error);
       throw error;
     }
   }
@@ -482,6 +502,10 @@ export class DownloadTracker {
         ? new Date(download.uploadedAt).toISOString()
         : undefined,
       uploadError: download.uploadError || undefined,
+      // User information (required userId, optional userName/userEmail)
+      userId: download.userId,
+      userName: undefined, // Not joined in current queries
+      userEmail: undefined, // Not joined in current queries
     };
   }
 }
