@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { MantineProvider, createTheme } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
-import { configureClient } from "@ephemera/shared";
+import { configureClient, getApiBasePath } from "@ephemera/shared";
 
 // Import Mantine styles
 import "@mantine/core/styles.css";
@@ -40,9 +40,10 @@ const customPrimaryDark = [
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
-// Configure the API client
+// Configure the API client with auto-detected base path
+// The base path is injected by the backend as a meta tag
 configureClient({
-  baseUrl: "/api",
+  baseUrl: getApiBasePath(),
 });
 
 // Create a new router instance
