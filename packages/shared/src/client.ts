@@ -35,6 +35,25 @@ export const getClientConfig = (): Required<ClientConfig> => ({
 });
 
 /**
+ * Auto-detect API base path from meta tag or default to /api
+ * This allows the backend to inject the configured API_BASE_PATH
+ */
+export const getApiBasePath = (): string => {
+  // In browser environment, check for meta tag
+  if (typeof document !== "undefined") {
+    const metaTag = document.querySelector('meta[name="api-base-path"]') as {
+      content?: string;
+    } | null;
+    if (metaTag?.content) {
+      return metaTag.content;
+    }
+  }
+
+  // Default to /api for backward compatibility
+  return "/api";
+};
+
+/**
  * HTTP Methods type (for future use)
  */
 // type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';

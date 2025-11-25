@@ -36,6 +36,17 @@ import filesystemRoutes from "./routes/filesystem.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Get configurable API base path from environment (default: /api)
+const API_BASE_PATH = (process.env.API_BASE_PATH || "/api")
+  .replace(/\/+$/, "") // Remove trailing slashes
+  .replace(/^([^/])/, "/$1"); // Ensure leading slash
+
+// Optional: Set a base URL for the frontend (useful for iframe embedding or subpath hosting)
+// Example: If hosting at https://example.com/ephemera/, set HTML_BASE_HREF=/ephemera/
+const HTML_BASE_HREF = process.env.HTML_BASE_HREF
+  ? process.env.HTML_BASE_HREF.replace(/([^/])$/, "$1/")
+  : undefined;
+
 // Filter out undici socket errors from stderr
 const originalStderrWrite = process.stderr.write.bind(process.stderr);
 process.stderr.write = ((
@@ -100,7 +111,10 @@ const app = new OpenAPIHono();
 // Custom logger that skips certain requests to reduce log spam
 app.use("*", async (c, next) => {
   // Skip logging for image proxy and queue requests
-  if (c.req.path.includes("/proxy/image") || c.req.path === "/api/queue") {
+  if (
+    c.req.path.includes("/proxy/image") ||
+    c.req.path === `${API_BASE_PATH}/queue`
+  ) {
     return next();
   }
   // Use hono logger for all other requests
@@ -122,48 +136,49 @@ app.onError((err, c) => {
 });
 
 // API info endpoint
-app.get("/api", (c) => {
+app.get(API_BASE_PATH, (c) => {
   return c.json({
     name: "Ephemera API",
     version: "1.1.0",
     description: "API for searching and downloading books from AA",
+    apiBasePath: API_BASE_PATH,
     endpoints: {
-      search: "/api/search",
-      download: "/api/download/:md5",
-      queue: "/api/queue",
-      history: "/api/history",
-      stats: "/api/stats",
-      settings: "/api/settings",
-      requests: "/api/requests",
-      booklore: "/api/booklore/*",
-      apprise: "/api/apprise/*",
-      imageProxy: "/api/proxy/image",
-      version: "/api/version",
+      search: `${API_BASE_PATH}/search`,
+      download: `${API_BASE_PATH}/download/:md5`,
+      queue: `${API_BASE_PATH}/queue`,
+      history: `${API_BASE_PATH}/history`,
+      stats: `${API_BASE_PATH}/stats`,
+      settings: `${API_BASE_PATH}/settings`,
+      requests: `${API_BASE_PATH}/requests`,
+      booklore: `${API_BASE_PATH}/booklore/*`,
+      apprise: `${API_BASE_PATH}/apprise/*`,
+      imageProxy: `${API_BASE_PATH}/proxy/image`,
+      version: `${API_BASE_PATH}/version`,
       newznab: "/newznab/api",
       sabnzbd: "/sabnzbd/api",
-      docs: "/api/docs",
-      openapi: "/api/openapi.json",
+      docs: `${API_BASE_PATH}/docs`,
+      openapi: `${API_BASE_PATH}/openapi.json`,
     },
   });
 });
 
 // Mount API routes
-app.route("/api", searchRoutes);
-app.route("/api", downloadRoutes);
-app.route("/api", queueRoutes);
-app.route("/api", settingsRoutes);
-app.route("/api", bookloreRoutes);
-app.route("/api", appriseRoutes);
-app.route("/api", imageProxyRoutes);
-app.route("/api", requestsRoutes);
-app.route("/api", versionRoutes);
-app.route("/api", indexerRoutes);
-app.route("/api", filesystemRoutes);
+app.route(API_BASE_PATH, searchRoutes);
+app.route(API_BASE_PATH, downloadRoutes);
+app.route(API_BASE_PATH, queueRoutes);
+app.route(API_BASE_PATH, settingsRoutes);
+app.route(API_BASE_PATH, bookloreRoutes);
+app.route(API_BASE_PATH, appriseRoutes);
+app.route(API_BASE_PATH, imageProxyRoutes);
+app.route(API_BASE_PATH, requestsRoutes);
+app.route(API_BASE_PATH, versionRoutes);
+app.route(API_BASE_PATH, indexerRoutes);
+app.route(API_BASE_PATH, filesystemRoutes);
 app.route("/newznab", newznabRoutes);
 app.route("/sabnzbd", sabnzbdRoutes);
 
 // OpenAPI documentation
-app.doc("/api/openapi.json", {
+app.doc(`${API_BASE_PATH}/openapi.json`, {
   openapi: "3.1.0",
   info: {
     title: "Ephemera API",
@@ -175,7 +190,7 @@ app.doc("/api/openapi.json", {
   },
   servers: [
     {
-      url: `http://localhost:${process.env.PORT || 3000}`,
+      url: `http://localhost:${process.env.PORT || 3000}${API_BASE_PATH}`,
       description: "Local development server",
     },
   ],
@@ -218,7 +233,10 @@ app.doc("/api/openapi.json", {
 });
 
 // Swagger UI
-app.get("/api/docs", swaggerUI({ url: "/api/openapi.json" }));
+app.get(
+  `${API_BASE_PATH}/docs`,
+  swaggerUI({ url: `${API_BASE_PATH}/openapi.json` }),
+);
 
 // Health check
 app.get("/health", (c) => {
@@ -246,15 +264,26 @@ if (existsSync(webDistPath)) {
   // SPA fallback - serve index.html for all non-API routes
   app.get("*", (c) => {
     const path = c.req.path;
-    // Skip API routes
-    if (path.startsWith("/api/") || path === "/health") {
+    // Skip API routes and health check
+    if (path.startsWith(`${API_BASE_PATH}/`) || path === "/health") {
       return c.notFound();
     }
 
     // Serve index.html for SPA routing
     const indexPath = join(webDistPath, "index.html");
     if (existsSync(indexPath)) {
-      const html = readFileSync(indexPath, "utf-8");
+      let html = readFileSync(indexPath, "utf-8");
+
+      // Inject API base path as a meta tag for frontend to use
+      let injections = `<meta name="api-base-path" content="${API_BASE_PATH}" />`;
+
+      // Optionally inject HTML <base> tag for iframe embedding or subpath hosting
+      if (HTML_BASE_HREF) {
+        injections = `<base href="${HTML_BASE_HREF}" />\n    ${injections}`;
+      }
+
+      html = html.replace("</head>", `${injections}</head>`);
+
       return c.html(html);
     }
 
@@ -356,13 +385,19 @@ const port = parseInt(process.env.PORT || "3000");
 const host = process.env.HOST || "0.0.0.0";
 
 const servingStatic = existsSync(webDistPath);
+
+// Log API base path configuration if non-default
+if (API_BASE_PATH !== "/api") {
+  logger.info(`Using custom API base path: ${API_BASE_PATH}`);
+}
+
 logger.success(`
 ╔═══════════════════════════════════════════════════╗
 ║                                                   ║
 ║   Ephemera v${versionInfo.currentVersion} is running!${" ".repeat(25 - versionInfo.currentVersion.length)}║
 ║                                                   ║
-${versionInfo.updateAvailable && versionInfo.latestVersion ? `║   📦 Update available: ${versionInfo.latestVersion}${" ".repeat(23 - versionInfo.latestVersion.length)}║\n║                                                   ║\n` : ""}${servingStatic ? `║   Web:     http://${host}:${port}/                   ║\n` : ""}║   API:     http://${host}:${port}/api                ║
-║   Docs:    http://${host}:${port}/api/docs           ║
+${versionInfo.updateAvailable && versionInfo.latestVersion ? `║   📦 Update available: ${versionInfo.latestVersion}${" ".repeat(23 - versionInfo.latestVersion.length)}║\n║                                                   ║\n` : ""}${servingStatic ? `║   Web:     http://${host}:${port}/                   ║\n` : ""}║   API:     http://${host}:${port}${API_BASE_PATH}${" ".repeat(17 - API_BASE_PATH.length)}║
+║   Docs:    http://${host}:${port}${API_BASE_PATH}/docs${" ".repeat(12 - API_BASE_PATH.length)}║
 ║   Health:  http://${host}:${port}/health             ║
 ║                                                   ║
 ╚═══════════════════════════════════════════════════╝
