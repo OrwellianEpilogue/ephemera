@@ -24,6 +24,8 @@ function convertToSearchQuery(params: RequestQueryParams): SearchQuery {
 
   return {
     q: params.q || "",
+    author: params.author,
+    title: params.title,
     page: 1, // Always check first page for requests
     sort: params.sort as SearchQuery["sort"],
     content: toArray(params.content),

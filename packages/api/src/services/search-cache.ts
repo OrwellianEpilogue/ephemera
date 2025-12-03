@@ -11,7 +11,9 @@ export class SearchCacheManager {
   private generateQueryHash(query: SearchQuery): string {
     // Create a consistent hash from the query parameters
     const normalized = {
-      q: query.q.toLowerCase().trim(),
+      q: query.q?.toLowerCase().trim() || "",
+      author: query.author?.toLowerCase().trim() || "",
+      title: query.title?.toLowerCase().trim() || "",
       page: query.page || 1,
       sort: query.sort || "",
       content: query.content?.sort() || [],
