@@ -33,6 +33,8 @@ import { useCreateRequest } from "../hooks/useRequests";
 // URL search params schema
 type SearchParams = {
   q?: string;
+  author?: string;
+  title?: string;
   sort?: string;
   content?: string[];
   ext?: string[];
@@ -46,6 +48,8 @@ function SearchPage() {
 
   // Local input state for typing (before submitting)
   const [searchInput, setSearchInput] = useState(urlParams.q || "");
+  const [authorInput, setAuthorInput] = useState(urlParams.author || "");
+  const [titleInput, setTitleInput] = useState(urlParams.title || "");
   const [existingRequestId, setExistingRequestId] = useState<number | null>(
     null,
   );
@@ -57,11 +61,13 @@ function SearchPage() {
 
   const handleSaveRequest = () => {
     // Build the query params object to save
-    // Ensure q is defined before creating request
-    if (!urlParams.q) return;
+    // Ensure we have at least one search term
+    if (!urlParams.q && !urlParams.author && !urlParams.title) return;
 
     const requestParams = {
-      q: urlParams.q,
+      q: urlParams.q || "",
+      author: urlParams.author,
+      title: urlParams.title,
       sort: urlParams.sort,
       content: urlParams.content,
       ext: urlParams.ext,
@@ -76,6 +82,8 @@ function SearchPage() {
   const queryParams: Omit<SearchQuery, "page"> = useMemo(
     () => ({
       q: urlParams.q || "",
+      author: urlParams.author,
+      title: urlParams.title,
       sort: (urlParams.sort as "relevant" | "newest" | "oldest") || "relevant",
       content:
         urlParams.content && urlParams.content.length > 0
@@ -91,6 +99,8 @@ function SearchPage() {
     }),
     [
       urlParams.q,
+      urlParams.author,
+      urlParams.title,
       urlParams.sort,
       JSON.stringify(urlParams.content),
       JSON.stringify(urlParams.ext),
@@ -124,7 +134,9 @@ function SearchPage() {
   // Sync input with URL when navigating back
   useEffect(() => {
     setSearchInput(urlParams.q || "");
-  }, [urlParams.q]);
+    setAuthorInput(urlParams.author || "");
+    setTitleInput(urlParams.title || "");
+  }, [urlParams.q, urlParams.author, urlParams.title]);
 
   // Update URL params and save to localStorage
   const updateSearchParams = (updates: Partial<SearchParams>) => {
@@ -135,7 +147,7 @@ function SearchPage() {
     });
 
     // Save to localStorage for persistence
-    if (newParams.q) {
+    if (newParams.q || newParams.author || newParams.title) {
       localStorage.setItem("lastSearch", JSON.stringify(newParams));
     }
   };
@@ -150,7 +162,7 @@ function SearchPage() {
   const hasRestoredRef = useRef(false);
   useEffect(() => {
     // Reset the restored flag when we have params (so we can restore again later)
-    if (urlParams.q) {
+    if (urlParams.q || urlParams.author || urlParams.title) {
       hasRestoredRef.current = false;
     }
 
@@ -170,7 +182,7 @@ function SearchPage() {
         if (saved) {
           const savedParams = JSON.parse(saved);
           // Only navigate if saved params actually has a query
-          if (savedParams.q) {
+          if (savedParams.q || savedParams.author || savedParams.title) {
             navigate({
               to: "/search",
               search: savedParams,
@@ -204,7 +216,25 @@ function SearchPage() {
   }, [urlParams, navigate]); // Run when URL params change
 
   const handleSearch = () => {
-    updateSearchParams({ q: searchInput });
+    updateSearchParams({
+      q: searchInput,
+      author: authorInput,
+      title: titleInput,
+    });
+  };
+
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setAuthorInput("");
+    setTitleInput("");
+    navigate({
+      to: "/search",
+      search: {
+        sort: "relevant",
+        ext: ["epub"],
+        lang: ["en", "de"],
+      },
+    });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -219,7 +249,10 @@ function SearchPage() {
   // Check for existing active request with same params
   useEffect(() => {
     const checkForExistingRequest = async () => {
-      if (!urlParams.q || allBooks.length > 0) {
+      if (
+        (!urlParams.q && !urlParams.author && !urlParams.title) ||
+        allBooks.length > 0
+      ) {
         // Only check when we have a query and no results
         setExistingRequestId(null);
         return;
@@ -237,6 +270,8 @@ function SearchPage() {
             | Partial<SearchQuery>
             | {
                 q?: string;
+                author?: string;
+                title?: string;
                 sort?: string;
                 content?: string | string[];
                 ext?: string | string[];
@@ -254,6 +289,8 @@ function SearchPage() {
 
           return JSON.stringify({
             q: params.q || "",
+            author: params.author || undefined,
+            title: params.title || undefined,
             sort: params.sort || "relevant",
             content: normalizeArray(
               params.content as string | string[] | undefined,
@@ -280,6 +317,8 @@ function SearchPage() {
     checkForExistingRequest();
   }, [
     urlParams.q,
+    urlParams.author,
+    urlParams.title,
     urlParams.sort,
     JSON.stringify(urlParams.content),
     JSON.stringify(urlParams.ext),
@@ -329,7 +368,7 @@ function SearchPage() {
     };
     // Create observer when query changes OR when results first load (allBooks becomes non-empty)
     // Use urlParams.q as key to force recreation on new search
-  }, [urlParams.q, allBooks.length]);
+  }, [urlParams.q, urlParams.author, urlParams.title, allBooks.length]);
 
   return (
     <Container size="xl">
@@ -349,7 +388,11 @@ function SearchPage() {
                 size="md"
                 style={{ flex: 1 }}
               />
-              <Button onClick={handleSearch} disabled={!searchInput} size="md">
+              <Button
+                onClick={handleSearch}
+                disabled={!searchInput && !authorInput && !titleInput}
+                size="md"
+              >
                 Search
               </Button>
             </Group>
@@ -363,6 +406,24 @@ function SearchPage() {
                 <Accordion.Panel>
                   <Stack gap="md">
                     <Grid gutter="md">
+                      <Grid.Col span={6}>
+                        <TextInput
+                          label="Author"
+                          placeholder="Author name"
+                          value={authorInput}
+                          onChange={(e) => setAuthorInput(e.target.value)}
+                          onKeyDown={handleKeyPress}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={6}>
+                        <TextInput
+                          label="Title"
+                          placeholder="Book title"
+                          value={titleInput}
+                          onChange={(e) => setTitleInput(e.target.value)}
+                          onKeyDown={handleKeyPress}
+                        />
+                      </Grid.Col>
                       <Grid.Col span={6}>
                         <Select
                           label="Sort by"
@@ -425,6 +486,14 @@ function SearchPage() {
                         updateSearchParams({ desc: e.currentTarget.checked })
                       }
                     />
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      onClick={handleClearFilters}
+                      fullWidth
+                    >
+                      Reset all filters
+                    </Button>
                   </Stack>
                 </Accordion.Panel>
               </Accordion.Item>
@@ -445,120 +514,132 @@ function SearchPage() {
           </Center>
         )}
 
-        {!isLoading && !isError && urlParams.q && (
-          <>
-            {allBooks.length > 0 ? (
-              <>
-                <Group justify="space-between">
-                  <Text size="sm" c="dimmed">
-                    Found {totalResults ? `${totalResults}+` : "many"} results
-                    for "{urlParams.q}"
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    Showing {allBooks.length} books
-                  </Text>
-                </Group>
+        {!isLoading &&
+          !isError &&
+          (urlParams.q || urlParams.author || urlParams.title) && (
+            <>
+              {allBooks.length > 0 ? (
+                <>
+                  <Group justify="space-between">
+                    <Text size="sm" c="dimmed">
+                      Found {totalResults ? `${totalResults}+` : "many"} results
+                      {urlParams.q && ` for "${urlParams.q}"`}
+                      {urlParams.author && ` by ${urlParams.author}`}
+                      {urlParams.title && ` titled "${urlParams.title}"`}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Showing {allBooks.length} books
+                    </Text>
+                  </Group>
 
-                <Grid gutter="md">
-                  {allBooks.map((book, index) => (
-                    <Grid.Col
-                      key={`${book.md5}-${index}`}
-                      span={{ base: 12, xs: 6, sm: 4, md: 3 }}
-                    >
-                      <BookCard book={book} />
-                    </Grid.Col>
-                  ))}
-                </Grid>
+                  <Grid gutter="md">
+                    {allBooks.map((book, index) => (
+                      <Grid.Col
+                        key={`${book.md5}-${index}`}
+                        span={{ base: 12, xs: 6, sm: 4, md: 3 }}
+                      >
+                        <BookCard book={book} />
+                      </Grid.Col>
+                    ))}
+                  </Grid>
 
-                {/* Infinite scroll trigger */}
-                <div ref={observerTarget} style={{ height: "20px" }}>
-                  {isFetchingNextPage && (
-                    <Center>
-                      <Loader size="sm" />
+                  {/* Infinite scroll trigger */}
+                  <div ref={observerTarget} style={{ height: "20px" }}>
+                    {isFetchingNextPage && (
+                      <Center>
+                        <Loader size="sm" />
+                      </Center>
+                    )}
+                    {error && !isFetchingNextPage && hasNextPage && (
+                      <Center p="md">
+                        <Stack gap="xs" align="center">
+                          <Text size="sm" c="red">
+                            Failed to load more results
+                          </Text>
+                          <Button
+                            size="xs"
+                            variant="light"
+                            onClick={() => fetchNextPageRef.current()}
+                          >
+                            Retry
+                          </Button>
+                        </Stack>
+                      </Center>
+                    )}
+                  </div>
+
+                  {!hasNextPage && allBooks.length > 0 && (
+                    <Center p="md">
+                      <Text size="sm" c="dimmed">
+                        No more results
+                      </Text>
                     </Center>
                   )}
-                  {error && !isFetchingNextPage && hasNextPage && (
-                    <Center p="md">
-                      <Stack gap="xs" align="center">
-                        <Text size="sm" c="red">
-                          Failed to load more results
+                </>
+              ) : (
+                <Center p="xl">
+                  <Stack align="center" gap="md">
+                    <IconFilter size={48} opacity={0.3} />
+                    <Text c="dimmed">
+                      No results found
+                      {urlParams.q && ` for "${urlParams.q}"`}
+                      {urlParams.author && ` by ${urlParams.author}`}
+                      {urlParams.title && ` titled "${urlParams.title}"`}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Try adjusting your filters or search terms
+                    </Text>
+                    {existingRequestId ? (
+                      <>
+                        <Text size="sm" c="dimmed">
+                          You already have an active request for this search
                         </Text>
                         <Button
-                          size="xs"
+                          component={Link}
+                          to="/requests"
+                          leftSection={<IconBookmark size={16} />}
                           variant="light"
-                          onClick={() => fetchNextPageRef.current()}
                         >
-                          Retry
+                          View your requests
                         </Button>
-                      </Stack>
-                    </Center>
-                  )}
-                </div>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          leftSection={<IconBookmark size={16} />}
+                          variant="light"
+                          onClick={handleSaveRequest}
+                          loading={createRequest.isPending}
+                        >
+                          Save this search as a request
+                        </Button>
+                        <Text
+                          size="xs"
+                          c="dimmed"
+                          style={{ maxWidth: "400px", textAlign: "center" }}
+                        >
+                          Ephemera will automatically check for new results and
+                          download the book when it becomes available
+                        </Text>
+                      </>
+                    )}
+                  </Stack>
+                </Center>
+              )}
+            </>
+          )}
 
-                {!hasNextPage && allBooks.length > 0 && (
-                  <Center p="md">
-                    <Text size="sm" c="dimmed">
-                      No more results
-                    </Text>
-                  </Center>
-                )}
-              </>
-            ) : (
-              <Center p="xl">
-                <Stack align="center" gap="md">
-                  <IconFilter size={48} opacity={0.3} />
-                  <Text c="dimmed">No results found for "{urlParams.q}"</Text>
-                  <Text size="sm" c="dimmed">
-                    Try adjusting your filters or search terms
-                  </Text>
-                  {existingRequestId ? (
-                    <>
-                      <Text size="sm" c="dimmed">
-                        You already have an active request for this search
-                      </Text>
-                      <Button
-                        component={Link}
-                        to="/requests"
-                        leftSection={<IconBookmark size={16} />}
-                        variant="light"
-                      >
-                        View your requests
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        leftSection={<IconBookmark size={16} />}
-                        variant="light"
-                        onClick={handleSaveRequest}
-                        loading={createRequest.isPending}
-                      >
-                        Save this search as a request
-                      </Button>
-                      <Text
-                        size="xs"
-                        c="dimmed"
-                        style={{ maxWidth: "400px", textAlign: "center" }}
-                      >
-                        Ephemera will automatically check for new results and
-                        download the book when it becomes available
-                      </Text>
-                    </>
-                  )}
-                </Stack>
-              </Center>
-            )}
-          </>
-        )}
-
-        {!urlParams.q && !isLoading && (
-          <Center p="xl">
-            <Stack align="center" gap="sm">
-              <IconSearch size={48} opacity={0.3} />
-              <Text c="dimmed">Enter a search term to get started</Text>
-            </Stack>
-          </Center>
-        )}
+        {!urlParams.q &&
+          !urlParams.author &&
+          !urlParams.title &&
+          !isLoading && (
+            <Center p="xl">
+              <Stack align="center" gap="sm">
+                <IconSearch size={48} opacity={0.3} />
+                <Text c="dimmed">Enter a search term to get started</Text>
+              </Stack>
+            </Center>
+          )}
       </Stack>
     </Container>
   );
@@ -577,6 +658,8 @@ export const Route = createFileRoute("/search")({
 
     return {
       q: typeof search.q === "string" ? search.q : undefined,
+      author: typeof search.author === "string" ? search.author : undefined,
+      title: typeof search.title === "string" ? search.title : undefined,
       sort: typeof search.sort === "string" ? search.sort : undefined,
       content: toArray(search.content),
       ext: toArray(search.ext),
