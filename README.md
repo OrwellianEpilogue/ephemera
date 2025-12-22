@@ -58,7 +58,7 @@ services:
       # li, bz, etc.
       LG_BASE_URL: #https://gen.com
 
-      AA_API_KEY:
+      AA_API_KEY: # Only for paid members of AA, otherwise leave blank for slow downloads
       PUID: 1000
       PGID: 100
 
@@ -163,7 +163,7 @@ All other settings have sensible defaults, but you can override them:
 
 | Variable           | Default                 | Description            |
 | ------------------ | ----------------------- | ---------------------- |
-| `AA_API_KEY`       | `empty`                 | `dhw8adhwa8...`        |
+| `AA_API_KEY`       | `empty`                 | `dhw8adhwa8...` Only for paid members of AA, otherwise leave blank for slow downloads       |
 | `PORT`             | `8286`                  | Application port       |
 | `DB_PATH`          | `/app/data/database.db` | Database location      |
 | `DOWNLOAD_FOLDER`  | `/app/downloads`        | Temp download folder   |
