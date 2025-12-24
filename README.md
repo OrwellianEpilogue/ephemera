@@ -1,6 +1,21 @@
 # Ephemera Book Downloader
 
-Search and download books from your girl's favorite archive. Supports auto-move to a [BookLore](https://github.com/booklore-app/booklore) or [Calibre-Web-Automated](https://github.com/crocodilestick/Calibre-Web-Automated) ingest folder or BookLore API upload.
+Search and download books from your girl's favorite archive. Includes a request system to auto-download books once they're available. Supports auto-move to a [BookLore](https://github.com/booklore-app/booklore) or [Calibre-Web-Automated](https://github.com/crocodilestick/Calibre-Web-Automated) ingest folder or BookLore API upload.
+
+## Main features
+
+- Download books from any archive
+- Use donator key for super fast downloads or a l----n library for fast free downloads (also supports slow downloads as a fallback)
+- Automatically import books to BookLore or Calibre-Web-Automated by utilizing their ingest folders and/or upload APIs
+- Request system to auto download non-available books once they become available
+- Notifications on newly available books or fulfilled requests with Apprise
+- Implement Ephemera as a usenet indexer into newznab tools like Readarr
+- Realtime updates in UI
+- Supports all popular book formats (epub, awz3, mobi, pdf, cbz, cbr etc.)
+- Link your BookLore or CWA library in the menu
+- OpenAPI specs for 3rd party integrations, Swagger-UI
+- Simple setup with Docker
+- Cloudflare bypassing with Flaresolverr
 
 <div class="grid" markdown>
 
@@ -37,7 +52,7 @@ services:
 
       # Optional
 
-      # Alternative Download Source (optional)
+      # Alternative Download Source (optional, but highly recommended)
       # If set, LG fast download will be attempted before falling back to slow servers
       # Leave empty to disable this feature
       # li, bz, etc.
@@ -100,14 +115,14 @@ services:
 
 The following Docker image tags are available:
 
-| Tag | Description | Update Frequency |
-|-----|-------------|------------------|
-| `latest` | Latest stable release | On version tags (v*.*.* releases) |
-| `dev` | Latest development build | On commits to dev branch |
-| `1.2.3` | Specific version | Never (immutable) |
-| `1.2` | Latest patch of minor version | On patch releases |
-| `1` | Latest minor/patch of major version | On minor/patch releases |
-| `dev-sha-abc1234` | Specific dev build | Never (immutable) |
+| Tag               | Description                         | Update Frequency                   |
+| ----------------- | ----------------------------------- | ---------------------------------- |
+| `latest`          | Latest stable release               | On version tags (v*.*.\* releases) |
+| `dev`             | Latest development build            | On commits to dev branch           |
+| `1.2.3`           | Specific version                    | Never (immutable)                  |
+| `1.2`             | Latest patch of minor version       | On patch releases                  |
+| `1`               | Latest minor/patch of major version | On minor/patch releases            |
+| `dev-sha-abc1234` | Specific dev build                  | Never (immutable)                  |
 
 #### Examples
 
@@ -131,10 +146,16 @@ docker pull ghcr.io/orwellianepilogue/ephemera:dev-sha-7aa9d68
 
 Only two variables are required:
 
-| Variable      | Description                    | Example                   |
-| ------------- | ------------------------------ | ------------------------- |
-| `AA_API_KEY`  | Archive API authentication key | `sk_abc123...`            |
-| `AA_BASE_URL` | Base URL of your archive       | `https://yourarchive.org` |
+| Variable           | Description                     | Example                   |
+| ------------------ | ------------------------------- | ------------------------- |
+| `AA_BASE_URL`      | Base URL of your archive        | `https://yourarchive.org` |
+| `FLARESOLVERR_URL` | Flaresolverr URL from container | `http://127.0.0.1:8191`   |
+
+### Recommended Environment Variables
+
+| Variable      | Default | Description                    |
+| ------------- | ------- | ------------------------------ |
+| `LG_BASE_URL` | `empty` | `https://gen.com, li, bz etc.` |
 
 ### Optional Environment Variables
 
@@ -142,6 +163,7 @@ All other settings have sensible defaults, but you can override them:
 
 | Variable           | Default                 | Description            |
 | ------------------ | ----------------------- | ---------------------- |
+| `AA_API_KEY`       | `empty`                 | `dhw8adhwa8...`        |
 | `PORT`             | `8286`                  | Application port       |
 | `DB_PATH`          | `/app/data/database.db` | Database location      |
 | `DOWNLOAD_FOLDER`  | `/app/downloads`        | Temp download folder   |

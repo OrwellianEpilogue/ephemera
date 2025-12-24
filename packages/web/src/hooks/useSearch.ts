@@ -7,7 +7,7 @@ export const useSearch = (params: Omit<SearchQuery, "page">) => {
     queryKey: ["search", params],
     queryFn: async ({ pageParam = 1 }) => {
       const query = new URLSearchParams();
-      query.append("q", params.q);
+      query.append("q", params.q || "");
       query.append("page", String(pageParam));
 
       if (params.sort) query.append("sort", params.sort);
@@ -18,6 +18,8 @@ export const useSearch = (params: Omit<SearchQuery, "page">) => {
       if (params.src) params.src.forEach((s) => query.append("src", s));
       if (params.lang) params.lang.forEach((l) => query.append("lang", l));
       if (params.desc !== undefined) query.append("desc", String(params.desc));
+      if (params.author) query.append("author", params.author);
+      if (params.title) query.append("title", params.title);
 
       return apiFetch<SearchResponse>(`/search?${query.toString()}`, {
         timeout: 30000, // 30 second timeout
@@ -29,7 +31,10 @@ export const useSearch = (params: Omit<SearchQuery, "page">) => {
         : undefined;
     },
     initialPageParam: 1,
-    enabled: params.q.length > 0,
+    enabled:
+      (params.q?.length ?? 0) > 0 ||
+      (params.author?.length ?? 0) > 0 ||
+      (params.title?.length ?? 0) > 0,
     retry: 2, // Retry failed requests up to 2 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     staleTime: 1000 * 60 * 5, // 5 minutes
