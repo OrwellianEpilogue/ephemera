@@ -180,9 +180,20 @@ export const useDownloadFile = () => {
       const baseUrl = globalThis.window.location.origin;
       const downloadUrl = `${baseUrl}/api/download/${md5}/file`;
 
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement("a");
-      link.href = downloadUrl;
+      // Fetch the file first to check for errors
+      const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        // Try to parse error JSON from response
+        try {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.details || errorData.error || "Download failed",
+          );
+        } catch {
+          throw new Error(`Download failed with status ${response.status}`);
+        }
+      }
 
       // Generate filename with author, year, and language
       const safeTitle = title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
@@ -205,12 +216,24 @@ export const useDownloadFile = () => {
       }
 
       const extension = (format || "pdf").toLowerCase();
-      link.download = `${parts.join(" - ")}.${extension}`;
+      const filename = `${parts.join(" - ")}.${extension}`;
+
+      // Create blob URL from response
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
 
       // Trigger the download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl);
 
       return { success: true };
     },

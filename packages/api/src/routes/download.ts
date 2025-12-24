@@ -4,9 +4,9 @@ import { queueManager } from "../services/queue-manager.js";
 import { errorResponseSchema, getErrorMessage } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
 import { downloadTracker } from "../services/download-tracker.js";
-import { existsSync } from "fs";
-import { readFile } from "fs/promises";
+import { existsSync, createReadStream, statSync } from "fs";
 import { extname } from "path";
+import { stream } from "hono/streaming";
 
 const app = new OpenAPIHono();
 
@@ -442,8 +442,8 @@ app.openapi(fileRoute, async (c) => {
       );
     }
 
-    // Read the file
-    const fileContent = await readFile(filePath);
+    // Get file stats for Content-Length
+    const stats = statSync(filePath);
 
     // Generate filename for download
     const format = (
@@ -478,10 +478,15 @@ app.openapi(fileRoute, async (c) => {
     // Set appropriate headers
     c.header("Content-Type", "application/octet-stream");
     c.header("Content-Disposition", `attachment; filename="${filename}"`);
-    c.header("Content-Length", fileContent.length.toString());
+    c.header("Content-Length", stats.size.toString());
 
-    // Return the file
-    return c.body(fileContent);
+    // Stream the file to avoid loading entire file into memory
+    return stream(c, async (s) => {
+      const fileStream = createReadStream(filePath);
+      for await (const chunk of fileStream) {
+        await s.write(chunk);
+      }
+    });
   } catch (error: unknown) {
     logger.error("File download error:", error);
 

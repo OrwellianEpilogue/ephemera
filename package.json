@@ -51,7 +51,7 @@
     "*.{ts,tsx}": [
       "prettier --write",
       "eslint --fix --max-warnings 0",
-      "bash -c 'pnpm type-check'"
+      "bash -c 'pnpm --filter @ephemera/shared build && pnpm type-check'"
     ]
   }
 }
