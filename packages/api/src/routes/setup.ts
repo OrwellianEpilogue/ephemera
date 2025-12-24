@@ -10,6 +10,15 @@ const SetupStatusSchema = z.object({
   isSetupComplete: z.boolean(),
 });
 
+// Schema for env defaults response
+const EnvDefaultsSchema = z.object({
+  searcherBaseUrl: z.string().nullable(),
+  searcherApiKey: z.string().nullable(),
+  quickBaseUrl: z.string().nullable(),
+  downloadFolder: z.string().nullable(),
+  ingestFolder: z.string().nullable(),
+});
+
 // Schema for step 1: System configuration
 const Step1Schema = z.object({
   searcherBaseUrl: z.string().url(),
@@ -59,6 +68,36 @@ app.openapi(getStatusRoute, async (c) => {
       isSetupComplete: false,
     });
   }
+});
+
+// GET /setup/defaults - Get environment variable defaults
+const getDefaultsRoute = createRoute({
+  method: "get",
+  path: "/defaults",
+  summary: "Get environment defaults",
+  description:
+    "Returns values from environment variables that can pre-populate the setup form",
+  responses: {
+    200: {
+      description: "Environment defaults",
+      content: {
+        "application/json": {
+          schema: EnvDefaultsSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(getDefaultsRoute, async (c) => {
+  // Read from deprecated env vars to pre-populate setup wizard
+  return c.json({
+    searcherBaseUrl: process.env.AA_BASE_URL || null,
+    searcherApiKey: process.env.AA_API_KEY || null,
+    quickBaseUrl: process.env.LG_BASE_URL || null,
+    downloadFolder: process.env.DOWNLOAD_FOLDER || null,
+    ingestFolder: process.env.INGEST_FOLDER || null,
+  });
 });
 
 // POST /setup/step1 - Save system configuration

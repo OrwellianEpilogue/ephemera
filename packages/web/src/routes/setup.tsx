@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Button,
   Container,
+  Loader,
   Paper,
   PasswordInput,
   Stack,
@@ -13,6 +14,7 @@ import {
   Title,
   Alert,
   Group,
+  Center,
 } from "@mantine/core";
 import {
   IconCheck,
@@ -37,6 +39,31 @@ function SetupWizard() {
     downloadFolder: "/app/downloads",
     ingestFolder: "/app/ingest",
   });
+  const [loadingDefaults, setLoadingDefaults] = useState(true);
+
+  // Fetch environment defaults on mount
+  useEffect(() => {
+    const fetchDefaults = async () => {
+      try {
+        const response = await fetch("/api/setup/defaults");
+        if (response.ok) {
+          const defaults = await response.json();
+          setStep1((prev) => ({
+            searcherBaseUrl: defaults.searcherBaseUrl || prev.searcherBaseUrl,
+            searcherApiKey: defaults.searcherApiKey || prev.searcherApiKey,
+            quickBaseUrl: defaults.quickBaseUrl || prev.quickBaseUrl,
+            downloadFolder: defaults.downloadFolder || prev.downloadFolder,
+            ingestFolder: defaults.ingestFolder || prev.ingestFolder,
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch defaults:", err);
+      } finally {
+        setLoadingDefaults(false);
+      }
+    };
+    fetchDefaults();
+  }, []);
 
   // Step 2: Admin Account
   const [adminForm, setAdminForm] = useState({
@@ -156,6 +183,27 @@ function SetupWizard() {
     setActive((current) => (current > 0 ? current - 1 : current));
   };
 
+  if (loadingDefaults) {
+    return (
+      <Box
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--mantine-color-gray-0)",
+        }}
+      >
+        <Center>
+          <Stack align="center" gap="md">
+            <Loader size="lg" />
+            <Text c="dimmed">Loading configuration...</Text>
+          </Stack>
+        </Center>
+      </Box>
+    );
+  }
+
   return (
     <Box
       style={{
@@ -200,8 +248,8 @@ function SetupWizard() {
                 <Stack gap="md" mt="md">
                   <TextInput
                     label="Searcher Base URL"
-                    placeholder="https://annas-archive.org"
-                    description="Base URL for Anna's Archive or similar"
+                    placeholder="https://archive.org"
+                    description="Base URL for AA or similar"
                     required
                     value={step1.searcherBaseUrl}
                     onChange={(e) =>
@@ -221,7 +269,7 @@ function SetupWizard() {
 
                   <TextInput
                     label="Quick Base URL"
-                    placeholder="https://libgen.is"
+                    placeholder="LG URL for alternative source"
                     description="Alternative fast download source (optional)"
                     value={step1.quickBaseUrl}
                     onChange={(e) =>

@@ -102,7 +102,7 @@ app.openapi(getProvidersRoute, async (c) => {
       providers.map((p) => ({
         id: p.id,
         providerId: p.providerId,
-        name: p.providerId, // Use providerId as name for now
+        name: p.name || p.providerId,
         issuer: p.issuer,
         domain: p.domain,
         enabled: p.enabled,
@@ -233,6 +233,7 @@ app.openapi(createProviderRoute, async (c) => {
     await db.insert(ssoProvider).values({
       id,
       providerId: body.providerId,
+      name: body.name || null,
       issuer: body.issuer,
       domain: body.domain || null,
       oidcConfig: JSON.stringify(oidcConfig),
@@ -254,7 +255,7 @@ app.openapi(createProviderRoute, async (c) => {
       {
         id: provider.id,
         providerId: provider.providerId,
-        name: provider.providerId,
+        name: provider.name || provider.providerId,
         issuer: provider.issuer,
         domain: provider.domain,
         enabled: provider.enabled,
@@ -348,6 +349,7 @@ app.openapi(updateProviderRoute, async (c) => {
     await db
       .update(ssoProvider)
       .set({
+        ...(body.name !== undefined && { name: body.name }),
         ...(body.issuer && { issuer: body.issuer }),
         ...(body.domain !== undefined && { domain: body.domain }),
         ...(body.enabled !== undefined && { enabled: body.enabled }),
@@ -369,7 +371,7 @@ app.openapi(updateProviderRoute, async (c) => {
       {
         id: updatedProvider.id,
         providerId: updatedProvider.providerId,
-        name: updatedProvider.providerId,
+        name: updatedProvider.name || updatedProvider.providerId,
         issuer: updatedProvider.issuer,
         domain: updatedProvider.domain,
         enabled: updatedProvider.enabled,

@@ -87,6 +87,7 @@ export const verification = sqliteTable("verification", {
 export const ssoProvider = sqliteTable("sso_provider", {
   id: text("id").primaryKey(),
   providerId: text("provider_id").notNull().unique(),
+  name: text("name"), // Display name for the provider
   issuer: text("issuer").notNull(),
   oidcConfig: text("oidc_config").notNull(), // JSON string with clientId, clientSecret, etc.
   domain: text("domain"), // Optional domain for email-based routing

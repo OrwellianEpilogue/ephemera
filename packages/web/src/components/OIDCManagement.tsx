@@ -19,6 +19,8 @@ import {
   Center,
   MultiSelect,
   Tooltip,
+  Select,
+  Input,
 } from "@mantine/core";
 import {
   IconPlus,
@@ -89,6 +91,12 @@ function OIDCProvidersPage() {
     scopes: ["openid", "email", "profile"],
     enabled: true,
   });
+  const [createProtocol, setCreateProtocol] = useState<"https://" | "http://">(
+    "https://",
+  );
+  const [editProtocol, setEditProtocol] = useState<"https://" | "http://">(
+    "https://",
+  );
 
   // Fetch providers
   const { data: providers, isLoading } = useQuery<OIDCProvider[]>({
@@ -168,20 +176,33 @@ function OIDCProvidersPage() {
 
   const handleCreateProvider = () => {
     setError(null);
-    createProviderMutation.mutate(createForm);
+    const fullIssuer = `${createProtocol}${createForm.issuer}`;
+    createProviderMutation.mutate({
+      ...createForm,
+      issuer: fullIssuer,
+      discoveryUrl:
+        createForm.discoveryUrl ||
+        `${fullIssuer}/.well-known/openid-configuration`,
+    });
   };
 
   const handleUpdateProvider = () => {
     if (!selectedProvider) return;
     setError(null);
+    const fullIssuer = `${editProtocol}${selectedProvider.issuer}`;
     updateProviderMutation.mutate({
       id: selectedProvider.id,
       data: {
         name: selectedProvider.name,
-        issuer: selectedProvider.issuer,
+        issuer: fullIssuer,
         domain: selectedProvider.domain,
         enabled: selectedProvider.enabled,
-        oidcConfig: selectedProvider.oidcConfig,
+        oidcConfig: {
+          ...selectedProvider.oidcConfig,
+          discoveryUrl:
+            selectedProvider.oidcConfig.discoveryUrl ||
+            `${fullIssuer}/.well-known/openid-configuration`,
+        },
       },
     });
   };
@@ -193,7 +214,15 @@ function OIDCProvidersPage() {
   };
 
   const handleEditProvider = (provider: OIDCProvider) => {
-    setSelectedProvider(provider);
+    // Parse protocol from existing issuer
+    const isHttps = provider.issuer.startsWith("https://");
+    setEditProtocol(isHttps ? "https://" : "http://");
+    // Store provider with issuer stripped of protocol for display
+    const issuerHost = provider.issuer.replace(/^https?:\/\//, "");
+    setSelectedProvider({
+      ...provider,
+      issuer: issuerHost,
+    });
     setEditModalOpen(true);
     setError(null);
     setTestResult(null);
@@ -395,22 +424,63 @@ function OIDCProvidersPage() {
             }
           />
 
-          <TextInput
+          <Input.Wrapper
             label="Issuer URL"
-            description="The base URL of your identity provider"
-            placeholder="https://auth.example.com/realms/myrealm"
+            description="Base URL of your OIDC provider. The discovery endpoint will be derived automatically."
             required
-            value={createForm.issuer}
-            onChange={(e) =>
-              setCreateForm({ ...createForm, issuer: e.target.value })
-            }
-          />
+          >
+            <Group gap={0} mt={4}>
+              <Select
+                data={[
+                  { value: "https://", label: "https://" },
+                  { value: "http://", label: "http://" },
+                ]}
+                value={createProtocol}
+                onChange={(value) =>
+                  setCreateProtocol(
+                    (value as "https://" | "http://") || "https://",
+                  )
+                }
+                w={110}
+                allowDeselect={false}
+                withCheckIcon={false}
+                styles={{
+                  input: {
+                    borderTopRightRadius: 0,
+                    borderBottomRightRadius: 0,
+                    borderRight: 0,
+                  },
+                }}
+              />
+              <TextInput
+                placeholder="id.example.com"
+                value={createForm.issuer}
+                onChange={(e) => {
+                  const host = e.target.value.replace(/\/$/, "");
+                  const issuer = host ? `${createProtocol}${host}` : "";
+                  setCreateForm({
+                    ...createForm,
+                    issuer: host,
+                    discoveryUrl: issuer
+                      ? `${issuer}/.well-known/openid-configuration`
+                      : "",
+                  });
+                }}
+                style={{ flex: 1 }}
+                styles={{
+                  input: {
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                  },
+                }}
+              />
+            </Group>
+          </Input.Wrapper>
 
           <TextInput
             label="Discovery URL"
-            description="OIDC discovery endpoint (.well-known/openid-configuration)"
-            placeholder="https://auth.example.com/realms/myrealm/.well-known/openid-configuration"
-            required
+            description="Auto-derived from Issuer URL. Override only if your provider uses a non-standard path."
+            placeholder="https://id.example.com/.well-known/openid-configuration"
             value={createForm.discoveryUrl}
             onChange={(e) =>
               setCreateForm({ ...createForm, discoveryUrl: e.target.value })
@@ -540,19 +610,64 @@ function OIDCProvidersPage() {
               }
             />
 
-            <TextInput
+            <Input.Wrapper
               label="Issuer URL"
-              value={selectedProvider.issuer}
-              onChange={(e) =>
-                setSelectedProvider({
-                  ...selectedProvider,
-                  issuer: e.target.value,
-                })
-              }
-            />
+              description="Base URL of your OIDC provider"
+            >
+              <Group gap={0} mt={4}>
+                <Select
+                  data={[
+                    { value: "https://", label: "https://" },
+                    { value: "http://", label: "http://" },
+                  ]}
+                  value={editProtocol}
+                  onChange={(value) =>
+                    setEditProtocol(
+                      (value as "https://" | "http://") || "https://",
+                    )
+                  }
+                  w={110}
+                  allowDeselect={false}
+                  withCheckIcon={false}
+                  styles={{
+                    input: {
+                      borderTopRightRadius: 0,
+                      borderBottomRightRadius: 0,
+                      borderRight: 0,
+                    },
+                  }}
+                />
+                <TextInput
+                  placeholder="id.example.com"
+                  value={selectedProvider.issuer}
+                  onChange={(e) => {
+                    const host = e.target.value.replace(/\/$/, "");
+                    const fullIssuer = host ? `${editProtocol}${host}` : "";
+                    setSelectedProvider({
+                      ...selectedProvider,
+                      issuer: host,
+                      oidcConfig: {
+                        ...selectedProvider.oidcConfig,
+                        discoveryUrl: fullIssuer
+                          ? `${fullIssuer}/.well-known/openid-configuration`
+                          : "",
+                      },
+                    });
+                  }}
+                  style={{ flex: 1 }}
+                  styles={{
+                    input: {
+                      borderTopLeftRadius: 0,
+                      borderBottomLeftRadius: 0,
+                    },
+                  }}
+                />
+              </Group>
+            </Input.Wrapper>
 
             <TextInput
               label="Discovery URL"
+              description="Override only if your provider uses a non-standard path"
               value={selectedProvider.oidcConfig.discoveryUrl || ""}
               onChange={(e) =>
                 setSelectedProvider({

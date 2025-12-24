@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Container,
+  Divider,
   Paper,
   PasswordInput,
   Stack,
@@ -127,8 +128,6 @@ function LoginPage() {
         setActiveTab("booklore");
       } else if (authMethods.calibre) {
         setActiveTab("calibre");
-      } else if (authMethods.oauth2) {
-        setActiveTab("oidc");
       }
     }
   }, [authMethods, activeTab]);
@@ -318,14 +317,6 @@ function LoginPage() {
                     Calibre
                   </Tabs.Tab>
                 )}
-                {authMethods.oauth2 && oidcProviders.length > 0 && (
-                  <Tabs.Tab
-                    value="oidc"
-                    leftSection={<IconPlugConnected size={16} />}
-                  >
-                    SSO
-                  </Tabs.Tab>
-                )}
               </Tabs.List>
 
               {authMethods.password && (
@@ -444,29 +435,27 @@ function LoginPage() {
                   </form>
                 </Tabs.Panel>
               )}
-
-              {authMethods.oauth2 && oidcProviders.length > 0 && (
-                <Tabs.Panel value="oidc" pt="md">
-                  <Stack gap="md">
-                    <Text size="sm" c="dimmed" ta="center">
-                      Sign in with your organization's identity provider
-                    </Text>
-                    {oidcProviders.map((provider) => (
-                      <Button
-                        key={provider.id}
-                        fullWidth
-                        leftSection={<IconPlugConnected size={20} />}
-                        variant="default"
-                        onClick={() => handleOIDCSignIn(provider.providerId)}
-                        loading={loading}
-                      >
-                        Continue with {provider.name || provider.providerId}
-                      </Button>
-                    ))}
-                  </Stack>
-                </Tabs.Panel>
-              )}
             </Tabs>
+
+            {oidcProviders.length > 0 && (
+              <>
+                <Divider label="or continue with" labelPosition="center" />
+                <Stack gap="sm">
+                  {oidcProviders.map((provider) => (
+                    <Button
+                      key={provider.id}
+                      fullWidth
+                      leftSection={<IconPlugConnected size={18} />}
+                      variant="default"
+                      onClick={() => handleOIDCSignIn(provider.providerId)}
+                      loading={loading}
+                    >
+                      {provider.name || provider.providerId}
+                    </Button>
+                  ))}
+                </Stack>
+              </>
+            )}
           </Stack>
         </Paper>
       </Container>
