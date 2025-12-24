@@ -92,6 +92,18 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
       cancelled: "gray",
     }[request.status as string] || "gray";
 
+  const getDisplayTitle = () => {
+    if (params.q) return params.q;
+
+    if (params.title && params.author) {
+      return `"${params.title}" by ${params.author}`;
+    }
+    if (params.title) return `Title: "${params.title}"`;
+    if (params.author) return `Author: ${params.author}`;
+
+    return "Unknown search";
+  };
+
   return (
     <Card withBorder padding="md">
       <Stack gap="sm">
@@ -99,7 +111,7 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
           <Group gap="xs">
             <IconBookmark size={18} />
             <Text fw={500} style={{ wordBreak: "break-word" }}>
-              {params.q || "Unknown search"}
+              {getDisplayTitle()}
             </Text>
           </Group>
           <Group gap="xs">

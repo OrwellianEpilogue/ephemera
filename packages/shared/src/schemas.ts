@@ -19,7 +19,7 @@ const coerceArray = z
 
 // Search query schema
 export const searchQuerySchema = z.object({
-  q: z.string().min(1).describe("Search query"),
+  q: z.string().describe("Search query").optional(),
   page: z.coerce.number().int().positive().default(1).describe("Page number"),
   sort: z
     .enum(["", ...sortOptions])
@@ -40,13 +40,17 @@ export const searchQuerySchema = z.object({
     .boolean()
     .optional()
     .describe("Search in descriptions and metadata"),
+  author: z.string().optional().describe("Author name"),
+  title: z.string().optional().describe("Book title"),
 });
 
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 
 // Request query params schema (for download requests)
 export const requestQueryParamsSchema = z.object({
-  q: z.string().describe("Search query"),
+  q: z.string().describe("Search query").optional(),
+  author: z.string().optional().describe("Author name"),
+  title: z.string().optional().describe("Book title"),
   sort: z.string().optional().describe("Sort order"),
   content: z
     .union([z.string(), z.array(z.string())])

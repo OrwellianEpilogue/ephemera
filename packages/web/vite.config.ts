@@ -3,6 +3,11 @@ import react from "@vitejs/plugin-react";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Get API base path from environment variable (default: /api)
+const API_BASE_PATH = (process.env.API_BASE_PATH || "/api")
+  .replace(/\/+$/, "") // Remove trailing slashes
+  .replace(/^([^/])/, "/$1"); // Ensure leading slash
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -74,7 +79,7 @@ export default defineConfig({
   server: {
     port: 5222,
     proxy: {
-      "/api": {
+      [API_BASE_PATH]: {
         target: "http://localhost:8286",
         changeOrigin: true,
         // Configure proxy to handle SSE streaming
