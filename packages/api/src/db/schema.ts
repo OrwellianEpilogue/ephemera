@@ -302,6 +302,26 @@ export const indexerSettings = sqliteTable("indexer_settings", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const emailSettings = sqliteTable("email_settings", {
+  id: integer("id").primaryKey().default(1),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  smtpHost: text("smtp_host"),
+  smtpPort: integer("smtp_port").notNull().default(587),
+  smtpUser: text("smtp_user"),
+  smtpPassword: text("smtp_password"),
+  senderEmail: text("sender_email"),
+  senderName: text("sender_name"),
+  useTls: integer("use_tls", { mode: "boolean" }).notNull().default(true),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const emailRecipients = sqliteTable("email_recipients", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull(),
+  name: text("name"),
+  createdAt: integer("created_at").notNull(),
+});
+
 // Relations
 export const booksRelations = relations(books, ({ many }) => ({
   downloads: many(downloads),
@@ -341,3 +361,7 @@ export type AppriseSettings = typeof appriseSettings.$inferSelect;
 export type NewAppriseSettings = typeof appriseSettings.$inferInsert;
 export type IndexerSettings = typeof indexerSettings.$inferSelect;
 export type NewIndexerSettings = typeof indexerSettings.$inferInsert;
+export type EmailSettings = typeof emailSettings.$inferSelect;
+export type NewEmailSettings = typeof emailSettings.$inferInsert;
+export type EmailRecipient = typeof emailRecipients.$inferSelect;
+export type NewEmailRecipient = typeof emailRecipients.$inferInsert;

@@ -78,6 +78,13 @@
       "when": 1763042482715,
       "tag": "0010_steep_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1766591310532,
+      "tag": "0011_zippy_ikaris",
+      "breakpoints": true
     }
   ]
 }

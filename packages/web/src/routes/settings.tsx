@@ -20,6 +20,7 @@ import {
   ActionIcon,
   Tabs,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import {
   IconInfoCircle,
   IconPlugConnected,
@@ -29,6 +30,7 @@ import {
   IconSettings,
   IconUpload,
   IconServer,
+  IconMail,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -54,10 +56,18 @@ import { formatDate } from "@ephemera/shared";
 import { z } from "zod";
 import { IndexerSettings } from "../components/IndexerSettings";
 import { useIndexerSettings } from "../hooks/use-indexer-settings";
+import {
+  useEmailSettings,
+  useUpdateEmailSettings,
+  useTestEmailConnection,
+  useEmailRecipients,
+  useAddEmailRecipient,
+  useDeleteEmailRecipient,
+} from "../hooks/useEmail";
 
 const settingsSearchSchema = z.object({
   tab: z
-    .enum(["general", "notifications", "booklore", "indexer"])
+    .enum(["general", "notifications", "booklore", "indexer", "email"])
     .optional()
     .default("general"),
 });
@@ -81,11 +91,21 @@ function SettingsComponent() {
     isError: errorApprise,
   } = useAppriseSettings();
   const { data: indexerSettings } = useIndexerSettings();
+  const {
+    data: emailSettings,
+    isLoading: loadingEmail,
+    isError: errorEmail,
+  } = useEmailSettings();
+  const { data: emailRecipients } = useEmailRecipients();
   const updateSettings = useUpdateAppSettings();
   const updateBooklore = useUpdateBookloreSettings();
   const updateApprise = useUpdateAppriseSettings();
   const testConnection = useTestBookloreConnection();
   const testApprise = useTestAppriseNotification();
+  const updateEmail = useUpdateEmailSettings();
+  const testEmail = useTestEmailConnection();
+  const addRecipient = useAddEmailRecipient();
+  const deleteRecipient = useDeleteEmailRecipient();
 
   // Fetch libraries after authentication
   const { data: librariesData, isLoading: loadingLibraries } =
@@ -135,6 +155,18 @@ function SettingsComponent() {
   const [notifyOnRequestFulfilled, setNotifyOnRequestFulfilled] =
     useState(true);
   const [notifyOnBookQueued, setNotifyOnBookQueued] = useState(false);
+
+  // Email settings state
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [senderEmail, setSenderEmail] = useState("");
+  const [senderName, setSenderName] = useState("");
+  const [useTls, setUseTls] = useState(true);
+  const [newRecipientEmail, setNewRecipientEmail] = useState("");
+  const [newRecipientName, setNewRecipientName] = useState("");
 
   // Sync with fetched settings
   useEffect(() => {
@@ -217,6 +249,19 @@ function SettingsComponent() {
     }
   }, [appriseSettings]);
 
+  useEffect(() => {
+    if (emailSettings) {
+      setEmailEnabled(emailSettings.enabled);
+      setSmtpHost(emailSettings.smtpHost || "");
+      setSmtpPort(emailSettings.smtpPort || 587);
+      setSmtpUser(emailSettings.smtpUser || "");
+      setSmtpPassword(emailSettings.smtpPassword || "");
+      setSenderEmail(emailSettings.senderEmail || "");
+      setSenderName(emailSettings.senderName || "");
+      setUseTls(emailSettings.useTls);
+    }
+  }, [emailSettings]);
+
   const handleSaveApp = () => {
     updateSettings.mutate({
       postDownloadMoveToIngest,
@@ -277,6 +322,60 @@ function SettingsComponent() {
     testApprise.mutate();
   };
 
+  const handleSaveEmail = () => {
+    updateEmail.mutate({
+      enabled: emailEnabled,
+      smtpHost: smtpHost || null,
+      smtpPort,
+      smtpUser: smtpUser || null,
+      smtpPassword: smtpPassword || null,
+      senderEmail: senderEmail || null,
+      senderName: senderName || null,
+      useTls,
+    });
+  };
+
+  const handleTestEmail = () => {
+    // Validate required fields before testing
+    if (!smtpHost) {
+      notifications.show({
+        title: "Missing Configuration",
+        message: "Please enter SMTP host",
+        color: "red",
+      });
+      return;
+    }
+    if (!senderEmail) {
+      notifications.show({
+        title: "Missing Configuration",
+        message: "Please enter sender email",
+        color: "red",
+      });
+      return;
+    }
+
+    // Pass current form values to test connection
+    testEmail.mutate({
+      smtpHost,
+      smtpPort,
+      smtpUser: smtpUser || null,
+      smtpPassword: smtpPassword || null,
+      senderEmail,
+      useTls,
+    });
+  };
+
+  const handleAddRecipient = () => {
+    if (newRecipientEmail) {
+      addRecipient.mutate({
+        email: newRecipientEmail,
+        name: newRecipientName || null,
+      });
+      setNewRecipientEmail("");
+      setNewRecipientName("");
+    }
+  };
+
   const hasAppChanges =
     settings &&
     (settings.postDownloadMoveToIngest !== postDownloadMoveToIngest ||
@@ -323,8 +422,20 @@ function SettingsComponent() {
         )
     : false;
 
-  const isLoading = loadingApp || loadingBooklore || loadingApprise;
-  const isError = errorApp || errorBooklore || errorApprise;
+  const hasEmailChanges = emailSettings
+    ? emailSettings.enabled !== emailEnabled ||
+      (emailSettings.smtpHost || "") !== smtpHost ||
+      emailSettings.smtpPort !== smtpPort ||
+      (emailSettings.smtpUser || "") !== smtpUser ||
+      (emailSettings.smtpPassword || "") !== smtpPassword ||
+      (emailSettings.senderEmail || "") !== senderEmail ||
+      (emailSettings.senderName || "") !== senderName ||
+      emailSettings.useTls !== useTls
+    : emailEnabled; // Allow save if no settings exist yet and email is enabled
+
+  const isLoading =
+    loadingApp || loadingBooklore || loadingApprise || loadingEmail;
+  const isError = errorApp || errorBooklore || errorApprise || errorEmail;
 
   if (isLoading) {
     return (
@@ -376,6 +487,9 @@ function SettingsComponent() {
             </Tabs.Tab>
             <Tabs.Tab value="indexer" leftSection={<IconServer size={16} />}>
               Indexer
+            </Tabs.Tab>
+            <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
+              Email
             </Tabs.Tab>
           </Tabs.List>
 
@@ -1098,6 +1212,193 @@ function SettingsComponent() {
 
           <Tabs.Panel value="indexer" pt="lg">
             <IndexerSettings />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="email" pt="lg">
+            <Stack gap="lg">
+              {/* Email Settings */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Group justify="space-between">
+                    <div>
+                      <Title order={3}>Email Settings</Title>
+                      <Text size="sm" c="dimmed">
+                        Configure SMTP settings to send books via email
+                      </Text>
+                    </div>
+                    <Switch
+                      checked={emailEnabled}
+                      onChange={(e) => setEmailEnabled(e.currentTarget.checked)}
+                      label="Enabled"
+                      size="lg"
+                    />
+                  </Group>
+
+                  {emailEnabled && (
+                    <Stack gap="sm">
+                      <TextInput
+                        label="SMTP Host"
+                        placeholder="smtp.gmail.com"
+                        value={smtpHost}
+                        onChange={(e) => setSmtpHost(e.target.value)}
+                        required
+                      />
+                      <NumberInput
+                        label="SMTP Port"
+                        value={smtpPort}
+                        onChange={(val) => setSmtpPort(Number(val) || 587)}
+                        min={1}
+                        max={65535}
+                      />
+                      <TextInput
+                        label="SMTP Username"
+                        placeholder="user@gmail.com"
+                        value={smtpUser}
+                        onChange={(e) => setSmtpUser(e.target.value)}
+                      />
+                      <PasswordInput
+                        label="SMTP Password"
+                        placeholder="Your SMTP password or app password"
+                        value={smtpPassword}
+                        onChange={(e) => setSmtpPassword(e.target.value)}
+                      />
+                      <TextInput
+                        label="Sender Email"
+                        placeholder="books@example.com"
+                        value={senderEmail}
+                        onChange={(e) => setSenderEmail(e.target.value)}
+                        required
+                      />
+                      <TextInput
+                        label="Sender Name"
+                        placeholder="Book Library"
+                        value={senderName}
+                        onChange={(e) => setSenderName(e.target.value)}
+                      />
+                      <Switch
+                        checked={useTls}
+                        onChange={(e) => setUseTls(e.currentTarget.checked)}
+                        label="Use TLS/STARTTLS"
+                      />
+
+                      <Group justify="flex-end" mt="md">
+                        <Button
+                          variant="outline"
+                          onClick={handleTestEmail}
+                          loading={testEmail.isPending}
+                          disabled={!smtpHost || !senderEmail}
+                        >
+                          Test Connection
+                        </Button>
+                        <Button
+                          onClick={handleSaveEmail}
+                          disabled={!hasEmailChanges}
+                          loading={updateEmail.isPending}
+                        >
+                          Save Settings
+                        </Button>
+                      </Group>
+                    </Stack>
+                  )}
+
+                  {!emailEnabled && (
+                    <>
+                      <Alert icon={<IconInfoCircle size={16} />} color="gray">
+                        <Text size="sm">
+                          Email sending is currently disabled. Enable it above
+                          to configure SMTP settings.
+                        </Text>
+                      </Alert>
+
+                      {/* Show save button if user toggled email off */}
+                      {emailSettings && emailSettings.enabled && (
+                        <Group justify="flex-end">
+                          <Button
+                            onClick={handleSaveEmail}
+                            loading={updateEmail.isPending}
+                          >
+                            Save Settings
+                          </Button>
+                        </Group>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </Paper>
+
+              {/* Email Recipients */}
+              {emailEnabled && (
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Title order={3}>Email Recipients</Title>
+                    <Text size="sm" c="dimmed">
+                      Manage email addresses for sending books
+                    </Text>
+
+                    <Group gap="xs">
+                      <TextInput
+                        placeholder="recipient@example.com"
+                        value={newRecipientEmail}
+                        onChange={(e) => setNewRecipientEmail(e.target.value)}
+                        style={{ flex: 2 }}
+                      />
+                      <TextInput
+                        placeholder="Name (optional)"
+                        value={newRecipientName}
+                        onChange={(e) => setNewRecipientName(e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                      <Button
+                        leftSection={<IconPlus size={14} />}
+                        onClick={handleAddRecipient}
+                        loading={addRecipient.isPending}
+                        disabled={!newRecipientEmail}
+                      >
+                        Add
+                      </Button>
+                    </Group>
+
+                    {emailRecipients && emailRecipients.length > 0 && (
+                      <Stack gap="xs">
+                        {emailRecipients.map((recipient) => (
+                          <Group key={recipient.id} justify="space-between">
+                            <Stack gap={0}>
+                              {recipient.name && (
+                                <Text size="sm" fw={500}>
+                                  {recipient.name}
+                                </Text>
+                              )}
+                              <Text
+                                size="sm"
+                                c={recipient.name ? "dimmed" : undefined}
+                              >
+                                {recipient.email}
+                              </Text>
+                            </Stack>
+                            <ActionIcon
+                              color="red"
+                              variant="light"
+                              onClick={() =>
+                                deleteRecipient.mutate(recipient.id)
+                              }
+                              loading={deleteRecipient.isPending}
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Group>
+                        ))}
+                      </Stack>
+                    )}
+
+                    {(!emailRecipients || emailRecipients.length === 0) && (
+                      <Text size="sm" c="dimmed" fs="italic">
+                        No recipients added yet
+                      </Text>
+                    )}
+                  </Stack>
+                </Paper>
+              )}
+            </Stack>
           </Tabs.Panel>
         </Tabs>
       </Stack>

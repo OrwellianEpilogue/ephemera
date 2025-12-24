@@ -19,6 +19,7 @@ import { bookCleanupService } from "./services/book-cleanup.js";
 import { requestCheckerService } from "./services/request-checker.js";
 import { versionService } from "./services/version.js";
 import { indexerSettingsService } from "./services/indexer-settings.js";
+import { emailSettingsService } from "./services/email-settings.js";
 import searchRoutes from "./routes/search.js";
 import downloadRoutes from "./routes/download.js";
 import queueRoutes from "./routes/queue.js";
@@ -32,6 +33,7 @@ import newznabRoutes from "./routes/newznab.js";
 import sabnzbdRoutes from "./routes/sabnzbd.js";
 import indexerRoutes from "./routes/indexer.js";
 import filesystemRoutes from "./routes/filesystem.js";
+import emailRoutes from "./routes/email.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -91,6 +93,9 @@ await appriseService.initializeDefaults();
 
 // Initialize Indexer settings with defaults
 await indexerSettingsService.getSettings();
+
+// Initialize Email settings with defaults
+await emailSettingsService.initializeDefaults();
 
 // Start Booklore token refresher service
 bookloreTokenRefresher.start();
@@ -152,6 +157,7 @@ app.get(API_BASE_PATH, (c) => {
       requests: `${API_BASE_PATH}/requests`,
       booklore: `${API_BASE_PATH}/booklore/*`,
       apprise: `${API_BASE_PATH}/apprise/*`,
+      email: `${API_BASE_PATH}/email/*`,
       imageProxy: `${API_BASE_PATH}/proxy/image`,
       version: `${API_BASE_PATH}/version`,
       newznab: "/newznab/api",
@@ -174,6 +180,7 @@ app.route(API_BASE_PATH, requestsRoutes);
 app.route(API_BASE_PATH, versionRoutes);
 app.route(API_BASE_PATH, indexerRoutes);
 app.route(API_BASE_PATH, filesystemRoutes);
+app.route(API_BASE_PATH, emailRoutes);
 app.route("/newznab", newznabRoutes);
 app.route("/sabnzbd", sabnzbdRoutes);
 
@@ -220,6 +227,10 @@ app.doc(`${API_BASE_PATH}/openapi.json`, {
       name: "Booklore",
       description:
         "Optional Booklore integration for uploading books to your library",
+    },
+    {
+      name: "Email",
+      description: "Send downloaded books via email to configured recipients",
     },
     {
       name: "Image Proxy",
