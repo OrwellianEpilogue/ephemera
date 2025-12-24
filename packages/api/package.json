@@ -1,6 +1,6 @@
 {
   "name": "@ephemera/api",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "API for Ephemera search and download functionality",
   "type": "module",
   "main": "dist/index.js",

@@ -1,5 +1,18 @@
 # @ephemera/shared
 
+## 1.4.0
+
+### Minor Changes
+
+- - feat: add email sending functionality for downloaded books
+  - fix: stream book downloads and improve error handling
+  - Merge remote-tracking branch 'origin/main' into feat/browser-downloads
+  - Update README to explain AA_API_KEY requirement (#85)
+  - feat: add filter for author and title (#76) (#86)
+  - Update FLARESOLVERR_URL and healthcheck URL (#58)
+  - feat: Add configurable API base path support (#70)
+  - feat: add browser downloads
+
 ## 1.3.1
 
 ### Patch Changes
