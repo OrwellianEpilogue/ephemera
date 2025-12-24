@@ -21,6 +21,7 @@ import { bookCleanupService } from "./services/book-cleanup.js";
 import { requestCheckerService } from "./services/request-checker.js";
 import { versionService } from "./services/version.js";
 import { indexerSettingsService } from "./services/indexer-settings.js";
+import { emailSettingsService } from "./services/email-settings.js";
 import searchRoutes from "./routes/search.js";
 import downloadRoutes from "./routes/download.js";
 import queueRoutes from "./routes/queue.js";
@@ -39,9 +40,21 @@ import setupRoutes from "./routes/setup.js";
 import usersRoutes from "./routes/users.js";
 import oidcProvidersRoutes from "./routes/oidc-providers.js";
 import authRoutes from "./routes/auth.js";
+import emailRoutes from "./routes/email.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Get configurable API base path from environment (default: /api)
+const API_BASE_PATH = (process.env.API_BASE_PATH || "/api")
+  .replace(/\/+$/, "") // Remove trailing slashes
+  .replace(/^([^/])/, "/$1"); // Ensure leading slash
+
+// Optional: Set a base URL for the frontend (useful for iframe embedding or subpath hosting)
+// Example: If hosting at https://example.com/ephemera/, set HTML_BASE_HREF=/ephemera/
+const HTML_BASE_HREF = process.env.HTML_BASE_HREF
+  ? process.env.HTML_BASE_HREF.replace(/([^/])$/, "$1/")
+  : undefined;
 
 // Filter out undici socket errors from stderr
 const originalStderrWrite = process.stderr.write.bind(process.stderr);
@@ -88,6 +101,9 @@ await appriseService.initializeDefaults();
 // Initialize Indexer settings with defaults
 await indexerSettingsService.getSettings();
 
+// Initialize Email settings with defaults
+await emailSettingsService.initializeDefaults();
+
 // Start Booklore token refresher service
 bookloreTokenRefresher.start();
 
@@ -107,7 +123,10 @@ const app = new OpenAPIHono();
 // Custom logger that skips certain requests to reduce log spam
 app.use("*", async (c, next) => {
   // Skip logging for image proxy and queue requests
-  if (c.req.path.includes("/proxy/image") || c.req.path === "/api/queue") {
+  if (
+    c.req.path.includes("/proxy/image") ||
+    c.req.path === `${API_BASE_PATH}/queue`
+  ) {
     return next();
   }
   // Use hono logger for all other requests
@@ -147,31 +166,33 @@ app.onError((err, c) => {
 });
 
 // API info endpoint
-app.get("/api", (c) => {
+app.get(API_BASE_PATH, (c) => {
   return c.json({
     name: "Ephemera API",
     version: "1.1.0",
     description: "API for searching and downloading books from AA",
+    apiBasePath: API_BASE_PATH,
     endpoints: {
-      auth: "/api/auth/*",
-      authMethods: "/api/auth/methods",
-      setup: "/api/setup/*",
-      search: "/api/search",
-      download: "/api/download/:md5",
-      queue: "/api/queue",
-      history: "/api/history",
-      stats: "/api/stats",
-      settings: "/api/settings",
-      requests: "/api/requests",
-      permissions: "/api/permissions",
-      booklore: "/api/booklore/*",
-      apprise: "/api/apprise/*",
-      imageProxy: "/api/proxy/image",
-      version: "/api/version",
+      auth: `${API_BASE_PATH}/auth/*`,
+      authMethods: `${API_BASE_PATH}/auth/methods`,
+      setup: `${API_BASE_PATH}/setup/*`,
+      search: `${API_BASE_PATH}/search`,
+      download: `${API_BASE_PATH}/download/:md5`,
+      queue: `${API_BASE_PATH}/queue`,
+      history: `${API_BASE_PATH}/history`,
+      stats: `${API_BASE_PATH}/stats`,
+      settings: `${API_BASE_PATH}/settings`,
+      requests: `${API_BASE_PATH}/requests`,
+      permissions: `${API_BASE_PATH}/permissions`,
+      booklore: `${API_BASE_PATH}/booklore/*`,
+      apprise: `${API_BASE_PATH}/apprise/*`,
+      email: `${API_BASE_PATH}/email/*`,
+      imageProxy: `${API_BASE_PATH}/proxy/image`,
+      version: `${API_BASE_PATH}/version`,
       newznab: "/newznab/api",
       sabnzbd: "/sabnzbd/api",
-      docs: "/api/docs",
-      openapi: "/api/openapi.json",
+      docs: `${API_BASE_PATH}/docs`,
+      openapi: `${API_BASE_PATH}/openapi.json`,
     },
   });
 });
@@ -206,27 +227,28 @@ app.use("/api/oidc-providers", async (c, next) => {
 });
 
 // Mount API routes
-app.route("/api/setup", setupRoutes); // Public (for initial setup)
-app.route("/api/auth", authRoutes); // Public (for login page)
-app.route("/api", searchRoutes); // Public for now
-app.route("/api", downloadRoutes); // Protected (middleware applied above)
-app.route("/api", queueRoutes); // Protected
-app.route("/api", settingsRoutes); // Admin only
-app.route("/api", bookloreRoutes); // Protected
-app.route("/api", appriseRoutes); // Protected
-app.route("/api", imageProxyRoutes); // Public
-app.route("/api", requestsRoutes); // Protected
-app.route("/api", versionRoutes); // Public
-app.route("/api", indexerRoutes); // Protected
-app.route("/api", filesystemRoutes); // Admin only
-app.route("/api", permissionsRoutes); // Protected
-app.route("/api/users", usersRoutes); // Admin only
-app.route("/api/oidc-providers", oidcProvidersRoutes); // Admin only
+app.route(`${API_BASE_PATH}/setup`, setupRoutes); // Public (for initial setup)
+app.route(`${API_BASE_PATH}/auth`, authRoutes); // Public (for login page)
+app.route(API_BASE_PATH, searchRoutes); // Public for now
+app.route(API_BASE_PATH, downloadRoutes); // Protected (middleware applied above)
+app.route(API_BASE_PATH, queueRoutes); // Protected
+app.route(API_BASE_PATH, settingsRoutes); // Admin only
+app.route(API_BASE_PATH, bookloreRoutes); // Protected
+app.route(API_BASE_PATH, appriseRoutes); // Protected
+app.route(API_BASE_PATH, imageProxyRoutes); // Public
+app.route(API_BASE_PATH, requestsRoutes); // Protected
+app.route(API_BASE_PATH, versionRoutes); // Public
+app.route(API_BASE_PATH, indexerRoutes); // Protected
+app.route(API_BASE_PATH, filesystemRoutes); // Admin only
+app.route(API_BASE_PATH, permissionsRoutes); // Protected
+app.route(API_BASE_PATH, emailRoutes); // Protected
+app.route(`${API_BASE_PATH}/users`, usersRoutes); // Admin only
+app.route(`${API_BASE_PATH}/oidc-providers`, oidcProvidersRoutes); // Admin only
 app.route("/newznab", newznabRoutes); // Public (has API key auth)
 app.route("/sabnzbd", sabnzbdRoutes); // Public (has API key auth)
 
 // OpenAPI documentation
-app.doc("/api/openapi.json", {
+app.doc(`${API_BASE_PATH}/openapi.json`, {
   openapi: "3.1.0",
   info: {
     title: "Ephemera API",
@@ -238,7 +260,7 @@ app.doc("/api/openapi.json", {
   },
   servers: [
     {
-      url: `http://localhost:${process.env.PORT || 3000}`,
+      url: `http://localhost:${process.env.PORT || 3000}${API_BASE_PATH}`,
       description: "Local development server",
     },
   ],
@@ -270,6 +292,10 @@ app.doc("/api/openapi.json", {
         "Optional Booklore integration for uploading books to your library",
     },
     {
+      name: "Email",
+      description: "Send downloaded books via email to configured recipients",
+    },
+    {
       name: "Image Proxy",
       description: "Proxy images from AA to protect client IP addresses",
     },
@@ -281,7 +307,10 @@ app.doc("/api/openapi.json", {
 });
 
 // Swagger UI
-app.get("/api/docs", swaggerUI({ url: "/api/openapi.json" }));
+app.get(
+  `${API_BASE_PATH}/docs`,
+  swaggerUI({ url: `${API_BASE_PATH}/openapi.json` }),
+);
 
 // Health check
 app.get("/health", (c) => {
@@ -309,15 +338,26 @@ if (existsSync(webDistPath)) {
   // SPA fallback - serve index.html for all non-API routes
   app.get("*", (c) => {
     const path = c.req.path;
-    // Skip API routes
-    if (path.startsWith("/api/") || path === "/health") {
+    // Skip API routes and health check
+    if (path.startsWith(`${API_BASE_PATH}/`) || path === "/health") {
       return c.notFound();
     }
 
     // Serve index.html for SPA routing
     const indexPath = join(webDistPath, "index.html");
     if (existsSync(indexPath)) {
-      const html = readFileSync(indexPath, "utf-8");
+      let html = readFileSync(indexPath, "utf-8");
+
+      // Inject API base path as a meta tag for frontend to use
+      let injections = `<meta name="api-base-path" content="${API_BASE_PATH}" />`;
+
+      // Optionally inject HTML <base> tag for iframe embedding or subpath hosting
+      if (HTML_BASE_HREF) {
+        injections = `<base href="${HTML_BASE_HREF}" />\n    ${injections}`;
+      }
+
+      html = html.replace("</head>", `${injections}</head>`);
+
       return c.html(html);
     }
 
@@ -419,13 +459,19 @@ const port = parseInt(process.env.PORT || "3000");
 const host = process.env.HOST || "0.0.0.0";
 
 const servingStatic = existsSync(webDistPath);
+
+// Log API base path configuration if non-default
+if (API_BASE_PATH !== "/api") {
+  logger.info(`Using custom API base path: ${API_BASE_PATH}`);
+}
+
 logger.success(`
 ╔═══════════════════════════════════════════════════╗
 ║                                                   ║
 ║   Ephemera v${versionInfo.currentVersion} is running!${" ".repeat(25 - versionInfo.currentVersion.length)}║
 ║                                                   ║
-${versionInfo.updateAvailable && versionInfo.latestVersion ? `║   📦 Update available: ${versionInfo.latestVersion}${" ".repeat(23 - versionInfo.latestVersion.length)}║\n║                                                   ║\n` : ""}${servingStatic ? `║   Web:     http://${host}:${port}/                   ║\n` : ""}║   API:     http://${host}:${port}/api                ║
-║   Docs:    http://${host}:${port}/api/docs           ║
+${versionInfo.updateAvailable && versionInfo.latestVersion ? `║   📦 Update available: ${versionInfo.latestVersion}${" ".repeat(23 - versionInfo.latestVersion.length)}║\n║                                                   ║\n` : ""}${servingStatic ? `║   Web:     http://${host}:${port}/                   ║\n` : ""}║   API:     http://${host}:${port}${API_BASE_PATH}${" ".repeat(17 - API_BASE_PATH.length)}║
+║   Docs:    http://${host}:${port}${API_BASE_PATH}/docs${" ".repeat(12 - API_BASE_PATH.length)}║
 ║   Health:  http://${host}:${port}/health             ║
 ║                                                   ║
 ╚═══════════════════════════════════════════════════╝

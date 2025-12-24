@@ -1,6 +1,6 @@
 {
   "name": "@ephemera/root",
-  "version": "1.3.1",
+  "version": "1.4.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -51,7 +51,7 @@
     "*.{ts,tsx}": [
       "prettier --write",
       "eslint --fix --max-warnings 0 --no-warn-ignored",
-      "bash -c 'pnpm type-check'"
+      "bash -c 'pnpm --filter @ephemera/shared build && pnpm type-check'"
     ]
   },
   "dependencies": {

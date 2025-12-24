@@ -11,6 +11,7 @@ import {
   Box,
   Button,
   Modal,
+  Menu,
 } from "@mantine/core";
 import {
   IconX,
@@ -19,9 +20,11 @@ import {
   IconCheck,
   IconAlertCircle,
   IconTrash,
+  IconDownload,
   IconWorld,
   IconServer,
   IconApi,
+  IconMail,
 } from "@tabler/icons-react";
 import type { QueueItem } from "@ephemera/shared";
 import { formatDate, formatTime as formatTimeOfDay } from "@ephemera/shared";
@@ -29,10 +32,16 @@ import {
   useCancelDownload,
   useRetryDownload,
   useDeleteDownload,
+  useDownloadFile,
 } from "../hooks/useDownload";
 import { useAppSettings } from "../hooks/useSettings";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { UserBadge } from "./UserBadge";
+import {
+  useEmailSettings,
+  useEmailRecipients,
+  useSendBookEmail,
+} from "../hooks/useEmail";
 import { useState, useEffect, memo } from "react";
 
 interface DownloadItemProps {
@@ -169,9 +178,13 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const cancelDownload = useCancelDownload();
   const retryDownload = useRetryDownload();
   const deleteDownload = useDeleteDownload();
+  const downloadFile = useDownloadFile();
   const { data: settings } = useAppSettings();
   const { isAdmin } = useAuth();
   const { data: permissions } = usePermissions();
+  const { data: emailSettings } = useEmailSettings();
+  const { data: emailRecipients } = useEmailRecipients();
+  const sendEmail = useSendBookEmail();
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
 
   const handleCancel = () => {
@@ -187,10 +200,22 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
     setDeleteModalOpened(false);
   };
 
+  const handleDownload = () => {
+    downloadFile.mutate({
+      md5: item.md5,
+      title: item.title,
+      format: item.format,
+      authors: item.authors,
+      year: item.year,
+      language: item.language,
+    });
+  };
+
   const canCancel = ["queued", "downloading", "delayed"].includes(item.status);
   const canDelete = ["done", "available", "error", "cancelled"].includes(
     item.status,
   );
+  const canDownload = ["done", "available"].includes(item.status);
   const showProgress = item.status === "downloading";
 
   // Check if user has permission to delete/cancel downloads
@@ -245,6 +270,52 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                   </ActionIcon>
                 </Tooltip>
               )}
+              {canDownload && (
+                <Tooltip label="Download file">
+                  <ActionIcon
+                    color="green"
+                    variant="subtle"
+                    onClick={handleDownload}
+                    loading={downloadFile.isPending}
+                  >
+                    <IconDownload size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {canDownload &&
+                emailSettings?.enabled &&
+                emailRecipients &&
+                emailRecipients.length > 0 && (
+                  <Menu shadow="md" width={200}>
+                    <Menu.Target>
+                      <Tooltip label="Send via email">
+                        <ActionIcon
+                          color="blue"
+                          variant="subtle"
+                          loading={sendEmail.isPending}
+                        >
+                          <IconMail size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Label>Send to:</Menu.Label>
+                      {emailRecipients.map((recipient) => (
+                        <Menu.Item
+                          key={recipient.id}
+                          onClick={() =>
+                            sendEmail.mutate({
+                              recipientId: recipient.id,
+                              md5: item.md5,
+                            })
+                          }
+                        >
+                          {recipient.name || recipient.email}
+                        </Menu.Item>
+                      ))}
+                    </Menu.Dropdown>
+                  </Menu>
+                )}
               {canDelete && hasDeletePermission && (
                 <Tooltip label="Delete download">
                   <ActionIcon

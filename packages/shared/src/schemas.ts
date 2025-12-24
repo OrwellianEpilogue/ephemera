@@ -19,7 +19,7 @@ const coerceArray = z
 
 // Search query schema
 export const searchQuerySchema = z.object({
-  q: z.string().min(1).describe("Search query"),
+  q: z.string().describe("Search query").optional(),
   page: z.coerce.number().int().positive().default(1).describe("Page number"),
   sort: z
     .enum(["", ...sortOptions])
@@ -40,13 +40,17 @@ export const searchQuerySchema = z.object({
     .boolean()
     .optional()
     .describe("Search in descriptions and metadata"),
+  author: z.string().optional().describe("Author name"),
+  title: z.string().optional().describe("Book title"),
 });
 
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 
 // Request query params schema (for download requests)
 export const requestQueryParamsSchema = z.object({
-  q: z.string().describe("Search query"),
+  q: z.string().describe("Search query").optional(),
+  author: z.string().optional().describe("Author name"),
+  title: z.string().optional().describe("Book title"),
   sort: z.string().optional().describe("Sort order"),
   content: z
     .union([z.string(), z.array(z.string())])
@@ -890,3 +894,119 @@ export const appriseTestResponseSchema = z.object({
 });
 
 export type AppriseTestResponse = z.infer<typeof appriseTestResponseSchema>;
+
+// Email settings schema
+export const emailSettingsSchema = z.object({
+  id: z.number().describe("Settings ID (always 1)"),
+  enabled: z.boolean().describe("Whether email sending is enabled"),
+  smtpHost: z.string().nullable().describe("SMTP server hostname"),
+  smtpPort: z.number().int().min(1).max(65535).describe("SMTP server port"),
+  smtpUser: z.string().nullable().describe("SMTP username"),
+  smtpPassword: z.string().nullable().describe("SMTP password"),
+  senderEmail: z.string().nullable().describe("Sender email address"),
+  senderName: z.string().nullable().describe("Sender display name"),
+  useTls: z.boolean().describe("Whether to use TLS/STARTTLS"),
+  updatedAt: z.string().datetime().describe("When settings were last updated"),
+});
+
+export type EmailSettings = z.infer<typeof emailSettingsSchema>;
+
+// Email settings update request schema
+export const updateEmailSettingsSchema = z.object({
+  enabled: z.boolean().optional().describe("Enable/disable email sending"),
+  smtpHost: z.string().nullable().optional().describe("SMTP server hostname"),
+  smtpPort: z
+    .number()
+    .int()
+    .min(1)
+    .max(65535)
+    .optional()
+    .describe("SMTP server port"),
+  smtpUser: z.string().nullable().optional().describe("SMTP username"),
+  smtpPassword: z.string().nullable().optional().describe("SMTP password"),
+  senderEmail: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Sender email address"),
+  senderName: z.string().nullable().optional().describe("Sender display name"),
+  useTls: z.boolean().optional().describe("Whether to use TLS/STARTTLS"),
+});
+
+export type UpdateEmailSettings = z.infer<typeof updateEmailSettingsSchema>;
+
+// Email recipient schema
+export const emailRecipientSchema = z.object({
+  id: z.number().describe("Recipient ID"),
+  email: z.string().email().describe("Recipient email address"),
+  name: z.string().nullable().describe("Recipient display name"),
+  autoSend: z.boolean().describe("Auto-send books when download completes"),
+  createdAt: z.string().datetime().describe("When recipient was added"),
+});
+
+export type EmailRecipient = z.infer<typeof emailRecipientSchema>;
+
+// Email recipient create schema
+export const emailRecipientCreateSchema = z.object({
+  email: z.string().email().describe("Recipient email address"),
+  name: z.string().nullable().optional().describe("Recipient display name"),
+  autoSend: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Auto-send books when download completes"),
+});
+
+export type EmailRecipientCreate = z.infer<typeof emailRecipientCreateSchema>;
+
+// Email recipient update schema
+export const emailRecipientUpdateSchema = z.object({
+  email: z.string().email().optional().describe("Recipient email address"),
+  name: z.string().nullable().optional().describe("Recipient display name"),
+  autoSend: z
+    .boolean()
+    .optional()
+    .describe("Auto-send books when download completes"),
+});
+
+export type EmailRecipientUpdate = z.infer<typeof emailRecipientUpdateSchema>;
+
+// Send email request schema
+export const sendEmailRequestSchema = z.object({
+  recipientId: z.number().int().positive().describe("ID of the recipient"),
+  md5: z
+    .string()
+    .regex(/^[a-f0-9]{32}$/)
+    .describe("MD5 hash of the book to send"),
+});
+
+export type SendEmailRequest = z.infer<typeof sendEmailRequestSchema>;
+
+// Send email response schema
+export const sendEmailResponseSchema = z.object({
+  success: z.boolean().describe("Whether email was sent successfully"),
+  message: z.string().describe("Result message"),
+});
+
+export type SendEmailResponse = z.infer<typeof sendEmailResponseSchema>;
+
+// Email test request schema (for testing before saving)
+export const emailTestRequestSchema = z.object({
+  smtpHost: z.string().min(1).describe("SMTP server hostname"),
+  smtpPort: z.number().int().min(1).max(65535).describe("SMTP server port"),
+  smtpUser: z.string().nullable().optional().describe("SMTP username"),
+  smtpPassword: z.string().nullable().optional().describe("SMTP password"),
+  senderEmail: z.string().email().describe("Sender email address"),
+  useTls: z.boolean().describe("Whether to use TLS/STARTTLS"),
+});
+
+export type EmailTestRequest = z.infer<typeof emailTestRequestSchema>;
+
+// Email test response schema
+export const emailTestResponseSchema = z.object({
+  success: z.boolean().describe("Whether SMTP connection test passed"),
+  message: z.string().describe("Result message"),
+  error: z.string().optional().describe("Error details if failed"),
+});
+
+export type EmailTestResponse = z.infer<typeof emailTestResponseSchema>;

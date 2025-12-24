@@ -24,6 +24,8 @@ function convertToSearchQuery(params: RequestQueryParams): SearchQuery {
 
   return {
     q: params.q || "",
+    author: params.author,
+    title: params.title,
     page: 1, // Always check first page for requests
     sort: params.sort as SearchQuery["sort"],
     content: toArray(params.content),
@@ -106,6 +108,8 @@ class RequestCheckerService {
               // Send Apprise notification
               await appriseService.send("request_fulfilled", {
                 query: request.queryParams.q,
+                author: request.queryParams.author,
+                title: request.queryParams.title,
                 bookTitle: firstBook.title,
                 bookAuthors: firstBook.authors,
                 bookMd5: firstBook.md5,

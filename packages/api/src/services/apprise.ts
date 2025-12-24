@@ -347,12 +347,22 @@ class AppriseService {
           type: "info",
         };
 
-      case "request_fulfilled":
+      case "request_fulfilled": {
+        // Build request description from available fields
+        let requestDescription = data.query as string;
+        if (!requestDescription) {
+          const parts = [];
+          if (data.title) parts.push(`Title: "${data.title}"`);
+          if (data.author) parts.push(`Author: ${data.author}`);
+          requestDescription = parts.join(", ") || "unknown query";
+        }
+
         return {
           title: "Ephemera: Request Fulfilled",
-          body: `Found and queued: ${formatBookInfo((data.bookTitle as string) || "Unknown book", (data.bookAuthors || data.authors) as string | string[])}\nRequest: ${data.query || "unknown query"}`,
+          body: `Found and queued: ${formatBookInfo((data.bookTitle as string) || "Unknown book", (data.bookAuthors || data.authors) as string | string[])}\nRequest: ${requestDescription}`,
           type: "success",
         };
+      }
 
       case "book_queued":
         return {

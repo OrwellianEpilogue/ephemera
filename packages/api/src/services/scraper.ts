@@ -410,11 +410,34 @@ export class AAScraper {
   private buildSearchUrl(query: SearchQuery): string {
     const params = new URLSearchParams();
 
-    params.append("q", query.q);
-    params.append("page", query.page.toString());
+    // Check if we're doing an advanced search (author or title present)
+    if (query.author || query.title) {
+      params.append("index", "");
+      params.append("page", query.page.toString());
+      params.append("sort", query.sort || "");
 
-    if (query.sort) {
-      params.append("sort", query.sort);
+      let termIndex = 1;
+      if (query.author) {
+        params.append(`termtype_${termIndex}`, "author");
+        params.append(`termval_${termIndex}`, query.author);
+        termIndex++;
+      }
+      if (query.title) {
+        params.append(`termtype_${termIndex}`, "title");
+        params.append(`termval_${termIndex}`, query.title);
+        termIndex++;
+      }
+
+      params.append("display", "");
+      params.append("q", query.q || "");
+    } else {
+      // Standard search
+      params.append("q", query.q || "");
+      params.append("page", query.page.toString());
+
+      if (query.sort) {
+        params.append("sort", query.sort);
+      }
     }
 
     if (query.desc) {

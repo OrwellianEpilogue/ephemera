@@ -9,6 +9,8 @@ import { appSettingsService } from "./app-settings.js";
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
 import { indexerSettingsService } from "./indexer-settings.js";
+import { emailSettingsService } from "./email-settings.js";
+import { emailService } from "./email.js";
 import type {
   QueueResponse,
   QueueItem,
@@ -539,6 +541,36 @@ export class QueueManager extends EventEmitter {
             : result.filePath,
         format: download.format,
       });
+
+      // Auto-send to recipients with auto-send enabled
+      try {
+        const isEmailEnabled = await emailSettingsService.isEnabled();
+        if (isEmailEnabled) {
+          const autoSendRecipients =
+            await emailSettingsService.getAutoSendRecipients();
+          for (const recipient of autoSendRecipients) {
+            try {
+              logger.info(
+                `[Auto-Email] Sending "${title}" to ${recipient.email}`,
+              );
+              await emailService.sendBook(recipient.id, md5);
+              logger.success(
+                `[Auto-Email] Sent "${title}" to ${recipient.email}`,
+              );
+            } catch (emailError) {
+              logger.error(
+                `[Auto-Email] Failed to send to ${recipient.email}:`,
+                emailError,
+              );
+            }
+          }
+        }
+      } catch (emailError) {
+        logger.error(
+          "[Auto-Email] Error checking auto-send recipients:",
+          emailError,
+        );
+      }
     } catch (error: unknown) {
       const errorMsg = getErrorMessage(error);
       logger.error(`Failed to complete post-download action:`, error);
