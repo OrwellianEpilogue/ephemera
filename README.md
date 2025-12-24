@@ -172,6 +172,43 @@ All other settings have sensible defaults, but you can override them:
 | `RETRY_ATTEMPTS`   | `3`                     | Download retries       |
 | `REQUEST_TIMEOUT`  | `30000`                 | API timeout (ms)       |
 | `SEARCH_CACHE_TTL` | `300`                   | Search cache (seconds) |
+| `API_BASE_PATH`    | `/api`                  | API base path          |
+| `HTML_BASE_HREF`   | `empty`                 | HTML base href (iframes) |
+
+### Advanced: Configurable API Base Path
+
+Ephemera supports hosting behind a proxy or at a subpath by configuring the API base path:
+
+**Use Cases:**
+- Hosting behind a reverse proxy with a custom path
+- Embedding in an iframe with a different base path
+- Running multiple instances with different API paths
+
+**Configuration:**
+
+```yaml
+environment:
+  # Change API base path from /api to /api/v1
+  API_BASE_PATH: /api/v1
+
+  # Optional: Set HTML base href for iframe embedding
+  # Must end with trailing slash
+  HTML_BASE_HREF: /ephemera/
+```
+
+**Examples:**
+
+| Scenario | API_BASE_PATH | HTML_BASE_HREF | Result |
+|----------|---------------|----------------|--------|
+| Default | `/api` | (empty) | Standard setup |
+| Subpath hosting | `/ephemera/api` | `/ephemera/` | Hosting at `/ephemera/` |
+| Versioned API | `/api/v1` | (empty) | API at `/api/v1/*` |
+| Iframe embed | `/api` | `/app/` | UI embedded at `/app/` |
+
+**Notes:**
+- The frontend automatically detects the API base path from the backend
+- Backward compatible - existing deployments continue working with default `/api`
+- Both development and production environments support custom paths
 
 ## Monorepo Structure
 
@@ -446,17 +483,21 @@ const data = await client.get("/api/new-endpoint");
 
 ## Proxy Configuration
 
-The frontend proxies `/api/*` requests to the backend during development:
+The frontend proxies API requests to the backend during development. The base path is configurable via the `API_BASE_PATH` environment variable (defaults to `/api`):
 
 ```typescript
 // vite.config.ts
+const API_BASE_PATH = process.env.API_BASE_PATH || '/api';
+
 proxy: {
-  '/api': {
+  [API_BASE_PATH]: {
     target: 'http://localhost:8286',
     changeOrigin: true,
   },
 }
 ```
+
+To use a custom API base path during development, set the `API_BASE_PATH` environment variable before running `pnpm dev`.
 
 ## License
 
