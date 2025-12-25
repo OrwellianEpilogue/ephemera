@@ -228,7 +228,25 @@ app.use(
   requireAuth,
   requirePermission("canConfigureIntegrations"),
 );
-app.use("/api/email/*", requireAuth, requirePermission("canConfigureEmail"));
+// Email routes: recipients are user-managed, settings require permission
+app.use("/api/email/*", async (c, next) => {
+  const path = c.req.path;
+  const method = c.req.method;
+  // Recipients routes - any authenticated user can manage their own
+  if (path.includes("/recipients") || path === "/api/email/send") {
+    await requireAuth(c, next);
+    return;
+  }
+  // GET settings is allowed for all (to check if email is enabled)
+  if (path === "/api/email/settings" && method === "GET") {
+    await requireAuth(c, next);
+    return;
+  }
+  // PUT settings and test require canConfigureEmail permission
+  await requireAuth(c, async () => {
+    await requirePermission("canConfigureEmail")(c, next);
+  });
+});
 
 // General settings require canConfigureApp permission
 app.use("/api/settings/*", requireAuth, requirePermission("canConfigureApp"));

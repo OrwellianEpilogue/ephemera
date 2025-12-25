@@ -101,12 +101,12 @@ export const useEmailRecipients = (options?: { enabled?: boolean }) => {
   });
 };
 
-// Add email recipient
+// Add email recipient (admin can optionally specify userId to add for another user)
 export const useAddEmailRecipient = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: EmailRecipientCreate) => {
+    mutationFn: async (data: EmailRecipientCreate & { userId?: string }) => {
       return apiFetch<EmailRecipient>("/email/recipients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -208,6 +208,39 @@ export const useSendBookEmail = () => {
       notifications.show({
         title: "Send Failed",
         message: getErrorMessage(error) || "Failed to send email",
+        color: "red",
+      });
+    },
+  });
+};
+
+// Reassign email recipient to another user (admin only)
+export const useReassignEmailRecipient = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { recipientId: number; userId: string }) => {
+      return apiFetch<EmailRecipient>(
+        `/email/recipients/${data.recipientId}/reassign`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: data.userId }),
+        },
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: emailKeys.recipients });
+      notifications.show({
+        title: "Recipient Reassigned",
+        message: "Email recipient has been reassigned successfully",
+        color: "green",
+      });
+    },
+    onError: (error: unknown) => {
+      notifications.show({
+        title: "Reassign Failed",
+        message: getErrorMessage(error) || "Failed to reassign email recipient",
         color: "red",
       });
     },

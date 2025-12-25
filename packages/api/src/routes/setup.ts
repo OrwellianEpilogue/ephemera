@@ -270,6 +270,12 @@ app.openapi(postStep2Route, async (c) => {
       canConfigureEmail: true,
     });
 
+    // Migrate any orphan email recipients to the new admin user
+    const { emailSettingsService } = await import(
+      "../services/email-settings.js"
+    );
+    await emailSettingsService.migrateOrphanRecipients(userId);
+
     return c.json({ success: true }, 200);
   } catch (error) {
     console.error("[Setup Step 2] Error:", error);

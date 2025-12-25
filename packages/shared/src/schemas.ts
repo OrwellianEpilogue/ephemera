@@ -941,7 +941,19 @@ export const emailRecipientSchema = z.object({
   email: z.string().email().describe("Recipient email address"),
   name: z.string().nullable().describe("Recipient display name"),
   autoSend: z.boolean().describe("Auto-send books when download completes"),
+  userId: z.string().nullable().optional().describe("Owner user ID"),
   createdAt: z.string().datetime().describe("When recipient was added"),
+  // Admin view extras
+  userName: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Owner user name (admin view)"),
+  userEmail: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Owner user email (admin view)"),
 });
 
 export type EmailRecipient = z.infer<typeof emailRecipientSchema>;

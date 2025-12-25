@@ -542,12 +542,13 @@ export class QueueManager extends EventEmitter {
         format: download.format,
       });
 
-      // Auto-send to recipients with auto-send enabled
+      // Auto-send to the downloader's recipients with auto-send enabled
       try {
         const isEmailEnabled = await emailSettingsService.isEnabled();
-        if (isEmailEnabled) {
+        if (isEmailEnabled && download.userId) {
+          // Only send to the downloader's own email recipients with auto-send enabled
           const autoSendRecipients =
-            await emailSettingsService.getAutoSendRecipients();
+            await emailSettingsService.getAutoSendRecipients(download.userId);
           for (const recipient of autoSendRecipients) {
             try {
               logger.info(

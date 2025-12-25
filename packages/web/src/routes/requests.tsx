@@ -165,7 +165,6 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
             <UserBadge
               userId={request.userId}
               userName={request.userName}
-              userEmail={request.userEmail}
               size="sm"
             />
           </Group>

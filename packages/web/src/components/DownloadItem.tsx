@@ -180,7 +180,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const deleteDownload = useDeleteDownload();
   const downloadFile = useDownloadFile();
   const { data: settings } = useAppSettings();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { data: permissions } = usePermissions();
   const { data: emailSettings } = useEmailSettings();
   const { data: emailRecipients } = useEmailRecipients();
@@ -282,11 +282,37 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                   </ActionIcon>
                 </Tooltip>
               )}
+              {/* Email button - only show if user has recipients */}
               {canDownload &&
                 emailSettings?.enabled &&
                 emailRecipients &&
-                emailRecipients.length > 0 && (
-                  <Menu shadow="md" width={200}>
+                emailRecipients.length === 1 &&
+                emailRecipients[0] && (
+                  // Single recipient - direct send without dropdown
+                  <Tooltip
+                    label={`Send to ${emailRecipients[0].name || emailRecipients[0].email}`}
+                  >
+                    <ActionIcon
+                      color="blue"
+                      variant="subtle"
+                      loading={sendEmail.isPending}
+                      onClick={() =>
+                        sendEmail.mutate({
+                          recipientId: emailRecipients[0]!.id,
+                          md5: item.md5,
+                        })
+                      }
+                    >
+                      <IconMail size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
+              {canDownload &&
+                emailSettings?.enabled &&
+                emailRecipients &&
+                emailRecipients.length > 1 && (
+                  // Multiple recipients - show dropdown
+                  <Menu shadow="md" width={250}>
                     <Menu.Target>
                       <Tooltip label="Send via email">
                         <ActionIcon
@@ -300,19 +326,68 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                     </Menu.Target>
                     <Menu.Dropdown>
                       <Menu.Label>Send to:</Menu.Label>
-                      {emailRecipients.map((recipient) => (
-                        <Menu.Item
-                          key={recipient.id}
-                          onClick={() =>
-                            sendEmail.mutate({
-                              recipientId: recipient.id,
-                              md5: item.md5,
-                            })
-                          }
-                        >
-                          {recipient.name || recipient.email}
-                        </Menu.Item>
-                      ))}
+                      {/* For admins: show own emails first, then divider, then others */}
+                      {isAdmin ? (
+                        <>
+                          {/* Own emails first */}
+                          {emailRecipients
+                            .filter((r) => r.userId === user?.id)
+                            .map((recipient) => (
+                              <Menu.Item
+                                key={recipient.id}
+                                onClick={() =>
+                                  sendEmail.mutate({
+                                    recipientId: recipient.id,
+                                    md5: item.md5,
+                                  })
+                                }
+                              >
+                                {recipient.name || recipient.email}
+                              </Menu.Item>
+                            ))}
+                          {/* Divider if there are other users' emails */}
+                          {emailRecipients.some((r) => r.userId !== user?.id) &&
+                            emailRecipients.some(
+                              (r) => r.userId === user?.id,
+                            ) && <Menu.Divider />}
+                          {/* Other users' emails with username */}
+                          {emailRecipients
+                            .filter((r) => r.userId !== user?.id)
+                            .map((recipient) => (
+                              <Menu.Item
+                                key={recipient.id}
+                                onClick={() =>
+                                  sendEmail.mutate({
+                                    recipientId: recipient.id,
+                                    md5: item.md5,
+                                  })
+                                }
+                              >
+                                {recipient.name || recipient.email}
+                                {recipient.userName && (
+                                  <Text span size="xs" c="dimmed" ml={4}>
+                                    ({recipient.userName})
+                                  </Text>
+                                )}
+                              </Menu.Item>
+                            ))}
+                        </>
+                      ) : (
+                        /* Regular users just see their own emails */
+                        emailRecipients.map((recipient) => (
+                          <Menu.Item
+                            key={recipient.id}
+                            onClick={() =>
+                              sendEmail.mutate({
+                                recipientId: recipient.id,
+                                md5: item.md5,
+                              })
+                            }
+                          >
+                            {recipient.name || recipient.email}
+                          </Menu.Item>
+                        ))
+                      )}
                     </Menu.Dropdown>
                   </Menu>
                 )}

@@ -20,6 +20,8 @@ import {
   Checkbox,
   ActionIcon,
   Tabs,
+  Menu,
+  Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -34,6 +36,7 @@ import {
   IconUsers,
   IconMail,
   IconUser,
+  IconUserShare,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -61,6 +64,15 @@ import { IndexerSettings } from "../components/IndexerSettings";
 import { useIndexerSettings } from "../hooks/use-indexer-settings";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { lazy, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@ephemera/shared";
+
+// Minimal User type for reassignment dropdown
+interface UserBasic {
+  id: string;
+  name: string;
+  email: string;
+}
 import {
   useEmailSettings,
   useUpdateEmailSettings,
@@ -69,6 +81,7 @@ import {
   useAddEmailRecipient,
   useDeleteEmailRecipient,
   useUpdateEmailRecipient,
+  useReassignEmailRecipient,
 } from "../hooks/useEmail";
 
 // Lazy load heavy components
@@ -120,7 +133,7 @@ function SettingsComponent() {
       case "indexer":
         return !!canConfigureIntegrations;
       case "email":
-        return !!canConfigureEmail;
+        return true; // All users can access email tab to manage their own recipients
       default:
         return false;
     }
@@ -164,14 +177,16 @@ function SettingsComponent() {
   const { data: indexerSettings } = useIndexerSettings({
     enabled: canConfigureIntegrations,
   });
+  // Email settings - all users can read to check if enabled
   const {
     data: emailSettings,
     isLoading: loadingEmail,
     isError: errorEmail,
-  } = useEmailSettings({ enabled: canConfigureEmail });
-  const { data: emailRecipients } = useEmailRecipients({
-    enabled: canConfigureEmail,
-  });
+  } = useEmailSettings();
+  // Email recipients - all users can manage their own, admins see all
+  const { data: emailRecipients } = useEmailRecipients();
+  // Check if email is properly configured (enabled with SMTP settings)
+  const isEmailConfigured = emailSettings?.enabled && emailSettings?.smtpHost;
   const updateSettings = useUpdateAppSettings();
   const updateBooklore = useUpdateBookloreSettings();
   const updateApprise = useUpdateAppriseSettings();
@@ -182,6 +197,14 @@ function SettingsComponent() {
   const addRecipient = useAddEmailRecipient();
   const deleteRecipient = useDeleteEmailRecipient();
   const updateRecipient = useUpdateEmailRecipient();
+  const reassignRecipient = useReassignEmailRecipient();
+
+  // Fetch users list for admin reassignment
+  const { data: allUsers } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => apiFetch<UserBasic[]>("/users"),
+    enabled: isAdmin,
+  });
 
   // Fetch libraries after authentication
   const { data: librariesData, isLoading: loadingLibraries } =
@@ -612,11 +635,10 @@ function SettingsComponent() {
                 </Tabs.Tab>
               </>
             )}
-            {canConfigureEmail && (
-              <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
-                Email
-              </Tabs.Tab>
-            )}
+            {/* Email tab accessible to all users for managing their own recipients */}
+            <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
+              Email
+            </Tabs.Tab>
             {isAdmin && (
               <>
                 <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
@@ -1368,201 +1390,268 @@ function SettingsComponent() {
 
           <Tabs.Panel value="email" pt="lg">
             <Stack gap="lg">
-              {/* Email Settings */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <div>
-                      <Title order={3}>Email Settings</Title>
-                      <Text size="sm" c="dimmed">
-                        Configure SMTP settings to send books via email
-                      </Text>
-                    </div>
-                    <Switch
-                      checked={emailEnabled}
-                      onChange={(e) => setEmailEnabled(e.currentTarget.checked)}
-                      label="Enabled"
-                      size="lg"
-                    />
-                  </Group>
-
-                  {emailEnabled && (
-                    <Stack gap="sm">
-                      <TextInput
-                        label="SMTP Host"
-                        placeholder="smtp.gmail.com"
-                        value={smtpHost}
-                        onChange={(e) => setSmtpHost(e.target.value)}
-                        required
-                      />
-                      <NumberInput
-                        label="SMTP Port"
-                        value={smtpPort}
-                        onChange={(val) => setSmtpPort(Number(val) || 587)}
-                        min={1}
-                        max={65535}
-                      />
-                      <TextInput
-                        label="SMTP Username"
-                        placeholder="user@gmail.com"
-                        value={smtpUser}
-                        onChange={(e) => setSmtpUser(e.target.value)}
-                      />
-                      <PasswordInput
-                        label="SMTP Password"
-                        placeholder="Your SMTP password or app password"
-                        value={smtpPassword}
-                        onChange={(e) => setSmtpPassword(e.target.value)}
-                      />
-                      <TextInput
-                        label="Sender Email"
-                        placeholder="books@example.com"
-                        value={senderEmail}
-                        onChange={(e) => setSenderEmail(e.target.value)}
-                        required
-                      />
-                      <TextInput
-                        label="Sender Name"
-                        placeholder="Book Library"
-                        value={senderName}
-                        onChange={(e) => setSenderName(e.target.value)}
-                      />
-                      <Switch
-                        checked={useTls}
-                        onChange={(e) => setUseTls(e.currentTarget.checked)}
-                        label="Use TLS/STARTTLS"
-                      />
-
-                      <Group justify="flex-end" mt="md">
-                        <Button
-                          variant="outline"
-                          onClick={handleTestEmail}
-                          loading={testEmail.isPending}
-                          disabled={!smtpHost || !senderEmail}
-                        >
-                          Test Connection
-                        </Button>
-                        <Button
-                          onClick={handleSaveEmail}
-                          disabled={!hasEmailChanges}
-                          loading={updateEmail.isPending}
-                        >
-                          Save Settings
-                        </Button>
-                      </Group>
-                    </Stack>
-                  )}
-
-                  {!emailEnabled && (
-                    <>
-                      <Alert icon={<IconInfoCircle size={16} />} color="gray">
-                        <Text size="sm">
-                          Email sending is currently disabled. Enable it above
-                          to configure SMTP settings.
+              {/* SMTP Settings - Only for users with canConfigureEmail permission */}
+              {canConfigureEmail && (
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Group justify="space-between">
+                      <div>
+                        <Title order={3}>Email Settings</Title>
+                        <Text size="sm" c="dimmed">
+                          Configure SMTP settings to send books via email
                         </Text>
-                      </Alert>
+                      </div>
+                      <Switch
+                        checked={emailEnabled}
+                        onChange={(e) =>
+                          setEmailEnabled(e.currentTarget.checked)
+                        }
+                        label="Enabled"
+                        size="lg"
+                      />
+                    </Group>
 
-                      {/* Show save button if user toggled email off */}
-                      {emailSettings && emailSettings.enabled && (
-                        <Group justify="flex-end">
+                    {emailEnabled && (
+                      <Stack gap="sm">
+                        <TextInput
+                          label="SMTP Host"
+                          placeholder="smtp.gmail.com"
+                          value={smtpHost}
+                          onChange={(e) => setSmtpHost(e.target.value)}
+                          required
+                        />
+                        <NumberInput
+                          label="SMTP Port"
+                          value={smtpPort}
+                          onChange={(val) => setSmtpPort(Number(val) || 587)}
+                          min={1}
+                          max={65535}
+                        />
+                        <TextInput
+                          label="SMTP Username"
+                          placeholder="user@gmail.com"
+                          value={smtpUser}
+                          onChange={(e) => setSmtpUser(e.target.value)}
+                        />
+                        <PasswordInput
+                          label="SMTP Password"
+                          placeholder="Your SMTP password or app password"
+                          value={smtpPassword}
+                          onChange={(e) => setSmtpPassword(e.target.value)}
+                        />
+                        <TextInput
+                          label="Sender Email"
+                          placeholder="books@example.com"
+                          value={senderEmail}
+                          onChange={(e) => setSenderEmail(e.target.value)}
+                          required
+                        />
+                        <TextInput
+                          label="Sender Name"
+                          placeholder="Book Library"
+                          value={senderName}
+                          onChange={(e) => setSenderName(e.target.value)}
+                        />
+                        <Switch
+                          checked={useTls}
+                          onChange={(e) => setUseTls(e.currentTarget.checked)}
+                          label="Use TLS/STARTTLS"
+                        />
+
+                        <Group justify="flex-end" mt="md">
+                          <Button
+                            variant="outline"
+                            onClick={handleTestEmail}
+                            loading={testEmail.isPending}
+                            disabled={!smtpHost || !senderEmail}
+                          >
+                            Test Connection
+                          </Button>
                           <Button
                             onClick={handleSaveEmail}
+                            disabled={!hasEmailChanges}
                             loading={updateEmail.isPending}
                           >
                             Save Settings
                           </Button>
                         </Group>
+                      </Stack>
+                    )}
+
+                    {!emailEnabled && (
+                      <>
+                        <Alert icon={<IconInfoCircle size={16} />} color="gray">
+                          <Text size="sm">
+                            Email sending is currently disabled. Enable it above
+                            to configure SMTP settings.
+                          </Text>
+                        </Alert>
+
+                        {/* Show save button if user toggled email off */}
+                        {emailSettings && emailSettings.enabled && (
+                          <Group justify="flex-end">
+                            <Button
+                              onClick={handleSaveEmail}
+                              loading={updateEmail.isPending}
+                            >
+                              Save Settings
+                            </Button>
+                          </Group>
+                        )}
+                      </>
+                    )}
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* Email Recipients - All users can manage their own recipients */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <div>
+                    <Title order={3}>Email Recipients</Title>
+                    <Text size="sm" c="dimmed">
+                      {isAdmin
+                        ? "Manage email addresses for all users"
+                        : "Manage your email addresses for sending books"}
+                    </Text>
+                  </div>
+
+                  {/* Show notice if email is not configured */}
+                  {!isEmailConfigured && (
+                    <Alert icon={<IconInfoCircle size={16} />} color="yellow">
+                      <Text size="sm">
+                        Email sending is not configured yet.{" "}
+                        {canConfigureEmail
+                          ? "Enable email in the settings above to add recipients."
+                          : "An administrator needs to configure SMTP settings before you can add email recipients."}
+                      </Text>
+                    </Alert>
+                  )}
+
+                  {/* Only show form when email is configured */}
+                  {isEmailConfigured && (
+                    <>
+                      <Group gap="xs">
+                        <TextInput
+                          placeholder="recipient@example.com"
+                          value={newRecipientEmail}
+                          onChange={(e) => setNewRecipientEmail(e.target.value)}
+                          style={{ flex: 2 }}
+                        />
+                        <TextInput
+                          placeholder="Name (optional)"
+                          value={newRecipientName}
+                          onChange={(e) => setNewRecipientName(e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <Button
+                          leftSection={<IconPlus size={14} />}
+                          onClick={handleAddRecipient}
+                          loading={addRecipient.isPending}
+                          disabled={!newRecipientEmail}
+                        >
+                          Add
+                        </Button>
+                      </Group>
+
+                      {emailRecipients && emailRecipients.length > 0 && (
+                        <Stack gap="xs">
+                          {emailRecipients.map((recipient) => (
+                            <Group key={recipient.id} justify="space-between">
+                              <Stack gap={0}>
+                                <Group gap="xs">
+                                  {recipient.name && (
+                                    <Text size="sm" fw={500}>
+                                      {recipient.name}
+                                    </Text>
+                                  )}
+                                  {/* Show owner for admins */}
+                                  {isAdmin && recipient.userName && (
+                                    <Text size="xs" c="dimmed">
+                                      ({recipient.userName})
+                                    </Text>
+                                  )}
+                                </Group>
+                                <Text
+                                  size="sm"
+                                  c={recipient.name ? "dimmed" : undefined}
+                                >
+                                  {recipient.email}
+                                </Text>
+                              </Stack>
+                              <Group gap="sm">
+                                <Switch
+                                  size="xs"
+                                  label="Auto-send"
+                                  checked={recipient.autoSend}
+                                  onChange={(e) =>
+                                    updateRecipient.mutate({
+                                      id: recipient.id,
+                                      autoSend: e.currentTarget.checked,
+                                    })
+                                  }
+                                />
+                                {/* Reassign menu for admins */}
+                                {isAdmin && allUsers && allUsers.length > 1 && (
+                                  <Menu shadow="md" width={200}>
+                                    <Menu.Target>
+                                      <Tooltip label="Reassign to user">
+                                        <ActionIcon
+                                          color="blue"
+                                          variant="light"
+                                          loading={reassignRecipient.isPending}
+                                        >
+                                          <IconUserShare size={16} />
+                                        </ActionIcon>
+                                      </Tooltip>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                      <Menu.Label>Reassign to:</Menu.Label>
+                                      {allUsers
+                                        .filter(
+                                          (u) => u.id !== recipient.userId,
+                                        )
+                                        .map((u) => (
+                                          <Menu.Item
+                                            key={u.id}
+                                            onClick={() =>
+                                              reassignRecipient.mutate({
+                                                recipientId: recipient.id,
+                                                userId: u.id,
+                                              })
+                                            }
+                                          >
+                                            {u.name || u.email}
+                                          </Menu.Item>
+                                        ))}
+                                    </Menu.Dropdown>
+                                  </Menu>
+                                )}
+                                <ActionIcon
+                                  color="red"
+                                  variant="light"
+                                  onClick={() =>
+                                    deleteRecipient.mutate(recipient.id)
+                                  }
+                                  loading={deleteRecipient.isPending}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Group>
+                            </Group>
+                          ))}
+                        </Stack>
+                      )}
+
+                      {(!emailRecipients || emailRecipients.length === 0) && (
+                        <Text size="sm" c="dimmed" fs="italic">
+                          No recipients added yet
+                        </Text>
                       )}
                     </>
                   )}
                 </Stack>
               </Paper>
-
-              {/* Email Recipients */}
-              {emailEnabled && (
-                <Paper p="md" withBorder>
-                  <Stack gap="md">
-                    <Title order={3}>Email Recipients</Title>
-                    <Text size="sm" c="dimmed">
-                      Manage email addresses for sending books
-                    </Text>
-
-                    <Group gap="xs">
-                      <TextInput
-                        placeholder="recipient@example.com"
-                        value={newRecipientEmail}
-                        onChange={(e) => setNewRecipientEmail(e.target.value)}
-                        style={{ flex: 2 }}
-                      />
-                      <TextInput
-                        placeholder="Name (optional)"
-                        value={newRecipientName}
-                        onChange={(e) => setNewRecipientName(e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                      <Button
-                        leftSection={<IconPlus size={14} />}
-                        onClick={handleAddRecipient}
-                        loading={addRecipient.isPending}
-                        disabled={!newRecipientEmail}
-                      >
-                        Add
-                      </Button>
-                    </Group>
-
-                    {emailRecipients && emailRecipients.length > 0 && (
-                      <Stack gap="xs">
-                        {emailRecipients.map((recipient) => (
-                          <Group key={recipient.id} justify="space-between">
-                            <Stack gap={0}>
-                              {recipient.name && (
-                                <Text size="sm" fw={500}>
-                                  {recipient.name}
-                                </Text>
-                              )}
-                              <Text
-                                size="sm"
-                                c={recipient.name ? "dimmed" : undefined}
-                              >
-                                {recipient.email}
-                              </Text>
-                            </Stack>
-                            <Group gap="sm">
-                              <Switch
-                                size="xs"
-                                label="Auto-send"
-                                checked={recipient.autoSend}
-                                onChange={(e) =>
-                                  updateRecipient.mutate({
-                                    id: recipient.id,
-                                    autoSend: e.currentTarget.checked,
-                                  })
-                                }
-                              />
-                              <ActionIcon
-                                color="red"
-                                variant="light"
-                                onClick={() =>
-                                  deleteRecipient.mutate(recipient.id)
-                                }
-                                loading={deleteRecipient.isPending}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            </Group>
-                          </Group>
-                        ))}
-                      </Stack>
-                    )}
-
-                    {(!emailRecipients || emailRecipients.length === 0) && (
-                      <Text size="sm" c="dimmed" fs="italic">
-                        No recipients added yet
-                      </Text>
-                    )}
-                  </Stack>
-                </Paper>
-              )}
             </Stack>
           </Tabs.Panel>
 

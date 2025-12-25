@@ -493,6 +493,7 @@ export const emailRecipients = sqliteTable("email_recipients", {
   email: text("email").notNull(),
   name: text("name"),
   autoSend: integer("auto_send", { mode: "boolean" }).notNull().default(false),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
   createdAt: integer("created_at").notNull(),
 });
 
@@ -502,11 +503,22 @@ export const userRelations = relations(user, ({ many, one }) => ({
   accounts: many(account),
   downloads: many(downloads),
   downloadRequests: many(downloadRequests),
+  emailRecipients: many(emailRecipients),
   permissions: one(userPermissions, {
     fields: [user.id],
     references: [userPermissions.userId],
   }),
 }));
+
+export const emailRecipientsRelations = relations(
+  emailRecipients,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [emailRecipients.userId],
+      references: [user.id],
+    }),
+  }),
+);
 
 export const userPermissionsRelations = relations(
   userPermissions,
