@@ -1,1 +1,0 @@
-ALTER TABLE `email_recipients` ADD `auto_send` integer DEFAULT false NOT NULL;
