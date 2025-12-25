@@ -29,6 +29,7 @@ export interface UserPermissions {
   canConfigureIntegrations: boolean;
   canConfigureEmail: boolean;
   canSeeDownloadOwner: boolean;
+  canManageApiKeys: boolean;
 }
 
 /**
@@ -57,6 +58,7 @@ export function usePermissions() {
           canConfigureIntegrations: false,
           canConfigureEmail: false,
           canSeeDownloadOwner: false,
+          canManageApiKeys: false,
         };
       }
     },
@@ -72,6 +74,7 @@ export function usePermissions() {
           canConfigureIntegrations: true,
           canConfigureEmail: true,
           canSeeDownloadOwner: true,
+          canManageApiKeys: true,
         }
       : undefined,
   });

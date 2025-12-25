@@ -169,6 +169,13 @@
       "when": 1766696126962,
       "tag": "0023_smart_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1766701601186,
+      "tag": "0024_lame_franklin_richards",
+      "breakpoints": true
     }
   ]
 }

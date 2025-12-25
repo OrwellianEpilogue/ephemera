@@ -110,7 +110,7 @@ app.openapi(getProvidersRoute, async (c) => {
         domain: p.domain,
         allowAutoProvision: p.allowAutoProvision,
         enabled: p.enabled,
-        oidcConfig: JSON.parse(p.oidcConfig),
+        oidcConfig: p.oidcConfig ? JSON.parse(p.oidcConfig) : null,
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString(),
       })),
@@ -239,7 +239,7 @@ app.openapi(createProviderRoute, async (c) => {
       providerId: body.providerId,
       name: body.name || null,
       issuer: body.issuer,
-      domain: body.domain || null,
+      domain: body.domain || "",
       allowAutoProvision: body.allowAutoProvision ?? false,
       oidcConfig: JSON.stringify(oidcConfig),
       enabled: body.enabled,
@@ -265,7 +265,9 @@ app.openapi(createProviderRoute, async (c) => {
         domain: provider.domain,
         allowAutoProvision: provider.allowAutoProvision,
         enabled: provider.enabled,
-        oidcConfig: JSON.parse(provider.oidcConfig),
+        oidcConfig: provider.oidcConfig
+          ? JSON.parse(provider.oidcConfig)
+          : null,
         createdAt: provider.createdAt.toISOString(),
         updatedAt: provider.updatedAt.toISOString(),
       },
@@ -340,7 +342,9 @@ app.openapi(updateProviderRoute, async (c) => {
     }
 
     const provider = existing[0];
-    const currentConfig = JSON.parse(provider.oidcConfig);
+    const currentConfig = provider.oidcConfig
+      ? JSON.parse(provider.oidcConfig)
+      : {};
 
     // Build updated config
     const updatedConfig = {
@@ -357,7 +361,7 @@ app.openapi(updateProviderRoute, async (c) => {
       .set({
         ...(body.name !== undefined && { name: body.name }),
         ...(body.issuer && { issuer: body.issuer }),
-        ...(body.domain !== undefined && { domain: body.domain }),
+        ...(body.domain !== undefined && { domain: body.domain || "" }),
         ...(body.allowAutoProvision !== undefined && {
           allowAutoProvision: body.allowAutoProvision,
         }),
@@ -385,7 +389,9 @@ app.openapi(updateProviderRoute, async (c) => {
         domain: updatedProvider.domain,
         allowAutoProvision: updatedProvider.allowAutoProvision,
         enabled: updatedProvider.enabled,
-        oidcConfig: JSON.parse(updatedProvider.oidcConfig),
+        oidcConfig: updatedProvider.oidcConfig
+          ? JSON.parse(updatedProvider.oidcConfig)
+          : null,
         createdAt: updatedProvider.createdAt.toISOString(),
         updatedAt: updatedProvider.updatedAt.toISOString(),
       },
@@ -519,7 +525,7 @@ app.openapi(testProviderRoute, async (c) => {
     }
 
     const provider = existing[0];
-    const config = JSON.parse(provider.oidcConfig);
+    const config = provider.oidcConfig ? JSON.parse(provider.oidcConfig) : {};
 
     // Test discovery endpoint if available
     if (config.discoveryUrl) {

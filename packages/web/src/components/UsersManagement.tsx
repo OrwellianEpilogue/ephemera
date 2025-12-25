@@ -44,6 +44,7 @@ interface Permissions {
   canConfigureIntegrations: boolean;
   canConfigureEmail: boolean;
   canSeeDownloadOwner: boolean;
+  canManageApiKeys: boolean;
 }
 
 const DEFAULT_PERMISSIONS: Permissions = {
@@ -54,6 +55,7 @@ const DEFAULT_PERMISSIONS: Permissions = {
   canConfigureIntegrations: false,
   canConfigureEmail: false,
   canSeeDownloadOwner: false,
+  canManageApiKeys: false,
 };
 
 interface User {
@@ -133,6 +135,13 @@ function PermissionsForm({ permissions, onChange }: PermissionsFormProps) {
         checked={permissions.canSeeDownloadOwner}
         onChange={(e) =>
           handleChange("canSeeDownloadOwner", e.currentTarget.checked)
+        }
+      />
+      <Switch
+        label="Can manage API keys"
+        checked={permissions.canManageApiKeys}
+        onChange={(e) =>
+          handleChange("canManageApiKeys", e.currentTarget.checked)
         }
       />
     </Stack>

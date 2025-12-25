@@ -38,6 +38,7 @@ class PermissionsService {
         canConfigureIntegrations: false,
         canConfigureEmail: false,
         canSeeDownloadOwner: false,
+        canManageApiKeys: false,
       };
 
       const created = await db
@@ -131,6 +132,7 @@ class PermissionsService {
       canConfigureIntegrations: true,
       canConfigureEmail: true,
       canSeeDownloadOwner: true,
+      canManageApiKeys: true,
     };
 
     try {

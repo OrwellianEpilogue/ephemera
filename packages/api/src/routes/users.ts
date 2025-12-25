@@ -17,7 +17,7 @@ const UserSchema = z.object({
   role: z.enum(["admin", "user"]),
   banned: z.boolean(),
   banReason: z.string().nullable(),
-  banExpiresAt: z.string().nullable(),
+  banExpires: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -62,7 +62,7 @@ const UpdateUserSchema = z.object({
   role: z.enum(["admin", "user"]).optional(),
   banned: z.boolean().optional(),
   banReason: z.string().nullable().optional(),
-  banExpiresAt: z.string().nullable().optional(),
+  banExpires: z.string().nullable().optional(),
   permissions: z
     .object({
       canDeleteDownloads: z.boolean().optional(),
@@ -148,10 +148,10 @@ app.openapi(getUsersRoute, async (c) => {
         email: u.email,
         emailVerified: u.emailVerified,
         image: u.image,
-        role: u.role,
-        banned: u.banned,
+        role: (u.role || "user") as "admin" | "user",
+        banned: u.banned ?? false,
         banReason: u.banReason,
-        banExpiresAt: u.banExpiresAt?.toISOString() || null,
+        banExpires: u.banExpires?.toISOString() || null,
         createdAt: u.createdAt.toISOString(),
         updatedAt: u.updatedAt.toISOString(),
         permissions: u.permissions
@@ -298,10 +298,10 @@ app.openapi(createUserRoute, async (c) => {
         email: createdUser.email,
         emailVerified: createdUser.emailVerified,
         image: createdUser.image,
-        role: createdUser.role,
-        banned: createdUser.banned,
+        role: (createdUser.role || "user") as "admin" | "user",
+        banned: createdUser.banned ?? false,
         banReason: createdUser.banReason,
-        banExpiresAt: createdUser.banExpiresAt?.toISOString() || null,
+        banExpires: createdUser.banExpires?.toISOString() || null,
         createdAt: createdUser.createdAt.toISOString(),
         updatedAt: createdUser.updatedAt.toISOString(),
         permissions: createdUser.permissions
@@ -399,9 +399,9 @@ app.openapi(updateUserRoute, async (c) => {
     if (body.role) updateData.role = body.role;
     if (body.banned !== undefined) updateData.banned = body.banned;
     if (body.banReason !== undefined) updateData.banReason = body.banReason;
-    if (body.banExpiresAt !== undefined) {
-      updateData.banExpiresAt = body.banExpiresAt
-        ? new Date(body.banExpiresAt)
+    if (body.banExpires !== undefined) {
+      updateData.banExpires = body.banExpires
+        ? new Date(body.banExpires)
         : null;
     }
 
@@ -476,10 +476,10 @@ app.openapi(updateUserRoute, async (c) => {
         email: updatedUser.email,
         emailVerified: updatedUser.emailVerified,
         image: updatedUser.image,
-        role: updatedUser.role,
-        banned: updatedUser.banned,
+        role: (updatedUser.role || "user") as "admin" | "user",
+        banned: updatedUser.banned ?? false,
         banReason: updatedUser.banReason,
-        banExpiresAt: updatedUser.banExpiresAt?.toISOString() || null,
+        banExpires: updatedUser.banExpires?.toISOString() || null,
         createdAt: updatedUser.createdAt.toISOString(),
         updatedAt: updatedUser.updatedAt.toISOString(),
         permissions: updatedUser.permissions
@@ -638,7 +638,7 @@ app.openapi(getCurrentUserRoute, async (c) => {
         id: userWithAccounts.id,
         name: userWithAccounts.name,
         email: userWithAccounts.email,
-        role: userWithAccounts.role,
+        role: (userWithAccounts.role || "user") as "admin" | "user",
         hasPassword:
           userWithAccounts.accounts?.some(
             (a) => a.providerId === "credential",
@@ -794,7 +794,7 @@ app.openapi(updateCurrentUserRoute, async (c) => {
         id: updatedUser.id,
         name: updatedUser.name,
         email: updatedUser.email,
-        role: updatedUser.role,
+        role: (updatedUser.role || "user") as "admin" | "user",
         hasPassword:
           updatedUser.accounts?.some((a) => a.providerId === "credential") ??
           false,

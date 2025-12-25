@@ -72,6 +72,7 @@ const handleSabnzbdApi = async (c: Context) => {
     "resume_pp",
     "shutdown",
     "restart",
+    "get_config", // Protect config as it contains the API key
   ];
 
   if (protectedModes.includes(mode) && apikey !== settings.sabnzbdApiKey) {

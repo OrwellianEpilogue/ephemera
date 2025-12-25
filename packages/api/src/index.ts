@@ -16,6 +16,16 @@ import {
   requireAdmin,
   requirePermission,
 } from "./middleware/auth.js";
+import type { Context, Next } from "hono";
+
+// Helper to compose auth middleware with permission/admin checks
+const withAuth = (
+  permissionCheck: (c: Context, next: Next) => Promise<Response | void>,
+) => {
+  return (c: Context, next: Next) => {
+    return requireAuth(c, (() => permissionCheck(c, next)) as Next);
+  };
+};
 import { searchCacheManager } from "./services/search-cache.js";
 import { appSettingsService } from "./services/app-settings.js";
 import { bookloreSettingsService } from "./services/booklore-settings.js";
@@ -46,6 +56,7 @@ import oidcProvidersRoutes from "./routes/oidc-providers.js";
 import authRoutes from "./routes/auth.js";
 import emailRoutes from "./routes/email.js";
 import systemConfigRoutes from "./routes/system-config.js";
+import apiKeysRoutes from "./routes/api-keys.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -153,7 +164,7 @@ app.use(
     },
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "x-api-key"],
   }),
 );
 
@@ -216,75 +227,83 @@ app.use("/api/permissions", requireAuth);
 // Settings-related routes require granular permissions (admins bypass via requirePermission)
 app.use(
   "/api/booklore/*",
-  requireAuth,
-  requirePermission("canConfigureIntegrations"),
+  withAuth((c, next) => requirePermission("canConfigureIntegrations")(c, next)),
 );
 app.use(
   "/api/apprise/*",
-  requireAuth,
-  requirePermission("canConfigureNotifications"),
+  withAuth((c, next) =>
+    requirePermission("canConfigureNotifications")(c, next),
+  ),
 );
 app.use(
   "/api/indexer/*",
-  requireAuth,
-  requirePermission("canConfigureIntegrations"),
+  withAuth((c, next) => requirePermission("canConfigureIntegrations")(c, next)),
 );
 // Email routes: recipients are user-managed, settings require permission
-app.use("/api/email/*", async (c, next) => {
+app.use("/api/email/*", (c, next) => {
   const path = c.req.path;
   const method = c.req.method;
   // Recipients routes - any authenticated user can manage their own
   if (path.includes("/recipients") || path === "/api/email/send") {
-    await requireAuth(c, next);
-    return;
+    return requireAuth(c, next);
   }
   // GET settings is allowed for all (to check if email is enabled)
   if (path === "/api/email/settings" && method === "GET") {
-    await requireAuth(c, next);
-    return;
+    return requireAuth(c, next);
   }
   // PUT settings and test require canConfigureEmail permission
-  await requireAuth(c, async () => {
-    await requirePermission("canConfigureEmail")(c, next);
-  });
+  return withAuth((c, next) => requirePermission("canConfigureEmail")(c, next))(
+    c,
+    next,
+  );
 });
 
 // General settings require canConfigureApp permission
-app.use("/api/settings/*", requireAuth, requirePermission("canConfigureApp"));
+app.use(
+  "/api/settings/*",
+  withAuth((c, next) => requirePermission("canConfigureApp")(c, next)),
+);
 app.use(
   "/api/system-config",
-  requireAuth,
-  requirePermission("canConfigureApp"),
+  withAuth((c, next) => requirePermission("canConfigureApp")(c, next)),
 );
-app.use("/api/filesystem/*", requireAuth, requireAdmin);
+app.use(
+  "/api/filesystem/*",
+  withAuth((c, next) => requireAdmin(c, next)),
+);
 // Users: /me endpoints are for any authenticated user, others require admin
-app.use("/api/users/*", async (c, next) => {
+app.use("/api/users/*", (c, next) => {
   const path = c.req.path;
   // Allow /me endpoints for any authenticated user
   if (path === "/api/users/me" || path.startsWith("/api/users/me/")) {
-    await requireAuth(c, next);
-    return;
+    return requireAuth(c, next);
   }
   // All other user routes require admin
-  await requireAuth(c, async () => {
-    await requireAdmin(c, next);
-  });
+  return withAuth((c, next) => requireAdmin(c, next))(c, next);
 });
 // OIDC providers: GET is public (for login page), POST/PATCH/DELETE require admin
-app.use("/api/oidc-providers", async (c, next) => {
+app.use("/api/oidc-providers", (c, next) => {
   if (c.req.method === "GET") {
     return next(); // Public read for login page
   }
   // Apply auth first, then admin check
-  await requireAuth(c, async () => {
-    await requireAdmin(c, next);
-  });
+  return withAuth((c, next) => requireAdmin(c, next))(c, next);
 });
+// API Keys: require auth + canManageApiKeys permission (admin route handled in route handler)
+app.use(
+  "/api/api-keys/*",
+  withAuth((c, next) => requirePermission("canManageApiKeys")(c, next)),
+);
+app.use(
+  "/api/api-keys",
+  withAuth((c, next) => requirePermission("canManageApiKeys")(c, next)),
+);
 
 // Mount API routes
 app.route(`${API_BASE_PATH}/setup`, setupRoutes); // Public (for initial setup)
 app.route(`${API_BASE_PATH}/auth`, authRoutes); // Public (for login page)
-app.route(API_BASE_PATH, searchRoutes); // Public for now
+app.use(`${API_BASE_PATH}/search`, requireAuth); // Protect search endpoint
+app.route(API_BASE_PATH, searchRoutes);
 app.route(API_BASE_PATH, downloadRoutes); // Protected (middleware applied above)
 app.route(API_BASE_PATH, queueRoutes); // Protected
 app.route(API_BASE_PATH, settingsRoutes); // Admin only
@@ -300,6 +319,7 @@ app.route(API_BASE_PATH, permissionsRoutes); // Protected
 app.route(API_BASE_PATH, emailRoutes); // Protected
 app.route(`${API_BASE_PATH}/users`, usersRoutes); // Admin only
 app.route(`${API_BASE_PATH}/oidc-providers`, oidcProvidersRoutes); // Admin only
+app.route(API_BASE_PATH, apiKeysRoutes); // Protected by canManageApiKeys
 app.route("/newznab", newznabRoutes); // Public (has API key auth)
 app.route("/sabnzbd", sabnzbdRoutes); // Public (has API key auth)
 

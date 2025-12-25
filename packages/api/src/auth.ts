@@ -1,7 +1,7 @@
 import { betterAuth, APIError } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin } from "better-auth/plugins";
+import { admin, apiKey } from "better-auth/plugins";
 import { sso } from "@better-auth/sso";
 import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -12,15 +12,22 @@ import { calibrePlugin } from "./auth/plugins/calibre-plugin.js";
 
 // Load SSO provider IDs at startup for account linking
 // New providers added after startup will be dynamically handled via the before hook
-const loadedSsoProviderIds = await db
-  .select({ providerId: ssoProvider.providerId })
-  .from(ssoProvider)
-  .then((providers) => providers.map((p) => p.providerId));
+// Wrapped in try-catch for initial setup when tables don't exist yet
+let loadedSsoProviderIds: string[] = [];
+try {
+  loadedSsoProviderIds = await db
+    .select({ providerId: ssoProvider.providerId })
+    .from(ssoProvider)
+    .then((providers) => providers.map((p) => p.providerId));
 
-console.log(
-  "[Auth] Loaded SSO providers for account linking:",
-  loadedSsoProviderIds,
-);
+  console.log(
+    "[Auth] Loaded SSO providers for account linking:",
+    loadedSsoProviderIds,
+  );
+} catch {
+  // Tables don't exist yet (initial setup or migration)
+  console.log("[Auth] SSO provider table not ready, skipping provider load");
+}
 
 export const auth = betterAuth({
   basePath: "/api/auth",
@@ -203,6 +210,19 @@ export const auth = betterAuth({
     // Admin plugin for role-based access
     admin({
       defaultRole: "user",
+    }),
+
+    // API Key plugin for 3rd party tool authentication
+    apiKey({
+      enableSessionForAPIKeys: true, // Creates session from valid API key
+      apiKeyHeaders: ["x-api-key"], // Standard header for API key
+      rateLimit: {
+        enabled: false, // No rate limiting for API keys
+      },
+      keyExpiration: {
+        defaultExpiresIn: null, // Optional expiration (users can set it when creating)
+        disableCustomExpiresTime: false, // Allow users to set custom expiration
+      },
     }),
 
     // Custom credential plugins

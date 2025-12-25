@@ -5,6 +5,18 @@ import { eq } from "drizzle-orm";
 
 const app = new OpenAPIHono();
 
+// Helper to check if setup is already complete
+async function isSetupAlreadyComplete(): Promise<boolean> {
+  try {
+    const config = await db.query.appConfig.findFirst({
+      where: eq(appConfig.id, 1),
+    });
+    return config?.isSetupComplete ?? false;
+  } catch {
+    return false;
+  }
+}
+
 // Schema for setup status response
 const SetupStatusSchema = z.object({
   isSetupComplete: z.boolean(),
@@ -86,18 +98,34 @@ const getDefaultsRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "Setup already complete",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
   },
 });
 
 app.openapi(getDefaultsRoute, async (c) => {
+  // Block access if setup is already complete
+  if (await isSetupAlreadyComplete()) {
+    return c.json({ error: "Setup already complete" }, 403);
+  }
+
   // Read from deprecated env vars to pre-populate setup wizard
-  return c.json({
-    searcherBaseUrl: process.env.AA_BASE_URL || null,
-    searcherApiKey: process.env.AA_API_KEY || null,
-    quickBaseUrl: process.env.LG_BASE_URL || null,
-    downloadFolder: process.env.DOWNLOAD_FOLDER || null,
-    ingestFolder: process.env.INGEST_FOLDER || null,
-  });
+  return c.json(
+    {
+      searcherBaseUrl: process.env.AA_BASE_URL || null,
+      searcherApiKey: process.env.AA_API_KEY || null,
+      quickBaseUrl: process.env.LG_BASE_URL || null,
+      downloadFolder: process.env.DOWNLOAD_FOLDER || null,
+      ingestFolder: process.env.INGEST_FOLDER || null,
+    },
+    200,
+  );
 });
 
 // POST /setup/step1 - Save system configuration
@@ -124,6 +152,14 @@ const postStep1Route = createRoute({
         },
       },
     },
+    403: {
+      description: "Setup already complete",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
     500: {
       description: "Error saving configuration",
       content: {
@@ -136,6 +172,11 @@ const postStep1Route = createRoute({
 });
 
 app.openapi(postStep1Route, async (c) => {
+  // Block access if setup is already complete
+  if (await isSetupAlreadyComplete()) {
+    return c.json({ error: "Setup already complete" }, 403);
+  }
+
   const body = c.req.valid("json");
 
   try {
@@ -213,6 +254,14 @@ const postStep2Route = createRoute({
         },
       },
     },
+    403: {
+      description: "Setup already complete",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
     500: {
       description: "Error creating admin user",
       content: {
@@ -225,6 +274,11 @@ const postStep2Route = createRoute({
 });
 
 app.openapi(postStep2Route, async (c) => {
+  // Block access if setup is already complete
+  if (await isSetupAlreadyComplete()) {
+    return c.json({ error: "Setup already complete" }, 403);
+  }
+
   const body = c.req.valid("json");
 
   try {
@@ -298,6 +352,14 @@ const postCompleteRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "Setup already complete",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
     500: {
       description: "Error completing setup",
       content: {
@@ -310,6 +372,11 @@ const postCompleteRoute = createRoute({
 });
 
 app.openapi(postCompleteRoute, async (c) => {
+  // Block access if setup is already complete
+  if (await isSetupAlreadyComplete()) {
+    return c.json({ error: "Setup already complete" }, 403);
+  }
+
   try {
     await db
       .update(appConfig)
