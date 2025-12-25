@@ -30,6 +30,7 @@ function SetupWizard() {
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingSetup, setCheckingSetup] = useState(true);
 
   // Step 1: System Configuration
   const [step1, setStep1] = useState({
@@ -40,6 +41,25 @@ function SetupWizard() {
     ingestFolder: "/app/ingest",
   });
   const [loadingDefaults, setLoadingDefaults] = useState(true);
+
+  // Check if setup is already complete - redirect to login if so
+  useEffect(() => {
+    const checkSetupStatus = async () => {
+      try {
+        const response = await fetch("/api/setup/status");
+        const data = await response.json();
+        if (data.isSetupComplete) {
+          navigate({ to: "/login" });
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check setup status:", err);
+      } finally {
+        setCheckingSetup(false);
+      }
+    };
+    checkSetupStatus();
+  }, [navigate]);
 
   // Fetch environment defaults on mount
   useEffect(() => {
@@ -183,7 +203,7 @@ function SetupWizard() {
     setActive((current) => (current > 0 ? current - 1 : current));
   };
 
-  if (loadingDefaults) {
+  if (checkingSetup || loadingDefaults) {
     return (
       <Box
         style={{
@@ -197,7 +217,7 @@ function SetupWizard() {
         <Center>
           <Stack align="center" gap="md">
             <Loader size="lg" />
-            <Text c="dimmed">Loading configuration...</Text>
+            <Text c="dimmed">Loading...</Text>
           </Stack>
         </Center>
       </Box>
