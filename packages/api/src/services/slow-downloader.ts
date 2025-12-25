@@ -15,8 +15,8 @@ const SLOW_DOWNLOAD_TIMEOUT = parseInt(
   process.env.SLOW_DOWNLOAD_TIMEOUT || "300000",
   10,
 ); // 5 minutes
-const MAX_PATHS = 2; // Anna's Archive has paths 0-1
-const MAX_SERVERS = 7; // Anna's Archive has servers 0-6 per path
+const MAX_PATHS = 2; // AA has paths 0-1
+const MAX_SERVERS = 7; // AA has servers 0-6 per path
 
 // FlareSolverr API types
 interface FlareSolverrRequest {
@@ -205,7 +205,7 @@ export class SlowDownloader {
   }
 
   /**
-   * Download a file using Anna's Archive slow download links
+   * Download a file using AA slow download links
    * Automatically tries servers 0-5 until one succeeds
    */
   async downloadWithRetry(
@@ -512,7 +512,7 @@ export class SlowDownloader {
    * Extract download URL from the slow download page HTML
    */
   private extractDownloadUrl(html: string, downloadId: string): string | null {
-    // Anna's Archive shows the download URL in several places after countdown completes:
+    // AA shows the download URL in several places after countdown completes:
     // 1. In a button's onclick with navigator.clipboard.writeText('URL')
     // 2. In a span with the URL as text content
 
@@ -560,7 +560,7 @@ export class SlowDownloader {
    * Returns the number of seconds to wait, or 0 if not found
    */
   private extractCountdownTime(html: string, downloadId: string): number {
-    // Anna's Archive uses: <span class="js-partner-countdown">45</span>
+    // AA uses: <span class="js-partner-countdown">45</span>
     const patterns = [
       // <span class="js-partner-countdown">45</span>
       /<span[^>]*class=["'][^"']*js-partner-countdown[^"']*["'][^>]*>(\d+)<\/span>/i,

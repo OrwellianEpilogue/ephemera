@@ -25,7 +25,9 @@ export interface UserPermissions {
   canDeleteDownloads: boolean;
   canConfigureNotifications: boolean;
   canManageRequests: boolean;
-  canAccessSettings: boolean;
+  canConfigureApp: boolean;
+  canConfigureIntegrations: boolean;
+  canConfigureEmail: boolean;
 }
 
 /**
@@ -39,7 +41,7 @@ export function usePermissions() {
     queryKey: ["permissions", user?.id],
     queryFn: async () => {
       try {
-        const response = await apiFetch<UserPermissions>("/api/permissions", {
+        const response = await apiFetch<UserPermissions>("/permissions", {
           method: "GET",
         });
         return response;
@@ -50,7 +52,9 @@ export function usePermissions() {
           canDeleteDownloads: false,
           canConfigureNotifications: false,
           canManageRequests: false,
-          canAccessSettings: false,
+          canConfigureApp: false,
+          canConfigureIntegrations: false,
+          canConfigureEmail: false,
         };
       }
     },
@@ -62,7 +66,9 @@ export function usePermissions() {
           canDeleteDownloads: true,
           canConfigureNotifications: true,
           canManageRequests: true,
-          canAccessSettings: true,
+          canConfigureApp: true,
+          canConfigureIntegrations: true,
+          canConfigureEmail: true,
         }
       : undefined,
   });

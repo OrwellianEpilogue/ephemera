@@ -33,6 +33,7 @@ import {
   IconServer,
   IconUsers,
   IconMail,
+  IconUser,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -73,10 +74,12 @@ import {
 // Lazy load heavy components
 const UsersManagement = lazy(() => import("../components/UsersManagement"));
 const OIDCManagement = lazy(() => import("../components/OIDCManagement"));
+const AccountSettings = lazy(() => import("../components/AccountSettings"));
 
 const settingsSearchSchema = z.object({
   tab: z
     .enum([
+      "account",
       "general",
       "notifications",
       "booklore",
@@ -86,36 +89,89 @@ const settingsSearchSchema = z.object({
       "email",
     ])
     .optional()
-    .default("general"),
+    .default("account"),
 });
 
 function SettingsComponent() {
   const navigate = useNavigate({ from: "/settings" });
   const { tab } = Route.useSearch();
   const { isAdmin } = useAuth();
-  const { data: permissions } = usePermissions();
+  const { data: permissions, isLoading: loadingPermissions } = usePermissions();
+
+  // Check granular permissions for each settings area
+  const canConfigureApp = isAdmin || permissions?.canConfigureApp;
+  const canConfigureIntegrations =
+    isAdmin || permissions?.canConfigureIntegrations;
+  const canConfigureNotifications =
+    isAdmin || permissions?.canConfigureNotifications;
+  const canConfigureEmail = isAdmin || permissions?.canConfigureEmail;
+
+  // Define which tabs require which permissions
+  const adminOnlyTabs = ["users", "oidc"];
+
+  // Get permission for a specific tab
+  const getTabPermission = (tabName: string): boolean => {
+    switch (tabName) {
+      case "general":
+        return !!canConfigureApp;
+      case "notifications":
+        return !!canConfigureNotifications;
+      case "booklore":
+      case "indexer":
+        return !!canConfigureIntegrations;
+      case "email":
+        return !!canConfigureEmail;
+      default:
+        return false;
+    }
+  };
+
+  // Redirect users who try to access tabs they don't have permission for
+  useEffect(() => {
+    if (loadingPermissions) return; // Wait for permissions to load
+
+    const isAdminTab = adminOnlyTabs.includes(tab);
+
+    // Redirect non-admins trying to access admin tabs
+    if (isAdminTab && !isAdmin) {
+      navigate({ search: { tab: "account" } });
+      return;
+    }
+
+    // Redirect users without proper permission trying to access settings tabs
+    if (!isAdminTab && tab !== "account" && !getTabPermission(tab)) {
+      navigate({ search: { tab: "account" } });
+      return;
+    }
+  }, [tab, isAdmin, loadingPermissions, navigate, permissions]);
+
+  // Only fetch settings data if user has the specific permission
   const {
     data: settings,
     isLoading: loadingApp,
     isError: errorApp,
-  } = useAppSettings();
+  } = useAppSettings({ enabled: canConfigureApp });
   const {
     data: bookloreSettings,
     isLoading: loadingBooklore,
     isError: errorBooklore,
-  } = useBookloreSettings();
+  } = useBookloreSettings({ enabled: canConfigureIntegrations });
   const {
     data: appriseSettings,
     isLoading: loadingApprise,
     isError: errorApprise,
-  } = useAppriseSettings();
-  const { data: indexerSettings } = useIndexerSettings();
+  } = useAppriseSettings({ enabled: canConfigureNotifications });
+  const { data: indexerSettings } = useIndexerSettings({
+    enabled: canConfigureIntegrations,
+  });
   const {
     data: emailSettings,
     isLoading: loadingEmail,
     isError: errorEmail,
-  } = useEmailSettings();
-  const { data: emailRecipients } = useEmailRecipients();
+  } = useEmailSettings({ enabled: canConfigureEmail });
+  const { data: emailRecipients } = useEmailRecipients({
+    enabled: canConfigureEmail,
+  });
   const updateSettings = useUpdateAppSettings();
   const updateBooklore = useUpdateBookloreSettings();
   const updateApprise = useUpdateAppriseSettings();
@@ -454,15 +510,21 @@ function SettingsComponent() {
       emailSettings.useTls !== useTls
     : emailEnabled; // Allow save if no settings exist yet and email is enabled
 
-  const isLoading =
-    loadingApp || loadingBooklore || loadingApprise || loadingEmail;
-  const isError = errorApp || errorBooklore || errorApprise || errorEmail;
+  // Loading state only matters for non-Account tabs when user has relevant permissions
+  const isSettingsLoading =
+    (canConfigureApp && loadingApp) ||
+    (canConfigureIntegrations && loadingBooklore) ||
+    (canConfigureNotifications && loadingApprise) ||
+    (canConfigureEmail && loadingEmail);
+  const isSettingsError =
+    (canConfigureApp && errorApp) ||
+    (canConfigureIntegrations && errorBooklore) ||
+    (canConfigureNotifications && errorApprise) ||
+    (canConfigureEmail && errorEmail);
 
-  // Check if user has permission to configure notifications
-  const hasNotificationPermission =
-    isAdmin || permissions?.canConfigureNotifications;
-
-  if (isLoading) {
+  // For Account tab, don't block on settings loading/error
+  // For other tabs, show loading/error states if user has access
+  if (tab !== "account" && loadingPermissions) {
     return (
       <Container size="md">
         <Center p="xl">
@@ -472,7 +534,17 @@ function SettingsComponent() {
     );
   }
 
-  if (isError) {
+  if (tab !== "account" && isSettingsLoading) {
+    return (
+      <Container size="md">
+        <Center p="xl">
+          <Loader size="lg" />
+        </Center>
+      </Container>
+    );
+  }
+
+  if (tab !== "account" && isSettingsError) {
     return (
       <Container size="md">
         <Alert icon={<IconInfoCircle size={16} />} title="Error" color="red">
@@ -493,6 +565,7 @@ function SettingsComponent() {
             navigate({
               search: {
                 tab: value as
+                  | "account"
                   | "general"
                   | "notifications"
                   | "booklore"
@@ -504,24 +577,46 @@ function SettingsComponent() {
           }
         >
           <Tabs.List>
-            <Tabs.Tab value="general" leftSection={<IconSettings size={16} />}>
-              General
+            <Tabs.Tab value="account" leftSection={<IconUser size={16} />}>
+              Account
             </Tabs.Tab>
-            <Tabs.Tab
-              value="notifications"
-              leftSection={<IconBell size={16} />}
-            >
-              Notifications
-            </Tabs.Tab>
-            <Tabs.Tab value="booklore" leftSection={<IconUpload size={16} />}>
-              Booklore
-            </Tabs.Tab>
-            <Tabs.Tab value="indexer" leftSection={<IconServer size={16} />}>
-              Indexer
-            </Tabs.Tab>
-            <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
-              Email
-            </Tabs.Tab>
+            {canConfigureApp && (
+              <Tabs.Tab
+                value="general"
+                leftSection={<IconSettings size={16} />}
+              >
+                General
+              </Tabs.Tab>
+            )}
+            {canConfigureNotifications && (
+              <Tabs.Tab
+                value="notifications"
+                leftSection={<IconBell size={16} />}
+              >
+                Notifications
+              </Tabs.Tab>
+            )}
+            {canConfigureIntegrations && (
+              <>
+                <Tabs.Tab
+                  value="booklore"
+                  leftSection={<IconUpload size={16} />}
+                >
+                  Booklore
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="indexer"
+                  leftSection={<IconServer size={16} />}
+                >
+                  Indexer
+                </Tabs.Tab>
+              </>
+            )}
+            {canConfigureEmail && (
+              <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
+                Email
+              </Tabs.Tab>
+            )}
             {isAdmin && (
               <>
                 <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
@@ -536,6 +631,19 @@ function SettingsComponent() {
               </>
             )}
           </Tabs.List>
+
+          {/* Account Tab - Available to all authenticated users */}
+          <Tabs.Panel value="account" pt="lg">
+            <Suspense
+              fallback={
+                <Center p="xl">
+                  <Loader size="lg" />
+                </Center>
+              }
+            >
+              <AccountSettings />
+            </Suspense>
+          </Tabs.Panel>
 
           <Tabs.Panel value="general" pt="lg">
             <Stack gap="lg">
@@ -803,16 +911,6 @@ function SettingsComponent() {
 
           <Tabs.Panel value="notifications" pt="lg">
             <Stack gap="lg">
-              {!hasNotificationPermission && (
-                <Alert icon={<IconInfoCircle size={16} />} color="blue">
-                  <Text size="sm">
-                    <strong>Permission Required:</strong> You don't have
-                    permission to configure notification settings. Contact an
-                    administrator to request access.
-                  </Text>
-                </Alert>
-              )}
-
               {/* Apprise Notifications */}
               <Paper p="md" withBorder>
                 <Stack gap="md">
@@ -839,7 +937,6 @@ function SettingsComponent() {
                       }
                       label="Enabled"
                       size="lg"
-                      disabled={!hasNotificationPermission}
                     />
                   </Group>
 
@@ -852,7 +949,6 @@ function SettingsComponent() {
                         onChange={(e) => setAppriseServerUrl(e.target.value)}
                         description="Your Apprise API endpoint URL"
                         required
-                        disabled={!hasNotificationPermission}
                       />
 
                       {/* Custom Headers */}
@@ -871,7 +967,6 @@ function SettingsComponent() {
                                 { key: "", value: "" },
                               ])
                             }
-                            disabled={!hasNotificationPermission}
                           >
                             Add Header
                           </Button>
@@ -890,7 +985,6 @@ function SettingsComponent() {
                                 }
                               }}
                               style={{ flex: 1 }}
-                              disabled={!hasNotificationPermission}
                             />
                             <TextInput
                               placeholder="Header value"
@@ -904,7 +998,6 @@ function SettingsComponent() {
                                 }
                               }}
                               style={{ flex: 1 }}
-                              disabled={!hasNotificationPermission}
                             />
                             <ActionIcon
                               color="red"
@@ -914,7 +1007,6 @@ function SettingsComponent() {
                                   customHeaders.filter((_, i) => i !== index),
                                 );
                               }}
-                              disabled={!hasNotificationPermission}
                             >
                               <IconTrash size={16} />
                             </ActionIcon>
@@ -933,7 +1025,6 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnNewRequest(e.currentTarget.checked)
                           }
-                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Download error (max retries reached)"
@@ -941,7 +1032,6 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnDownloadError(e.currentTarget.checked)
                           }
-                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Download available (moved to final destination)"
@@ -949,7 +1039,6 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnAvailable(e.currentTarget.checked)
                           }
-                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Download delayed (quota exhausted)"
@@ -957,7 +1046,6 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnDelayed(e.currentTarget.checked)
                           }
-                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Update available"
@@ -965,7 +1053,6 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnUpdateAvailable(e.currentTarget.checked)
                           }
-                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Request fulfilled (automatic search found book)"
@@ -973,7 +1060,6 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnRequestFulfilled(e.currentTarget.checked)
                           }
-                          disabled={!hasNotificationPermission}
                         />
                         <Checkbox
                           label="Book queued for download"
@@ -981,7 +1067,6 @@ function SettingsComponent() {
                           onChange={(e) =>
                             setNotifyOnBookQueued(e.currentTarget.checked)
                           }
-                          disabled={!hasNotificationPermission}
                         />
                       </Stack>
 
@@ -991,17 +1076,13 @@ function SettingsComponent() {
                           leftSection={<IconBell size={16} />}
                           onClick={handleTestApprise}
                           loading={testApprise.isPending}
-                          disabled={
-                            !appriseServerUrl || !hasNotificationPermission
-                          }
+                          disabled={!appriseServerUrl}
                         >
                           Send Test Notification
                         </Button>
                         <Button
                           onClick={handleSaveApprise}
-                          disabled={
-                            !hasAppriseChanges || !hasNotificationPermission
-                          }
+                          disabled={!hasAppriseChanges}
                           loading={updateApprise.isPending}
                         >
                           Save Settings

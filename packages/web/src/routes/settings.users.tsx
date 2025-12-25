@@ -46,7 +46,9 @@ interface User {
     canDeleteDownloads: boolean;
     canConfigureNotifications: boolean;
     canManageRequests: boolean;
-    canAccessSettings: boolean;
+    canConfigureApp: boolean;
+    canConfigureIntegrations: boolean;
+    canConfigureEmail: boolean;
   } | null;
 }
 
@@ -59,7 +61,9 @@ interface CreateUserForm {
     canDeleteDownloads: boolean;
     canConfigureNotifications: boolean;
     canManageRequests: boolean;
-    canAccessSettings: boolean;
+    canConfigureApp: boolean;
+    canConfigureIntegrations: boolean;
+    canConfigureEmail: boolean;
   };
 }
 
@@ -80,7 +84,9 @@ function UsersPage() {
       canDeleteDownloads: false,
       canConfigureNotifications: false,
       canManageRequests: false,
-      canAccessSettings: false,
+      canConfigureApp: false,
+      canConfigureIntegrations: false,
+      canConfigureEmail: false,
     },
   });
 
@@ -110,7 +116,9 @@ function UsersPage() {
           canDeleteDownloads: false,
           canConfigureNotifications: false,
           canManageRequests: false,
-          canAccessSettings: false,
+          canConfigureApp: false,
+          canConfigureIntegrations: false,
+          canConfigureEmail: false,
         },
       });
       setError(null);
@@ -399,14 +407,40 @@ function UsersPage() {
               }
             />
             <Switch
-              label="Can access settings"
-              checked={createForm.permissions.canAccessSettings}
+              label="Can configure app settings (General)"
+              checked={createForm.permissions.canConfigureApp}
               onChange={(e) =>
                 setCreateForm({
                   ...createForm,
                   permissions: {
                     ...createForm.permissions,
-                    canAccessSettings: e.currentTarget.checked,
+                    canConfigureApp: e.currentTarget.checked,
+                  },
+                })
+              }
+            />
+            <Switch
+              label="Can configure integrations (Booklore, Indexer)"
+              checked={createForm.permissions.canConfigureIntegrations}
+              onChange={(e) =>
+                setCreateForm({
+                  ...createForm,
+                  permissions: {
+                    ...createForm.permissions,
+                    canConfigureIntegrations: e.currentTarget.checked,
+                  },
+                })
+              }
+            />
+            <Switch
+              label="Can configure email settings"
+              checked={createForm.permissions.canConfigureEmail}
+              onChange={(e) =>
+                setCreateForm({
+                  ...createForm,
+                  permissions: {
+                    ...createForm.permissions,
+                    canConfigureEmail: e.currentTarget.checked,
                   },
                 })
               }
@@ -518,9 +552,73 @@ function UsersPage() {
                         canDeleteDownloads: false,
                         canConfigureNotifications: false,
                         canManageRequests: false,
-                        canAccessSettings: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
                       }),
                       canDeleteDownloads: e.currentTarget.checked,
+                    },
+                  })
+                }
+              />
+              <Switch
+                label="Can manage requests"
+                checked={selectedUser.permissions?.canManageRequests || false}
+                onChange={(e) =>
+                  setSelectedUser({
+                    ...selectedUser,
+                    permissions: {
+                      ...(selectedUser.permissions || {
+                        canDeleteDownloads: false,
+                        canConfigureNotifications: false,
+                        canManageRequests: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
+                      }),
+                      canManageRequests: e.currentTarget.checked,
+                    },
+                  })
+                }
+              />
+              <Switch
+                label="Can configure app settings (General)"
+                checked={selectedUser.permissions?.canConfigureApp || false}
+                onChange={(e) =>
+                  setSelectedUser({
+                    ...selectedUser,
+                    permissions: {
+                      ...(selectedUser.permissions || {
+                        canDeleteDownloads: false,
+                        canConfigureNotifications: false,
+                        canManageRequests: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
+                      }),
+                      canConfigureApp: e.currentTarget.checked,
+                    },
+                  })
+                }
+              />
+              <Switch
+                label="Can configure integrations (Booklore, Indexer)"
+                checked={
+                  selectedUser.permissions?.canConfigureIntegrations || false
+                }
+                onChange={(e) =>
+                  setSelectedUser({
+                    ...selectedUser,
+                    permissions: {
+                      ...(selectedUser.permissions || {
+                        canDeleteDownloads: false,
+                        canConfigureNotifications: false,
+                        canManageRequests: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
+                      }),
+                      canConfigureIntegrations: e.currentTarget.checked,
                     },
                   })
                 }
@@ -538,7 +636,9 @@ function UsersPage() {
                         canDeleteDownloads: false,
                         canConfigureNotifications: false,
                         canManageRequests: false,
-                        canAccessSettings: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
                       }),
                       canConfigureNotifications: e.currentTarget.checked,
                     },
@@ -546,8 +646,8 @@ function UsersPage() {
                 }
               />
               <Switch
-                label="Can manage requests"
-                checked={selectedUser.permissions?.canManageRequests || false}
+                label="Can configure email settings"
+                checked={selectedUser.permissions?.canConfigureEmail || false}
                 onChange={(e) =>
                   setSelectedUser({
                     ...selectedUser,
@@ -556,27 +656,11 @@ function UsersPage() {
                         canDeleteDownloads: false,
                         canConfigureNotifications: false,
                         canManageRequests: false,
-                        canAccessSettings: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
                       }),
-                      canManageRequests: e.currentTarget.checked,
-                    },
-                  })
-                }
-              />
-              <Switch
-                label="Can access settings"
-                checked={selectedUser.permissions?.canAccessSettings || false}
-                onChange={(e) =>
-                  setSelectedUser({
-                    ...selectedUser,
-                    permissions: {
-                      ...(selectedUser.permissions || {
-                        canDeleteDownloads: false,
-                        canConfigureNotifications: false,
-                        canManageRequests: false,
-                        canAccessSettings: false,
-                      }),
-                      canAccessSettings: e.currentTarget.checked,
+                      canConfigureEmail: e.currentTarget.checked,
                     },
                   })
                 }

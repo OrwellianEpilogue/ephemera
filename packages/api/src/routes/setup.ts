@@ -265,7 +265,9 @@ app.openapi(postStep2Route, async (c) => {
       canDeleteDownloads: true,
       canConfigureNotifications: true,
       canManageRequests: true,
-      canAccessSettings: true,
+      canConfigureApp: true,
+      canConfigureIntegrations: true,
+      canConfigureEmail: true,
     });
 
     return c.json({ success: true }, 200);

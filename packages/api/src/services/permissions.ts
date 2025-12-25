@@ -32,9 +32,11 @@ class PermissionsService {
       const defaultPermissions: NewUserPermissions = {
         userId,
         canDeleteDownloads: false,
-        canConfigureNotifications: true,
+        canConfigureNotifications: false,
         canManageRequests: true,
-        canAccessSettings: false,
+        canConfigureApp: false,
+        canConfigureIntegrations: false,
+        canConfigureEmail: false,
       };
 
       const created = await db
@@ -124,7 +126,9 @@ class PermissionsService {
       canDeleteDownloads: true,
       canConfigureNotifications: true,
       canManageRequests: true,
-      canAccessSettings: true,
+      canConfigureApp: true,
+      canConfigureIntegrations: true,
+      canConfigureEmail: true,
     };
 
     try {

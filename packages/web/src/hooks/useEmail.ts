@@ -19,10 +19,11 @@ export const emailKeys = {
 };
 
 // Fetch email settings
-export const useEmailSettings = () => {
+export const useEmailSettings = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: emailKeys.settings,
     queryFn: () => apiFetch<EmailSettings | null>("/email/settings"),
+    enabled: options?.enabled ?? true,
   });
 };
 
@@ -92,10 +93,11 @@ export const useTestEmailConnection = () => {
 };
 
 // Fetch email recipients
-export const useEmailRecipients = () => {
+export const useEmailRecipients = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: emailKeys.recipients,
     queryFn: () => apiFetch<EmailRecipient[]>("/email/recipients"),
+    enabled: options?.enabled ?? true,
   });
 };
 

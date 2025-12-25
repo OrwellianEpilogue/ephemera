@@ -14,10 +14,11 @@ import type {
 import { notifications } from "@mantine/notifications";
 
 // Fetch app settings
-export const useAppSettings = () => {
+export const useAppSettings = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["appSettings"],
     queryFn: () => apiFetch<AppSettings>("/settings"),
+    enabled: options?.enabled ?? true,
   });
 };
 
@@ -52,11 +53,12 @@ export const useUpdateAppSettings = () => {
 };
 
 // Fetch Booklore settings
-export const useBookloreSettings = () => {
+export const useBookloreSettings = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["bookloreSettings"],
     queryFn: () =>
       apiFetch<BookloreSettingsResponse | null>("/booklore/settings"),
+    enabled: options?.enabled ?? true,
   });
 };
 
@@ -137,10 +139,11 @@ export const useBookloreLibraries = (enabled: boolean) => {
 };
 
 // Fetch Apprise settings
-export const useAppriseSettings = () => {
+export const useAppriseSettings = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["appriseSettings"],
     queryFn: () => apiFetch<AppriseSettings>("/apprise/settings"),
+    enabled: options?.enabled ?? true,
   });
 };
 

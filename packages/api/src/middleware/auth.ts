@@ -86,7 +86,9 @@ export const requirePermission = (
     | "canDeleteDownloads"
     | "canConfigureNotifications"
     | "canManageRequests"
-    | "canAccessSettings",
+    | "canConfigureApp"
+    | "canConfigureIntegrations"
+    | "canConfigureEmail",
 ) => {
   return createMiddleware(async (c, next) => {
     const user = c.get("user");

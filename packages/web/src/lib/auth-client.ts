@@ -11,7 +11,7 @@ export const authClient = createAuthClient({
   // In production, use the same origin (frontend served from API server)
   baseURL: import.meta.env.DEV
     ? "http://localhost:8286"
-    : /* eslint-disable-next-line no-undef */
+    :  
       window.location.origin,
   fetchOptions: {
     credentials: "include",
@@ -20,7 +20,8 @@ export const authClient = createAuthClient({
 });
 
 // Export hooks for use in components
-export const { useSession, signIn, signOut, signUp, $Infer } = authClient;
+export const { useSession, signIn, signOut, signUp, changePassword, $Infer } =
+  authClient;
 
 // Export types for convenience
 export type Session = typeof $Infer.Session;

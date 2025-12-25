@@ -67,8 +67,8 @@ function SetupWizard() {
 
   // Step 2: Admin Account
   const [adminForm, setAdminForm] = useState({
-    username: "admin",
-    email: "admin@localhost",
+    username: "",
+    email: "",
     password: "",
     confirmPassword: "",
   });

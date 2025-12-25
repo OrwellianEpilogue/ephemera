@@ -11,7 +11,11 @@ import { fileURLToPath } from "url";
 import { initializeDatabase } from "./db/index.js";
 import { logger } from "./utils/logger.js";
 import { auth } from "./auth.js";
-import { requireAuth, requireAdmin } from "./middleware/auth.js";
+import {
+  requireAuth,
+  requireAdmin,
+  requirePermission,
+} from "./middleware/auth.js";
 import { searchCacheManager } from "./services/search-cache.js";
 import { appSettingsService } from "./services/app-settings.js";
 import { bookloreSettingsService } from "./services/booklore-settings.js";
@@ -206,15 +210,42 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 app.use("/api/download/*", requireAuth);
 app.use("/api/queue/*", requireAuth);
 app.use("/api/requests/*", requireAuth);
-app.use("/api/booklore/*", requireAuth);
-app.use("/api/apprise/*", requireAuth);
-app.use("/api/indexer/*", requireAuth);
 app.use("/api/permissions", requireAuth);
 
-// Apply admin middleware to admin-only routes (except GET /oidc-providers for login page)
-app.use("/api/settings/*", requireAuth, requireAdmin);
+// Settings-related routes require granular permissions (admins bypass via requirePermission)
+app.use(
+  "/api/booklore/*",
+  requireAuth,
+  requirePermission("canConfigureIntegrations"),
+);
+app.use(
+  "/api/apprise/*",
+  requireAuth,
+  requirePermission("canConfigureNotifications"),
+);
+app.use(
+  "/api/indexer/*",
+  requireAuth,
+  requirePermission("canConfigureIntegrations"),
+);
+app.use("/api/email/*", requireAuth, requirePermission("canConfigureEmail"));
+
+// General settings require canConfigureApp permission
+app.use("/api/settings/*", requireAuth, requirePermission("canConfigureApp"));
 app.use("/api/filesystem/*", requireAuth, requireAdmin);
-app.use("/api/users/*", requireAuth, requireAdmin);
+// Users: /me endpoints are for any authenticated user, others require admin
+app.use("/api/users/*", async (c, next) => {
+  const path = c.req.path;
+  // Allow /me endpoints for any authenticated user
+  if (path === "/api/users/me" || path.startsWith("/api/users/me/")) {
+    await requireAuth(c, next);
+    return;
+  }
+  // All other user routes require admin
+  await requireAuth(c, async () => {
+    await requireAdmin(c, next);
+  });
+});
 // OIDC providers: GET is public (for login page), POST/PATCH/DELETE require admin
 app.use("/api/oidc-providers", async (c, next) => {
   if (c.req.method === "GET") {

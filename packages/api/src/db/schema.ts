@@ -118,11 +118,19 @@ export const userPermissions = sqliteTable("user_permissions", {
     mode: "boolean",
   })
     .notNull()
-    .default(true),
+    .default(false),
   canManageRequests: integer("can_manage_requests", { mode: "boolean" })
     .notNull()
     .default(true),
-  canAccessSettings: integer("can_access_settings", { mode: "boolean" })
+  canConfigureApp: integer("can_configure_app", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  canConfigureIntegrations: integer("can_configure_integrations", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
+  canConfigureEmail: integer("can_configure_email", { mode: "boolean" })
     .notNull()
     .default(false),
 });
@@ -509,6 +517,13 @@ export const userPermissionsRelations = relations(
     }),
   }),
 );
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, {
+    fields: [account.userId],
+    references: [user.id],
+  }),
+}));
 
 export const booksRelations = relations(books, ({ many }) => ({
   downloads: many(downloads),

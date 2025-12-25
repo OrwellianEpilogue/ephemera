@@ -26,7 +26,9 @@ app.get("/permissions", async (c) => {
         canDeleteDownloads: true,
         canConfigureNotifications: true,
         canManageRequests: true,
-        canAccessSettings: true,
+        canConfigureApp: true,
+        canConfigureIntegrations: true,
+        canConfigureEmail: true,
       });
     }
 
@@ -37,7 +39,9 @@ app.get("/permissions", async (c) => {
       canDeleteDownloads: permissions.canDeleteDownloads,
       canConfigureNotifications: permissions.canConfigureNotifications,
       canManageRequests: permissions.canManageRequests,
-      canAccessSettings: permissions.canAccessSettings,
+      canConfigureApp: permissions.canConfigureApp,
+      canConfigureIntegrations: permissions.canConfigureIntegrations,
+      canConfigureEmail: permissions.canConfigureEmail,
     });
   } catch (error) {
     console.error("[Permissions] Error fetching permissions:", error);

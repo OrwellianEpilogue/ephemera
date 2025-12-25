@@ -28,7 +28,12 @@ import {
   IconUserX,
   IconShieldCheck,
   IconAlertCircle,
+  IconCheck,
+  IconX,
+  IconKey,
+  IconPlugConnected,
 } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 import { apiFetch } from "@ephemera/shared";
 
 interface User {
@@ -45,8 +50,12 @@ interface User {
     canDeleteDownloads: boolean;
     canConfigureNotifications: boolean;
     canManageRequests: boolean;
-    canAccessSettings: boolean;
+    canConfigureApp: boolean;
+    canConfigureIntegrations: boolean;
+    canConfigureEmail: boolean;
   } | null;
+  hasPassword: boolean;
+  hasOIDC: boolean;
 }
 
 interface CreateUserForm {
@@ -58,7 +67,9 @@ interface CreateUserForm {
     canDeleteDownloads: boolean;
     canConfigureNotifications: boolean;
     canManageRequests: boolean;
-    canAccessSettings: boolean;
+    canConfigureApp: boolean;
+    canConfigureIntegrations: boolean;
+    canConfigureEmail: boolean;
   };
 }
 
@@ -68,6 +79,8 @@ export default function UsersManagement() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPasswordField, setShowPasswordField] = useState(false);
 
   // Form state for create
   const [createForm, setCreateForm] = useState<CreateUserForm>({
@@ -79,7 +92,9 @@ export default function UsersManagement() {
       canDeleteDownloads: false,
       canConfigureNotifications: false,
       canManageRequests: false,
-      canAccessSettings: false,
+      canConfigureApp: false,
+      canConfigureIntegrations: false,
+      canConfigureEmail: false,
     },
   });
 
@@ -109,7 +124,9 @@ export default function UsersManagement() {
           canDeleteDownloads: false,
           canConfigureNotifications: false,
           canManageRequests: false,
-          canAccessSettings: false,
+          canConfigureApp: false,
+          canConfigureIntegrations: false,
+          canConfigureEmail: false,
         },
       });
       setError(null);
@@ -158,6 +175,37 @@ export default function UsersManagement() {
     },
   });
 
+  // Set user password mutation (admin)
+  const setPasswordMutation = useMutation({
+    mutationFn: ({
+      userId,
+      newPassword,
+    }: {
+      userId: string;
+      newPassword: string;
+    }) =>
+      apiFetch<{ success: boolean }>(`/users/${userId}/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      }),
+    onSuccess: () => {
+      setShowPasswordField(false);
+      setNewPassword("");
+      notifications.show({
+        title: "Password Updated",
+        message: "User password has been reset successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+    },
+    onError: (error: unknown) => {
+      setError(
+        error instanceof Error ? error.message : "Failed to set password",
+      );
+    },
+  });
+
   const handleCreateUser = () => {
     setError(null);
     createUserMutation.mutate(createForm);
@@ -189,6 +237,17 @@ export default function UsersManagement() {
     setSelectedUser(user);
     setEditModalOpen(true);
     setError(null);
+    setNewPassword("");
+    setShowPasswordField(false);
+  };
+
+  const handleResetPassword = () => {
+    if (!selectedUser || newPassword.length < 8) return;
+    setError(null);
+    setPasswordMutation.mutate({
+      userId: selectedUser.id,
+      newPassword,
+    });
   };
 
   if (isLoading) {
@@ -235,6 +294,8 @@ export default function UsersManagement() {
             <Table.Tr>
               <Table.Th>User</Table.Th>
               <Table.Th>Email</Table.Th>
+              <Table.Th>Password</Table.Th>
+              <Table.Th>OIDC</Table.Th>
               <Table.Th>Role</Table.Th>
               <Table.Th>Status</Table.Th>
               <Table.Th>Created</Table.Th>
@@ -256,6 +317,20 @@ export default function UsersManagement() {
                 </Table.Td>
                 <Table.Td>{user.email}</Table.Td>
                 <Table.Td>
+                  {user.hasPassword ? (
+                    <IconCheck size={16} color="var(--mantine-color-green-6)" />
+                  ) : (
+                    <IconX size={16} color="var(--mantine-color-gray-5)" />
+                  )}
+                </Table.Td>
+                <Table.Td>
+                  {user.hasOIDC ? (
+                    <IconCheck size={16} color="var(--mantine-color-green-6)" />
+                  ) : (
+                    <IconX size={16} color="var(--mantine-color-gray-5)" />
+                  )}
+                </Table.Td>
+                <Table.Td>
                   <Badge color={user.role === "admin" ? "blue" : "gray"}>
                     {user.role}
                   </Badge>
@@ -265,10 +340,8 @@ export default function UsersManagement() {
                     <Badge color="red" leftSection={<IconUserX size={12} />}>
                       Banned
                     </Badge>
-                  ) : user.emailVerified ? (
-                    <Badge color="green">Verified</Badge>
                   ) : (
-                    <Badge color="yellow">Unverified</Badge>
+                    <Badge color="green">Active</Badge>
                   )}
                 </Table.Td>
                 <Table.Td>
@@ -372,19 +445,6 @@ export default function UsersManagement() {
               }
             />
             <Switch
-              label="Can configure notifications"
-              checked={createForm.permissions.canConfigureNotifications}
-              onChange={(e) =>
-                setCreateForm({
-                  ...createForm,
-                  permissions: {
-                    ...createForm.permissions,
-                    canConfigureNotifications: e.currentTarget.checked,
-                  },
-                })
-              }
-            />
-            <Switch
               label="Can manage requests"
               checked={createForm.permissions.canManageRequests}
               onChange={(e) =>
@@ -398,14 +458,53 @@ export default function UsersManagement() {
               }
             />
             <Switch
-              label="Can access settings"
-              checked={createForm.permissions.canAccessSettings}
+              label="Can configure app settings (General)"
+              checked={createForm.permissions.canConfigureApp}
               onChange={(e) =>
                 setCreateForm({
                   ...createForm,
                   permissions: {
                     ...createForm.permissions,
-                    canAccessSettings: e.currentTarget.checked,
+                    canConfigureApp: e.currentTarget.checked,
+                  },
+                })
+              }
+            />
+            <Switch
+              label="Can configure integrations (Booklore, Indexer)"
+              checked={createForm.permissions.canConfigureIntegrations}
+              onChange={(e) =>
+                setCreateForm({
+                  ...createForm,
+                  permissions: {
+                    ...createForm.permissions,
+                    canConfigureIntegrations: e.currentTarget.checked,
+                  },
+                })
+              }
+            />
+            <Switch
+              label="Can configure notifications"
+              checked={createForm.permissions.canConfigureNotifications}
+              onChange={(e) =>
+                setCreateForm({
+                  ...createForm,
+                  permissions: {
+                    ...createForm.permissions,
+                    canConfigureNotifications: e.currentTarget.checked,
+                  },
+                })
+              }
+            />
+            <Switch
+              label="Can configure email settings"
+              checked={createForm.permissions.canConfigureEmail}
+              onChange={(e) =>
+                setCreateForm({
+                  ...createForm,
+                  permissions: {
+                    ...createForm.permissions,
+                    canConfigureEmail: e.currentTarget.checked,
                   },
                 })
               }
@@ -517,9 +616,73 @@ export default function UsersManagement() {
                         canDeleteDownloads: false,
                         canConfigureNotifications: false,
                         canManageRequests: false,
-                        canAccessSettings: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
                       }),
                       canDeleteDownloads: e.currentTarget.checked,
+                    },
+                  })
+                }
+              />
+              <Switch
+                label="Can manage requests"
+                checked={selectedUser.permissions?.canManageRequests || false}
+                onChange={(e) =>
+                  setSelectedUser({
+                    ...selectedUser,
+                    permissions: {
+                      ...(selectedUser.permissions || {
+                        canDeleteDownloads: false,
+                        canConfigureNotifications: false,
+                        canManageRequests: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
+                      }),
+                      canManageRequests: e.currentTarget.checked,
+                    },
+                  })
+                }
+              />
+              <Switch
+                label="Can configure app settings (General)"
+                checked={selectedUser.permissions?.canConfigureApp || false}
+                onChange={(e) =>
+                  setSelectedUser({
+                    ...selectedUser,
+                    permissions: {
+                      ...(selectedUser.permissions || {
+                        canDeleteDownloads: false,
+                        canConfigureNotifications: false,
+                        canManageRequests: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
+                      }),
+                      canConfigureApp: e.currentTarget.checked,
+                    },
+                  })
+                }
+              />
+              <Switch
+                label="Can configure integrations (Booklore, Indexer)"
+                checked={
+                  selectedUser.permissions?.canConfigureIntegrations || false
+                }
+                onChange={(e) =>
+                  setSelectedUser({
+                    ...selectedUser,
+                    permissions: {
+                      ...(selectedUser.permissions || {
+                        canDeleteDownloads: false,
+                        canConfigureNotifications: false,
+                        canManageRequests: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
+                      }),
+                      canConfigureIntegrations: e.currentTarget.checked,
                     },
                   })
                 }
@@ -537,7 +700,9 @@ export default function UsersManagement() {
                         canDeleteDownloads: false,
                         canConfigureNotifications: false,
                         canManageRequests: false,
-                        canAccessSettings: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
                       }),
                       canConfigureNotifications: e.currentTarget.checked,
                     },
@@ -545,8 +710,8 @@ export default function UsersManagement() {
                 }
               />
               <Switch
-                label="Can manage requests"
-                checked={selectedUser.permissions?.canManageRequests || false}
+                label="Can configure email settings"
+                checked={selectedUser.permissions?.canConfigureEmail || false}
                 onChange={(e) =>
                   setSelectedUser({
                     ...selectedUser,
@@ -555,31 +720,78 @@ export default function UsersManagement() {
                         canDeleteDownloads: false,
                         canConfigureNotifications: false,
                         canManageRequests: false,
-                        canAccessSettings: false,
+                        canConfigureApp: false,
+                        canConfigureIntegrations: false,
+                        canConfigureEmail: false,
                       }),
-                      canManageRequests: e.currentTarget.checked,
+                      canConfigureEmail: e.currentTarget.checked,
                     },
                   })
                 }
               />
-              <Switch
-                label="Can access settings"
-                checked={selectedUser.permissions?.canAccessSettings || false}
-                onChange={(e) =>
-                  setSelectedUser({
-                    ...selectedUser,
-                    permissions: {
-                      ...(selectedUser.permissions || {
-                        canDeleteDownloads: false,
-                        canConfigureNotifications: false,
-                        canManageRequests: false,
-                        canAccessSettings: false,
-                      }),
-                      canAccessSettings: e.currentTarget.checked,
-                    },
-                  })
-                }
-              />
+            </Stack>
+
+            {/* Password Reset Section */}
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>
+                Password
+              </Text>
+              {selectedUser.hasPassword ? (
+                !showPasswordField ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftSection={<IconKey size={16} />}
+                    onClick={() => setShowPasswordField(true)}
+                    w="fit-content"
+                  >
+                    Reset Password
+                  </Button>
+                ) : (
+                  <Group gap="xs" align="flex-end">
+                    <PasswordInput
+                      placeholder="New password (min 8 chars)"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      style={{ flex: 1 }}
+                      size="sm"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleResetPassword}
+                      disabled={newPassword.length < 8}
+                      loading={setPasswordMutation.isPending}
+                    >
+                      Set
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="subtle"
+                      onClick={() => {
+                        setShowPasswordField(false);
+                        setNewPassword("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </Group>
+                )
+              ) : selectedUser.hasOIDC ? (
+                <Alert
+                  color="blue"
+                  icon={<IconPlugConnected size={16} />}
+                  p="xs"
+                >
+                  <Text size="sm">
+                    This user authenticates via SSO only. Password cannot be
+                    set.
+                  </Text>
+                </Alert>
+              ) : (
+                <Text size="sm" c="dimmed">
+                  No authentication method configured
+                </Text>
+              )}
             </Stack>
 
             <Group justify="flex-end" mt="md">
