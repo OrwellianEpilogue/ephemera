@@ -18,6 +18,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsUsersRouteImport } from './routes/settings.users'
 import { Route as SettingsOidcRouteImport } from './routes/settings.oidc'
+import { Route as LoginErrorRouteImport } from './routes/login_.error'
 
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
@@ -64,6 +65,11 @@ const SettingsOidcRoute = SettingsOidcRouteImport.update({
   path: '/oidc',
   getParentRoute: () => SettingsRoute,
 } as any)
+const LoginErrorRoute = LoginErrorRouteImport.update({
+  id: '/login_/error',
+  path: '/login/error',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/login/error': typeof LoginErrorRoute
   '/settings/oidc': typeof SettingsOidcRoute
   '/settings/users': typeof SettingsUsersRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/login/error': typeof LoginErrorRoute
   '/settings/oidc': typeof SettingsOidcRoute
   '/settings/users': typeof SettingsUsersRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/setup': typeof SetupRoute
+  '/login_/error': typeof LoginErrorRoute
   '/settings/oidc': typeof SettingsOidcRoute
   '/settings/users': typeof SettingsUsersRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/setup'
+    | '/login/error'
     | '/settings/oidc'
     | '/settings/users'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/setup'
+    | '/login/error'
     | '/settings/oidc'
     | '/settings/users'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/setup'
+    | '/login_/error'
     | '/settings/oidc'
     | '/settings/users'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SetupRoute: typeof SetupRoute
+  LoginErrorRoute: typeof LoginErrorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -210,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsOidcRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/login_/error': {
+      id: '/login_/error'
+      path: '/login/error'
+      fullPath: '/login/error'
+      preLoaderRoute: typeof LoginErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -235,6 +255,7 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SetupRoute: SetupRoute,
+  LoginErrorRoute: LoginErrorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

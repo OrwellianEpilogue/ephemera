@@ -39,6 +39,7 @@ interface OIDCProvider {
   name?: string;
   issuer: string;
   domain: string | null;
+  allowAutoProvision: boolean;
   enabled: boolean;
   oidcConfig: {
     clientId: string;
@@ -60,6 +61,7 @@ interface CreateProviderForm {
   clientId: string;
   clientSecret: string;
   scopes: string[];
+  allowAutoProvision: boolean;
   enabled: boolean;
 }
 
@@ -89,6 +91,7 @@ function OIDCProvidersPage() {
     clientId: "",
     clientSecret: "",
     scopes: ["openid", "email", "profile"],
+    allowAutoProvision: false,
     enabled: true,
   });
   const [createProtocol, setCreateProtocol] = useState<"https://" | "http://">(
@@ -124,6 +127,7 @@ function OIDCProvidersPage() {
         clientId: "",
         clientSecret: "",
         scopes: ["openid", "email", "profile"],
+        allowAutoProvision: false,
         enabled: true,
       });
       setError(null);
@@ -197,6 +201,7 @@ function OIDCProvidersPage() {
         issuer: fullIssuer,
         domain: selectedProvider.domain,
         enabled: selectedProvider.enabled,
+        allowAutoProvision: selectedProvider.allowAutoProvision,
         oidcConfig: {
           ...selectedProvider.oidcConfig,
           discoveryUrl:
@@ -535,6 +540,18 @@ function OIDCProvidersPage() {
           />
 
           <Switch
+            label="Allow auto-provisioning"
+            description="Automatically create accounts for new users. If disabled, users must exist before they can sign in."
+            checked={createForm.allowAutoProvision}
+            onChange={(e) =>
+              setCreateForm({
+                ...createForm,
+                allowAutoProvision: e.currentTarget.checked,
+              })
+            }
+          />
+
+          <Switch
             label="Enable provider"
             description="Users can sign in with this provider"
             checked={createForm.enabled}
@@ -740,6 +757,18 @@ function OIDCProvidersPage() {
                 })
               }
               searchable
+            />
+
+            <Switch
+              label="Allow auto-provisioning"
+              description="Automatically create accounts for new users. If disabled, users must exist before they can sign in."
+              checked={selectedProvider.allowAutoProvision}
+              onChange={(e) =>
+                setSelectedProvider({
+                  ...selectedProvider,
+                  allowAutoProvision: e.currentTarget.checked,
+                })
+              }
             />
 
             <Switch

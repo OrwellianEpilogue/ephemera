@@ -117,7 +117,17 @@ function LoginPage() {
   // UI states
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle SSO error from sessionStorage (set by /login/error route)
+  useEffect(() => {
+    const ssoError = sessionStorage.getItem("sso_error");
+    if (ssoError) {
+      setError(ssoError);
+      sessionStorage.removeItem("sso_error");
+    }
+  }, []);
 
   // Auto-select first available tab when auth methods are loaded
   useEffect(() => {
@@ -244,19 +254,20 @@ function LoginPage() {
   // OIDC sign in
   const handleOIDCSignIn = async (providerId: string) => {
     setError(null);
-    setLoading(true);
+    setLoadingProvider(providerId);
 
     try {
       // Use the SSO client from Better Auth
       await authClient.signIn.sso({
         providerId,
         callbackURL: "/",
+        errorCallbackURL: "/login",
       });
       // OIDC flow will redirect automatically
     } catch (err) {
       console.error(`[Login] OIDC sign in error:`, err);
       setError(err instanceof Error ? err.message : "OIDC login failed");
-      setLoading(false);
+      setLoadingProvider(null);
     }
   };
 
@@ -448,7 +459,8 @@ function LoginPage() {
                       leftSection={<IconPlugConnected size={18} />}
                       variant="default"
                       onClick={() => handleOIDCSignIn(provider.providerId)}
-                      loading={loading}
+                      loading={loadingProvider === provider.providerId}
+                      disabled={loadingProvider !== null}
                     >
                       {provider.name || provider.providerId}
                     </Button>

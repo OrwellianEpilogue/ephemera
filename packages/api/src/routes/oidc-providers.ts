@@ -33,6 +33,7 @@ const OIDCProviderSchema = z.object({
   name: z.string().optional(),
   issuer: z.string(),
   domain: z.string().nullable(),
+  allowAutoProvision: z.boolean(),
   enabled: z.boolean(),
   oidcConfig: OIDCConfigSchema,
   createdAt: z.string(),
@@ -54,6 +55,7 @@ const CreateOIDCProviderSchema = z.object({
   clientId: z.string().min(1),
   clientSecret: z.string().min(1),
   scopes: z.array(z.string()).default(["openid", "email", "profile"]),
+  allowAutoProvision: z.boolean().default(false),
   enabled: z.boolean().default(true),
 });
 
@@ -65,6 +67,7 @@ const UpdateOIDCProviderSchema = z.object({
   clientId: z.string().min(1).optional(),
   clientSecret: z.string().min(1).optional(),
   scopes: z.array(z.string()).optional(),
+  allowAutoProvision: z.boolean().optional(),
   enabled: z.boolean().optional(),
 });
 
@@ -105,6 +108,7 @@ app.openapi(getProvidersRoute, async (c) => {
         name: p.name || p.providerId,
         issuer: p.issuer,
         domain: p.domain,
+        allowAutoProvision: p.allowAutoProvision,
         enabled: p.enabled,
         oidcConfig: JSON.parse(p.oidcConfig),
         createdAt: p.createdAt.toISOString(),
@@ -236,6 +240,7 @@ app.openapi(createProviderRoute, async (c) => {
       name: body.name || null,
       issuer: body.issuer,
       domain: body.domain || null,
+      allowAutoProvision: body.allowAutoProvision ?? false,
       oidcConfig: JSON.stringify(oidcConfig),
       enabled: body.enabled,
       createdAt: new Date(),
@@ -258,6 +263,7 @@ app.openapi(createProviderRoute, async (c) => {
         name: provider.name || provider.providerId,
         issuer: provider.issuer,
         domain: provider.domain,
+        allowAutoProvision: provider.allowAutoProvision,
         enabled: provider.enabled,
         oidcConfig: JSON.parse(provider.oidcConfig),
         createdAt: provider.createdAt.toISOString(),
@@ -352,6 +358,9 @@ app.openapi(updateProviderRoute, async (c) => {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.issuer && { issuer: body.issuer }),
         ...(body.domain !== undefined && { domain: body.domain }),
+        ...(body.allowAutoProvision !== undefined && {
+          allowAutoProvision: body.allowAutoProvision,
+        }),
         ...(body.enabled !== undefined && { enabled: body.enabled }),
         oidcConfig: JSON.stringify(updatedConfig),
         updatedAt: new Date(),
@@ -374,6 +383,7 @@ app.openapi(updateProviderRoute, async (c) => {
         name: updatedProvider.name || updatedProvider.providerId,
         issuer: updatedProvider.issuer,
         domain: updatedProvider.domain,
+        allowAutoProvision: updatedProvider.allowAutoProvision,
         enabled: updatedProvider.enabled,
         oidcConfig: JSON.parse(updatedProvider.oidcConfig),
         createdAt: updatedProvider.createdAt.toISOString(),

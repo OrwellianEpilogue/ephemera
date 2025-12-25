@@ -134,6 +134,13 @@
       "when": 1766612273953,
       "tag": "0018_opposite_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1766614809247,
+      "tag": "0019_typical_goliath",
+      "breakpoints": true
     }
   ]
 }

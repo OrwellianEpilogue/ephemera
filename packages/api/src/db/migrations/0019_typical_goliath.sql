@@ -1,0 +1,1 @@
+ALTER TABLE `sso_provider` ADD `allow_auto_provision` integer DEFAULT false NOT NULL;

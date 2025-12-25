@@ -91,6 +91,9 @@ export const ssoProvider = sqliteTable("sso_provider", {
   issuer: text("issuer").notNull(),
   oidcConfig: text("oidc_config").notNull(), // JSON string with clientId, clientSecret, etc.
   domain: text("domain"), // Optional domain for email-based routing
+  allowAutoProvision: integer("allow_auto_provision", { mode: "boolean" })
+    .default(false)
+    .notNull(), // If false, users must exist before OIDC login
   organizationId: text("organization_id"), // Optional, for multi-tenant support
   userId: text("user_id"), // Who created this provider
   enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
