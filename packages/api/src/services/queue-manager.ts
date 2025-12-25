@@ -6,6 +6,7 @@ import { logger } from "../utils/logger.js";
 import { bookloreSettingsService } from "./booklore-settings.js";
 import { bookloreUploader } from "./booklore-uploader.js";
 import { appSettingsService } from "./app-settings.js";
+import { appConfigService } from "./app-config.js";
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
 import { indexerSettingsService } from "./indexer-settings.js";
@@ -18,8 +19,6 @@ import type {
 } from "@ephemera/shared";
 import { getErrorMessage } from "@ephemera/shared";
 import type { Download } from "../db/schema.js";
-
-const MAX_RETRY_ATTEMPTS = parseInt(process.env.RETRY_ATTEMPTS || "3");
 const MAX_DELAYED_RETRY_ATTEMPTS = 24; // 24 hours of hourly retries
 const DELAYED_RETRY_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
 
@@ -258,9 +257,12 @@ export class QueueManager extends EventEmitter {
     // Fetch book data for author information in notifications
     const book = await bookService.getBook(md5);
 
+    // Get max retry attempts from config
+    const maxRetryAttempts = await appConfigService.getRetryAttempts();
+
     // Check retry count
     const retryCount = download.retryCount || 0;
-    if (retryCount >= MAX_RETRY_ATTEMPTS) {
+    if (retryCount >= maxRetryAttempts) {
       logger.error(`Max retry attempts reached for ${md5}`);
       await downloadTracker.markError(md5, "Max retry attempts reached");
       this.emitQueueUpdate();
@@ -370,7 +372,7 @@ export class QueueManager extends EventEmitter {
       // Handle regular errors (network, timeouts, etc.) with immediate retries
       const updatedDownload = await downloadTracker.get(md5);
       const currentRetryCount = updatedDownload?.retryCount || 0;
-      if (updatedDownload && currentRetryCount < MAX_RETRY_ATTEMPTS) {
+      if (updatedDownload && currentRetryCount < maxRetryAttempts) {
         // Increment retry count in database BEFORE re-queueing
         await downloadTracker.update(md5, {
           retryCount: currentRetryCount + 1,
@@ -378,7 +380,7 @@ export class QueueManager extends EventEmitter {
         });
 
         logger.info(
-          `Will retry ${md5} (attempt ${currentRetryCount + 1}/${MAX_RETRY_ATTEMPTS})`,
+          `Will retry ${md5} (attempt ${currentRetryCount + 1}/${maxRetryAttempts})`,
         );
         // Re-queue
         this.queue.push(item);

@@ -152,6 +152,9 @@ export const appConfig = sqliteTable("app_config", {
   retryAttempts: integer("retry_attempts").notNull().default(3),
   requestTimeout: integer("request_timeout").notNull().default(30000),
   searchCacheTtl: integer("search_cache_ttl").notNull().default(300),
+  maxConcurrentDownloads: integer("max_concurrent_downloads")
+    .notNull()
+    .default(1),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),

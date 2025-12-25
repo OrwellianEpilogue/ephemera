@@ -1014,3 +1014,85 @@ export const emailTestResponseSchema = z.object({
 });
 
 export type EmailTestResponse = z.infer<typeof emailTestResponseSchema>;
+
+// System configuration schema (folder paths, download settings)
+export const systemConfigSchema = z.object({
+  downloadFolder: z
+    .string()
+    .min(1)
+    .describe("Folder path for temporary downloads"),
+  ingestFolder: z
+    .string()
+    .min(1)
+    .describe("Folder path for final/ingested books"),
+  retryAttempts: z
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .describe("Number of retry attempts for failed downloads (1-10)"),
+  requestTimeout: z
+    .number()
+    .int()
+    .min(5000)
+    .max(300000)
+    .describe("Request timeout in milliseconds (5000-300000)"),
+  searchCacheTtl: z
+    .number()
+    .int()
+    .min(60)
+    .max(86400)
+    .describe("Search cache TTL in seconds (60-86400)"),
+  maxConcurrentDownloads: z
+    .number()
+    .int()
+    .min(1)
+    .max(5)
+    .describe("Maximum concurrent downloads (1-5)"),
+});
+
+export type SystemConfig = z.infer<typeof systemConfigSchema>;
+
+// System configuration update request schema
+export const updateSystemConfigSchema = z.object({
+  downloadFolder: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Folder path for temporary downloads"),
+  ingestFolder: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Folder path for final/ingested books"),
+  retryAttempts: z
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .optional()
+    .describe("Number of retry attempts for failed downloads"),
+  requestTimeout: z
+    .number()
+    .int()
+    .min(5000)
+    .max(300000)
+    .optional()
+    .describe("Request timeout in milliseconds"),
+  searchCacheTtl: z
+    .number()
+    .int()
+    .min(60)
+    .max(86400)
+    .optional()
+    .describe("Search cache TTL in seconds"),
+  maxConcurrentDownloads: z
+    .number()
+    .int()
+    .min(1)
+    .max(5)
+    .optional()
+    .describe("Maximum concurrent downloads"),
+});
+
+export type UpdateSystemConfig = z.infer<typeof updateSystemConfigSchema>;

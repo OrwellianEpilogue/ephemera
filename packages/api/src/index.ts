@@ -45,6 +45,7 @@ import usersRoutes from "./routes/users.js";
 import oidcProvidersRoutes from "./routes/oidc-providers.js";
 import authRoutes from "./routes/auth.js";
 import emailRoutes from "./routes/email.js";
+import systemConfigRoutes from "./routes/system-config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -250,6 +251,11 @@ app.use("/api/email/*", async (c, next) => {
 
 // General settings require canConfigureApp permission
 app.use("/api/settings/*", requireAuth, requirePermission("canConfigureApp"));
+app.use(
+  "/api/system-config",
+  requireAuth,
+  requirePermission("canConfigureApp"),
+);
 app.use("/api/filesystem/*", requireAuth, requireAdmin);
 // Users: /me endpoints are for any authenticated user, others require admin
 app.use("/api/users/*", async (c, next) => {
@@ -282,6 +288,7 @@ app.route(API_BASE_PATH, searchRoutes); // Public for now
 app.route(API_BASE_PATH, downloadRoutes); // Protected (middleware applied above)
 app.route(API_BASE_PATH, queueRoutes); // Protected
 app.route(API_BASE_PATH, settingsRoutes); // Admin only
+app.route(API_BASE_PATH, systemConfigRoutes); // Admin only
 app.route(API_BASE_PATH, bookloreRoutes); // Protected
 app.route(API_BASE_PATH, appriseRoutes); // Protected
 app.route(API_BASE_PATH, imageProxyRoutes); // Public

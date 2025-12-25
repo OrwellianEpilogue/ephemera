@@ -6,11 +6,10 @@ import { Readable } from "stream";
 import { logger } from "../utils/logger.js";
 import { downloadTracker } from "./download-tracker.js";
 import { slowDownloader, type ProgressInfo } from "./slow-downloader.js";
+import { appConfigService } from "./app-config.js";
 
 const AA_API_KEY = process.env.AA_API_KEY;
 const AA_BASE_URL = process.env.AA_BASE_URL;
-const TEMP_FOLDER = process.env.DOWNLOAD_FOLDER || "./downloads";
-const REQUEST_TIMEOUT = parseInt(process.env.REQUEST_TIMEOUT || "30000");
 
 export interface DownloadOptions {
   md5: string;
@@ -62,8 +61,9 @@ export class Downloader {
     const url = `${AA_BASE_URL}/dyn/api/fast_download.json?${params.toString()}`;
 
     try {
+      const requestTimeout = await appConfigService.getRequestTimeout();
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+      const timeout = setTimeout(() => controller.abort(), requestTimeout);
 
       const response = await fetch(url, {
         signal: controller.signal,
@@ -88,8 +88,12 @@ export class Downloader {
     const { md5, pathIndex, domainIndex, onProgress } = options;
 
     try {
+      // Get config values
+      const tempFolder = await appConfigService.getDownloadFolder();
+      const requestTimeout = await appConfigService.getRequestTimeout();
+
       // Ensure temp folder exists
-      await mkdir(TEMP_FOLDER, { recursive: true });
+      await mkdir(tempFolder, { recursive: true });
 
       // Check if API key is available - if not, use slow download
       if (!AA_API_KEY) {
@@ -167,10 +171,7 @@ export class Downloader {
 
       // Start download
       const controller = new AbortController();
-      const timeout = setTimeout(
-        () => controller.abort(),
-        REQUEST_TIMEOUT * 10,
-      ); // 5 minutes for download
+      const timeout = setTimeout(() => controller.abort(), requestTimeout * 10); // 10x request timeout for file download
 
       const response = await fetch(downloadUrl, {
         signal: controller.signal,
@@ -261,7 +262,7 @@ export class Downloader {
       }
 
       logger.info(`Final filename: ${filename}`);
-      const filePath = join(TEMP_FOLDER, filename);
+      const filePath = join(tempFolder, filename);
 
       // Mark as started in DB
       await downloadTracker.markStarted(md5, filePath);

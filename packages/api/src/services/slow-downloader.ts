@@ -5,9 +5,9 @@ import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { logger } from "../utils/logger.js";
 import { downloadTracker } from "./download-tracker.js";
+import { appConfigService } from "./app-config.js";
 
 const AA_BASE_URL = process.env.AA_BASE_URL;
-const TEMP_FOLDER = process.env.DOWNLOAD_FOLDER || "./downloads";
 const FLARESOLVERR_URL =
   process.env.FLARESOLVERR_URL || "http://localhost:8191";
 const LG_BASE_URL = process.env.LG_BASE_URL || "";
@@ -319,8 +319,11 @@ export class SlowDownloader {
     let sessionId: string | null = null;
 
     try {
+      // Get temp folder from config
+      const tempFolder = await appConfigService.getDownloadFolder();
+
       // Ensure temp folder exists
-      await mkdir(TEMP_FOLDER, { recursive: true });
+      await mkdir(tempFolder, { recursive: true });
 
       // Create FlareSolverr session
       sessionId = await this.createSession(downloadId);
@@ -606,6 +609,9 @@ export class SlowDownloader {
   ): Promise<string> {
     logger.info(`[${downloadId}] Starting file download...`);
 
+    // Get temp folder from config
+    const tempFolder = await appConfigService.getDownloadFolder();
+
     // Fetch the file
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), SLOW_DOWNLOAD_TIMEOUT);
@@ -687,7 +693,7 @@ export class SlowDownloader {
       }
     }
 
-    const filePath = join(TEMP_FOLDER, filename);
+    const filePath = join(tempFolder, filename);
     logger.info(`[${downloadId}] Saving to: ${filePath}`);
 
     // Mark as started in DB

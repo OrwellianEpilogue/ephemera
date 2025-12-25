@@ -10,6 +10,8 @@ import type {
   AppriseSettings,
   UpdateAppriseSettings,
   AppriseTestResponse,
+  SystemConfig,
+  UpdateSystemConfig,
 } from "@ephemera/shared";
 import { notifications } from "@mantine/notifications";
 
@@ -204,6 +206,46 @@ export const useTestAppriseNotification = () => {
       notifications.show({
         title: "Test Failed",
         message: getErrorMessage(error) || "Failed to send test notification",
+        color: "red",
+      });
+    },
+  });
+};
+
+// Fetch system configuration
+export const useSystemConfig = (options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: ["systemConfig"],
+    queryFn: () => apiFetch<SystemConfig>("/system-config"),
+    enabled: options?.enabled ?? true,
+  });
+};
+
+// Update system configuration
+export const useUpdateSystemConfig = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (updates: UpdateSystemConfig) => {
+      return apiFetch<SystemConfig>("/system-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["systemConfig"] });
+      notifications.show({
+        title: "System Configuration Updated",
+        message: "System settings have been saved successfully",
+        color: "green",
+      });
+    },
+    onError: (error: unknown) => {
+      notifications.show({
+        title: "Update Failed",
+        message:
+          getErrorMessage(error) || "Failed to update system configuration",
         color: "red",
       });
     },

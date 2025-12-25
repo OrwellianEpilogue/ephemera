@@ -162,6 +162,13 @@
       "when": 1766900000000,
       "tag": "0022_can_see_download_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1766696126962,
+      "tag": "0023_smart_thor_girl",
+      "breakpoints": true
     }
   ]
 }
