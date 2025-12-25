@@ -37,6 +37,7 @@ import {
   IconMail,
   IconUser,
   IconUserShare,
+  IconFolders,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -48,6 +49,8 @@ import {
   useAppriseSettings,
   useUpdateAppriseSettings,
   useTestAppriseNotification,
+  useSystemConfig,
+  useUpdateSystemConfig,
 } from "../hooks/useSettings";
 import { useState, useEffect } from "react";
 import type {
@@ -94,6 +97,7 @@ const settingsSearchSchema = z.object({
     .enum([
       "account",
       "general",
+      "system",
       "notifications",
       "booklore",
       "indexer",
@@ -126,6 +130,7 @@ function SettingsComponent() {
   const getTabPermission = (tabName: string): boolean => {
     switch (tabName) {
       case "general":
+      case "system":
         return !!canConfigureApp;
       case "notifications":
         return !!canConfigureNotifications;
@@ -177,6 +182,11 @@ function SettingsComponent() {
   const { data: indexerSettings } = useIndexerSettings({
     enabled: canConfigureIntegrations,
   });
+  const {
+    data: systemConfig,
+    isLoading: loadingSystemConfig,
+    isError: errorSystemConfig,
+  } = useSystemConfig({ enabled: canConfigureApp });
   // Email settings - all users can read to check if enabled
   const {
     data: emailSettings,
@@ -190,6 +200,7 @@ function SettingsComponent() {
   const updateSettings = useUpdateAppSettings();
   const updateBooklore = useUpdateBookloreSettings();
   const updateApprise = useUpdateAppriseSettings();
+  const updateSystemConfig = useUpdateSystemConfig();
   const testConnection = useTestBookloreConnection();
   const testApprise = useTestAppriseNotification();
   const updateEmail = useUpdateEmailSettings();
@@ -266,6 +277,14 @@ function SettingsComponent() {
   const [useTls, setUseTls] = useState(true);
   const [newRecipientEmail, setNewRecipientEmail] = useState("");
   const [newRecipientName, setNewRecipientName] = useState("");
+
+  // System configuration state
+  const [downloadFolder, setDownloadFolder] = useState("./downloads");
+  const [ingestFolder, setIngestFolder] = useState("/path/to/final/books");
+  const [retryAttempts, setRetryAttempts] = useState(3);
+  const [requestTimeout, setRequestTimeout] = useState(30000);
+  const [searchCacheTtl, setSearchCacheTtl] = useState(300);
+  const [maxConcurrentDownloads, setMaxConcurrentDownloads] = useState(1);
 
   // Sync with fetched settings
   useEffect(() => {
@@ -361,6 +380,18 @@ function SettingsComponent() {
     }
   }, [emailSettings]);
 
+  // Sync with system configuration
+  useEffect(() => {
+    if (systemConfig) {
+      setDownloadFolder(systemConfig.downloadFolder);
+      setIngestFolder(systemConfig.ingestFolder);
+      setRetryAttempts(systemConfig.retryAttempts);
+      setRequestTimeout(systemConfig.requestTimeout);
+      setSearchCacheTtl(systemConfig.searchCacheTtl);
+      setMaxConcurrentDownloads(systemConfig.maxConcurrentDownloads);
+    }
+  }, [systemConfig]);
+
   const handleSaveApp = () => {
     updateSettings.mutate({
       postDownloadMoveToIngest,
@@ -374,6 +405,17 @@ function SettingsComponent() {
       dateFormat,
       libraryUrl: libraryUrl || null,
       libraryLinkLocation,
+    });
+  };
+
+  const handleSaveSystemConfig = () => {
+    updateSystemConfig.mutate({
+      downloadFolder,
+      ingestFolder,
+      retryAttempts,
+      requestTimeout,
+      searchCacheTtl,
+      maxConcurrentDownloads,
     });
   };
 
@@ -578,12 +620,13 @@ function SettingsComponent() {
   }
 
   return (
-    <Container size="md">
+    <Container fluid>
       <Stack gap="lg">
         <Title order={1}>Settings</Title>
 
         <Tabs
           value={tab}
+          orientation="vertical"
           onChange={(value) =>
             navigate({
               search: {
@@ -599,17 +642,25 @@ function SettingsComponent() {
             })
           }
         >
-          <Tabs.List>
+          <Tabs.List miw={160}>
             <Tabs.Tab value="account" leftSection={<IconUser size={16} />}>
               Account
             </Tabs.Tab>
             {canConfigureApp && (
-              <Tabs.Tab
-                value="general"
-                leftSection={<IconSettings size={16} />}
-              >
-                General
-              </Tabs.Tab>
+              <>
+                <Tabs.Tab
+                  value="general"
+                  leftSection={<IconSettings size={16} />}
+                >
+                  General
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="system"
+                  leftSection={<IconFolders size={16} />}
+                >
+                  System
+                </Tabs.Tab>
+              </>
             )}
             {canConfigureNotifications && (
               <Tabs.Tab
@@ -655,7 +706,7 @@ function SettingsComponent() {
           </Tabs.List>
 
           {/* Account Tab - Available to all authenticated users */}
-          <Tabs.Panel value="account" pt="lg">
+          <Tabs.Panel value="account" pl="xl">
             <Suspense
               fallback={
                 <Center p="xl">
@@ -667,7 +718,7 @@ function SettingsComponent() {
             </Suspense>
           </Tabs.Panel>
 
-          <Tabs.Panel value="general" pt="lg">
+          <Tabs.Panel value="general" pl="xl">
             <Stack gap="lg">
               {/* Post-Download Actions */}
               <Paper p="md" withBorder>
@@ -931,7 +982,113 @@ function SettingsComponent() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="notifications" pt="lg">
+          <Tabs.Panel value="system" pl="xl">
+            <Stack gap="lg">
+              {loadingSystemConfig ? (
+                <Center py="xl">
+                  <Loader />
+                </Center>
+              ) : errorSystemConfig ? (
+                <Alert color="red" title="Error">
+                  Failed to load system configuration
+                </Alert>
+              ) : (
+                <>
+                  {/* Folder Paths */}
+                  <Paper p="md" withBorder>
+                    <Stack gap="md">
+                      <Title order={3}>Folder Paths</Title>
+                      <Text size="sm" c="dimmed">
+                        Configure where downloaded files are stored
+                      </Text>
+
+                      <TextInput
+                        label="Download Folder"
+                        description="Temporary folder for downloads in progress"
+                        value={downloadFolder}
+                        onChange={(e) => setDownloadFolder(e.target.value)}
+                        placeholder="./downloads"
+                      />
+
+                      <TextInput
+                        label="Ingest Folder"
+                        description="Final destination for completed downloads"
+                        value={ingestFolder}
+                        onChange={(e) => setIngestFolder(e.target.value)}
+                        placeholder="/path/to/final/books"
+                      />
+                    </Stack>
+                  </Paper>
+
+                  {/* Download Settings */}
+                  <Paper p="md" withBorder>
+                    <Stack gap="md">
+                      <Title order={3}>Download Settings</Title>
+                      <Text size="sm" c="dimmed">
+                        Configure download behavior and retry settings
+                      </Text>
+
+                      <NumberInput
+                        label="Max Concurrent Downloads"
+                        description="Maximum number of downloads that can run simultaneously (1-5)"
+                        value={maxConcurrentDownloads}
+                        onChange={(val) =>
+                          setMaxConcurrentDownloads(Number(val) || 1)
+                        }
+                        min={1}
+                        max={5}
+                      />
+
+                      <NumberInput
+                        label="Retry Attempts"
+                        description="Number of times to retry a failed download (1-10)"
+                        value={retryAttempts}
+                        onChange={(val) => setRetryAttempts(Number(val) || 3)}
+                        min={1}
+                        max={10}
+                      />
+
+                      <NumberInput
+                        label="Request Timeout (ms)"
+                        description="Timeout for API requests in milliseconds (5000-300000)"
+                        value={requestTimeout}
+                        onChange={(val) =>
+                          setRequestTimeout(Number(val) || 30000)
+                        }
+                        min={5000}
+                        max={300000}
+                        step={1000}
+                      />
+
+                      <NumberInput
+                        label="Search Cache TTL (seconds)"
+                        description="How long to cache search results (60-86400)"
+                        value={searchCacheTtl}
+                        onChange={(val) =>
+                          setSearchCacheTtl(Number(val) || 300)
+                        }
+                        min={60}
+                        max={86400}
+                        step={60}
+                      />
+                    </Stack>
+                  </Paper>
+
+                  {/* Save Button */}
+                  <Group justify="flex-end">
+                    <Button
+                      onClick={handleSaveSystemConfig}
+                      loading={updateSystemConfig.isPending}
+                    >
+                      Save System Configuration
+                    </Button>
+                  </Group>
+                </>
+              )}
+            </Stack>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="notifications" pl="xl">
             <Stack gap="lg">
               {/* Apprise Notifications */}
               <Paper p="md" withBorder>
@@ -1141,7 +1298,7 @@ function SettingsComponent() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="booklore" pt="lg">
+          <Tabs.Panel value="booklore" pl="xl">
             <Stack gap="lg">
               {/* Booklore Settings */}
               <Paper p="md" withBorder>
@@ -1384,11 +1541,11 @@ function SettingsComponent() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="indexer" pt="lg">
+          <Tabs.Panel value="indexer" pl="xl">
             <IndexerSettings />
           </Tabs.Panel>
 
-          <Tabs.Panel value="email" pt="lg">
+          <Tabs.Panel value="email" pl="xl">
             <Stack gap="lg">
               {/* SMTP Settings - Only for users with canConfigureEmail permission */}
               {canConfigureEmail && (
@@ -1657,7 +1814,7 @@ function SettingsComponent() {
 
           {isAdmin && (
             <>
-              <Tabs.Panel value="users" pt="lg">
+              <Tabs.Panel value="users" pl="xl">
                 <Suspense
                   fallback={
                     <Center p="xl">
@@ -1669,7 +1826,7 @@ function SettingsComponent() {
                 </Suspense>
               </Tabs.Panel>
 
-              <Tabs.Panel value="oidc" pt="lg">
+              <Tabs.Panel value="oidc" pl="xl">
                 <Suspense
                   fallback={
                     <Center p="xl">
