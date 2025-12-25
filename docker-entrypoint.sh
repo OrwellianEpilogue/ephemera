@@ -58,6 +58,8 @@ export INGEST_FOLDER="${INGEST_FOLDER:-/app/ingest}"
 echo "Setting up directories..."
 mkdir -p /app/data /app/downloads /app/ingest
 
+chown -R "$PUID:$PGID" /app/data /app/downloads /app/ingest
+
 # Create internal .crawlee directory and set ownership
 mkdir -p /app/.crawlee
 chown -R "$PUID:$PGID" /app/.crawlee
