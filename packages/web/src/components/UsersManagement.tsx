@@ -36,6 +36,26 @@ import {
 import { notifications } from "@mantine/notifications";
 import { apiFetch } from "@ephemera/shared";
 
+interface Permissions {
+  canDeleteDownloads: boolean;
+  canConfigureNotifications: boolean;
+  canManageRequests: boolean;
+  canConfigureApp: boolean;
+  canConfigureIntegrations: boolean;
+  canConfigureEmail: boolean;
+  canSeeDownloadOwner: boolean;
+}
+
+const DEFAULT_PERMISSIONS: Permissions = {
+  canDeleteDownloads: false,
+  canConfigureNotifications: false,
+  canManageRequests: false,
+  canConfigureApp: false,
+  canConfigureIntegrations: false,
+  canConfigureEmail: false,
+  canSeeDownloadOwner: false,
+};
+
 interface User {
   id: string;
   name: string;
@@ -46,16 +66,77 @@ interface User {
   banReason: string | null;
   createdAt: string;
   updatedAt: string;
-  permissions: {
-    canDeleteDownloads: boolean;
-    canConfigureNotifications: boolean;
-    canManageRequests: boolean;
-    canConfigureApp: boolean;
-    canConfigureIntegrations: boolean;
-    canConfigureEmail: boolean;
-  } | null;
+  permissions: Permissions | null;
   hasPassword: boolean;
   hasOIDC: boolean;
+}
+
+interface PermissionsFormProps {
+  permissions: Permissions;
+  onChange: (permissions: Permissions) => void;
+}
+
+function PermissionsForm({ permissions, onChange }: PermissionsFormProps) {
+  const handleChange = (key: keyof Permissions, value: boolean) => {
+    onChange({ ...permissions, [key]: value });
+  };
+
+  return (
+    <Stack gap="xs">
+      <Text size="sm" fw={500}>
+        Permissions
+      </Text>
+      <Switch
+        label="Can delete downloads"
+        checked={permissions.canDeleteDownloads}
+        onChange={(e) =>
+          handleChange("canDeleteDownloads", e.currentTarget.checked)
+        }
+      />
+      <Switch
+        label="Can manage requests"
+        checked={permissions.canManageRequests}
+        onChange={(e) =>
+          handleChange("canManageRequests", e.currentTarget.checked)
+        }
+      />
+      <Switch
+        label="Can configure app settings (General)"
+        checked={permissions.canConfigureApp}
+        onChange={(e) =>
+          handleChange("canConfigureApp", e.currentTarget.checked)
+        }
+      />
+      <Switch
+        label="Can configure integrations (Booklore, Indexer)"
+        checked={permissions.canConfigureIntegrations}
+        onChange={(e) =>
+          handleChange("canConfigureIntegrations", e.currentTarget.checked)
+        }
+      />
+      <Switch
+        label="Can configure notifications"
+        checked={permissions.canConfigureNotifications}
+        onChange={(e) =>
+          handleChange("canConfigureNotifications", e.currentTarget.checked)
+        }
+      />
+      <Switch
+        label="Can configure email settings"
+        checked={permissions.canConfigureEmail}
+        onChange={(e) =>
+          handleChange("canConfigureEmail", e.currentTarget.checked)
+        }
+      />
+      <Switch
+        label="Can see download owner"
+        checked={permissions.canSeeDownloadOwner}
+        onChange={(e) =>
+          handleChange("canSeeDownloadOwner", e.currentTarget.checked)
+        }
+      />
+    </Stack>
+  );
 }
 
 interface CreateUserForm {
@@ -63,14 +144,7 @@ interface CreateUserForm {
   email: string;
   password: string;
   role: "admin" | "user";
-  permissions: {
-    canDeleteDownloads: boolean;
-    canConfigureNotifications: boolean;
-    canManageRequests: boolean;
-    canConfigureApp: boolean;
-    canConfigureIntegrations: boolean;
-    canConfigureEmail: boolean;
-  };
+  permissions: Permissions;
 }
 
 export default function UsersManagement() {
@@ -88,14 +162,7 @@ export default function UsersManagement() {
     email: "",
     password: "",
     role: "user",
-    permissions: {
-      canDeleteDownloads: false,
-      canConfigureNotifications: false,
-      canManageRequests: false,
-      canConfigureApp: false,
-      canConfigureIntegrations: false,
-      canConfigureEmail: false,
-    },
+    permissions: { ...DEFAULT_PERMISSIONS },
   });
 
   // Fetch users
@@ -120,14 +187,7 @@ export default function UsersManagement() {
         email: "",
         password: "",
         role: "user",
-        permissions: {
-          canDeleteDownloads: false,
-          canConfigureNotifications: false,
-          canManageRequests: false,
-          canConfigureApp: false,
-          canConfigureIntegrations: false,
-          canConfigureEmail: false,
-        },
+        permissions: { ...DEFAULT_PERMISSIONS },
       });
       setError(null);
     },
@@ -427,89 +487,12 @@ export default function UsersManagement() {
             }
           />
 
-          <Stack gap="xs">
-            <Text size="sm" fw={500}>
-              Permissions
-            </Text>
-            <Switch
-              label="Can delete downloads"
-              checked={createForm.permissions.canDeleteDownloads}
-              onChange={(e) =>
-                setCreateForm({
-                  ...createForm,
-                  permissions: {
-                    ...createForm.permissions,
-                    canDeleteDownloads: e.currentTarget.checked,
-                  },
-                })
-              }
-            />
-            <Switch
-              label="Can manage requests"
-              checked={createForm.permissions.canManageRequests}
-              onChange={(e) =>
-                setCreateForm({
-                  ...createForm,
-                  permissions: {
-                    ...createForm.permissions,
-                    canManageRequests: e.currentTarget.checked,
-                  },
-                })
-              }
-            />
-            <Switch
-              label="Can configure app settings (General)"
-              checked={createForm.permissions.canConfigureApp}
-              onChange={(e) =>
-                setCreateForm({
-                  ...createForm,
-                  permissions: {
-                    ...createForm.permissions,
-                    canConfigureApp: e.currentTarget.checked,
-                  },
-                })
-              }
-            />
-            <Switch
-              label="Can configure integrations (Booklore, Indexer)"
-              checked={createForm.permissions.canConfigureIntegrations}
-              onChange={(e) =>
-                setCreateForm({
-                  ...createForm,
-                  permissions: {
-                    ...createForm.permissions,
-                    canConfigureIntegrations: e.currentTarget.checked,
-                  },
-                })
-              }
-            />
-            <Switch
-              label="Can configure notifications"
-              checked={createForm.permissions.canConfigureNotifications}
-              onChange={(e) =>
-                setCreateForm({
-                  ...createForm,
-                  permissions: {
-                    ...createForm.permissions,
-                    canConfigureNotifications: e.currentTarget.checked,
-                  },
-                })
-              }
-            />
-            <Switch
-              label="Can configure email settings"
-              checked={createForm.permissions.canConfigureEmail}
-              onChange={(e) =>
-                setCreateForm({
-                  ...createForm,
-                  permissions: {
-                    ...createForm.permissions,
-                    canConfigureEmail: e.currentTarget.checked,
-                  },
-                })
-              }
-            />
-          </Stack>
+          <PermissionsForm
+            permissions={createForm.permissions}
+            onChange={(permissions) =>
+              setCreateForm({ ...createForm, permissions })
+            }
+          />
 
           <Group justify="flex-end" mt="md">
             <Button
@@ -601,135 +584,12 @@ export default function UsersManagement() {
               />
             )}
 
-            <Stack gap="xs">
-              <Text size="sm" fw={500}>
-                Permissions
-              </Text>
-              <Switch
-                label="Can delete downloads"
-                checked={selectedUser.permissions?.canDeleteDownloads || false}
-                onChange={(e) =>
-                  setSelectedUser({
-                    ...selectedUser,
-                    permissions: {
-                      ...(selectedUser.permissions || {
-                        canDeleteDownloads: false,
-                        canConfigureNotifications: false,
-                        canManageRequests: false,
-                        canConfigureApp: false,
-                        canConfigureIntegrations: false,
-                        canConfigureEmail: false,
-                      }),
-                      canDeleteDownloads: e.currentTarget.checked,
-                    },
-                  })
-                }
-              />
-              <Switch
-                label="Can manage requests"
-                checked={selectedUser.permissions?.canManageRequests || false}
-                onChange={(e) =>
-                  setSelectedUser({
-                    ...selectedUser,
-                    permissions: {
-                      ...(selectedUser.permissions || {
-                        canDeleteDownloads: false,
-                        canConfigureNotifications: false,
-                        canManageRequests: false,
-                        canConfigureApp: false,
-                        canConfigureIntegrations: false,
-                        canConfigureEmail: false,
-                      }),
-                      canManageRequests: e.currentTarget.checked,
-                    },
-                  })
-                }
-              />
-              <Switch
-                label="Can configure app settings (General)"
-                checked={selectedUser.permissions?.canConfigureApp || false}
-                onChange={(e) =>
-                  setSelectedUser({
-                    ...selectedUser,
-                    permissions: {
-                      ...(selectedUser.permissions || {
-                        canDeleteDownloads: false,
-                        canConfigureNotifications: false,
-                        canManageRequests: false,
-                        canConfigureApp: false,
-                        canConfigureIntegrations: false,
-                        canConfigureEmail: false,
-                      }),
-                      canConfigureApp: e.currentTarget.checked,
-                    },
-                  })
-                }
-              />
-              <Switch
-                label="Can configure integrations (Booklore, Indexer)"
-                checked={
-                  selectedUser.permissions?.canConfigureIntegrations || false
-                }
-                onChange={(e) =>
-                  setSelectedUser({
-                    ...selectedUser,
-                    permissions: {
-                      ...(selectedUser.permissions || {
-                        canDeleteDownloads: false,
-                        canConfigureNotifications: false,
-                        canManageRequests: false,
-                        canConfigureApp: false,
-                        canConfigureIntegrations: false,
-                        canConfigureEmail: false,
-                      }),
-                      canConfigureIntegrations: e.currentTarget.checked,
-                    },
-                  })
-                }
-              />
-              <Switch
-                label="Can configure notifications"
-                checked={
-                  selectedUser.permissions?.canConfigureNotifications || false
-                }
-                onChange={(e) =>
-                  setSelectedUser({
-                    ...selectedUser,
-                    permissions: {
-                      ...(selectedUser.permissions || {
-                        canDeleteDownloads: false,
-                        canConfigureNotifications: false,
-                        canManageRequests: false,
-                        canConfigureApp: false,
-                        canConfigureIntegrations: false,
-                        canConfigureEmail: false,
-                      }),
-                      canConfigureNotifications: e.currentTarget.checked,
-                    },
-                  })
-                }
-              />
-              <Switch
-                label="Can configure email settings"
-                checked={selectedUser.permissions?.canConfigureEmail || false}
-                onChange={(e) =>
-                  setSelectedUser({
-                    ...selectedUser,
-                    permissions: {
-                      ...(selectedUser.permissions || {
-                        canDeleteDownloads: false,
-                        canConfigureNotifications: false,
-                        canManageRequests: false,
-                        canConfigureApp: false,
-                        canConfigureIntegrations: false,
-                        canConfigureEmail: false,
-                      }),
-                      canConfigureEmail: e.currentTarget.checked,
-                    },
-                  })
-                }
-              />
-            </Stack>
+            <PermissionsForm
+              permissions={selectedUser.permissions || DEFAULT_PERMISSIONS}
+              onChange={(permissions) =>
+                setSelectedUser({ ...selectedUser, permissions })
+              }
+            />
 
             {/* Password Reset Section */}
             <Stack gap="xs">

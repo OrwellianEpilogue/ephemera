@@ -133,6 +133,9 @@ export const userPermissions = sqliteTable("user_permissions", {
   canConfigureEmail: integer("can_configure_email", { mode: "boolean" })
     .notNull()
     .default(false),
+  canSeeDownloadOwner: integer("can_see_download_owner", { mode: "boolean" })
+    .notNull()
+    .default(false),
 });
 
 export const appConfig = sqliteTable("app_config", {

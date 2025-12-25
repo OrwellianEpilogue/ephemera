@@ -16,7 +16,6 @@ import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SettingsUsersRouteImport } from './routes/settings.users'
 import { Route as SettingsOidcRouteImport } from './routes/settings.oidc'
 import { Route as LoginErrorRouteImport } from './routes/login_.error'
 
@@ -55,11 +54,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsUsersRoute = SettingsUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => SettingsRoute,
-} as any)
 const SettingsOidcRoute = SettingsOidcRouteImport.update({
   id: '/oidc',
   path: '/oidc',
@@ -81,7 +75,6 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/login/error': typeof LoginErrorRoute
   '/settings/oidc': typeof SettingsOidcRoute
-  '/settings/users': typeof SettingsUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,7 +86,6 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/login/error': typeof LoginErrorRoute
   '/settings/oidc': typeof SettingsOidcRoute
-  '/settings/users': typeof SettingsUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,7 +98,6 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/login_/error': typeof LoginErrorRoute
   '/settings/oidc': typeof SettingsOidcRoute
-  '/settings/users': typeof SettingsUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,7 +111,6 @@ export interface FileRouteTypes {
     | '/setup'
     | '/login/error'
     | '/settings/oidc'
-    | '/settings/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -132,7 +122,6 @@ export interface FileRouteTypes {
     | '/setup'
     | '/login/error'
     | '/settings/oidc'
-    | '/settings/users'
   id:
     | '__root__'
     | '/'
@@ -144,7 +133,6 @@ export interface FileRouteTypes {
     | '/setup'
     | '/login_/error'
     | '/settings/oidc'
-    | '/settings/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -209,13 +197,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/users': {
-      id: '/settings/users'
-      path: '/users'
-      fullPath: '/settings/users'
-      preLoaderRoute: typeof SettingsUsersRouteImport
-      parentRoute: typeof SettingsRoute
-    }
     '/settings/oidc': {
       id: '/settings/oidc'
       path: '/oidc'
@@ -235,12 +216,10 @@ declare module '@tanstack/react-router' {
 
 interface SettingsRouteChildren {
   SettingsOidcRoute: typeof SettingsOidcRoute
-  SettingsUsersRoute: typeof SettingsUsersRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsOidcRoute: SettingsOidcRoute,
-  SettingsUsersRoute: SettingsUsersRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(

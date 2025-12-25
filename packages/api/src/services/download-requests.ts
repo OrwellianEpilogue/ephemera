@@ -111,7 +111,6 @@ class DownloadRequestsService {
           user: {
             id: user.id,
             name: user.name,
-            email: user.email,
           },
         })
         .from(downloadRequests)
@@ -141,7 +140,6 @@ class DownloadRequestsService {
         fulfilledBook: convertDbBookToSharedBook(book),
         userId: request.userId,
         userName: requestUser?.name || undefined,
-        userEmail: requestUser?.email || undefined,
       }));
     } catch (error) {
       console.error("[Download Requests] Error fetching requests:", error);

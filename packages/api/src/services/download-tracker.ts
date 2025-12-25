@@ -502,10 +502,9 @@ export class DownloadTracker {
         ? new Date(download.uploadedAt).toISOString()
         : undefined,
       uploadError: download.uploadError || undefined,
-      // User information (required userId, optional userName/userEmail)
+      // User information (required userId, optional userName)
       userId: download.userId,
       userName: undefined, // Not joined in current queries
-      userEmail: undefined, // Not joined in current queries
     };
   }
 }

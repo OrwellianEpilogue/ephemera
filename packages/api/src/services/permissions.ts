@@ -37,6 +37,7 @@ class PermissionsService {
         canConfigureApp: false,
         canConfigureIntegrations: false,
         canConfigureEmail: false,
+        canSeeDownloadOwner: false,
       };
 
       const created = await db
@@ -129,6 +130,7 @@ class PermissionsService {
       canConfigureApp: true,
       canConfigureIntegrations: true,
       canConfigureEmail: true,
+      canSeeDownloadOwner: true,
     };
 
     try {

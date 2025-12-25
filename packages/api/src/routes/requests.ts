@@ -146,20 +146,12 @@ const listRequestsRoute = createRoute({
 
 app.openapi(listRequestsRoute, async (c) => {
   try {
-    const user = c.get("user"); // Set by requireAuth middleware
-
     const { status } = c.req.query();
 
-    logger.info(
-      `Listing requests${status ? ` (status: ${status})` : ""} for user ${user.id}`,
-    );
-
-    // Admins see all requests, regular users only see their own
-    const userId = user.role === "admin" ? undefined : user.id;
+    logger.info(`Listing requests${status ? ` (status: ${status})` : ""}`);
 
     const requests = await downloadRequestsService.getAllRequests(
       status as "active" | "fulfilled" | "cancelled" | undefined,
-      userId,
     );
 
     return c.json(requests, 200);

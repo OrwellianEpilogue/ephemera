@@ -427,16 +427,6 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               </Badge>
             )}
 
-            {/* Show user badge for admins */}
-            {isAdmin && item.userId && (
-              <UserBadge
-                userId={item.userId}
-                userName={item.userName}
-                userEmail={item.userEmail}
-                size="sm"
-              />
-            )}
-
             {item.format && (
               <Badge size="sm" variant="light" color="blue">
                 {item.format}
@@ -550,17 +540,26 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
             </Stack>
           )}
 
-          {/* Timestamps */}
+          {/* Timestamps and user info */}
           <Group gap="md" justify="space-between">
             <Text size="xs" c="dimmed">
               Queued: {formatDate(item.queuedAt, dateFormat, timeFormat)}
             </Text>
-            {item.completedAt && (
-              <Text size="xs" c="dimmed">
-                Completed:{" "}
-                {formatDate(item.completedAt, dateFormat, timeFormat)}
-              </Text>
-            )}
+            <Group gap="xs">
+              {item.completedAt && (
+                <Text size="xs" c="dimmed">
+                  Completed:{" "}
+                  {formatDate(item.completedAt, dateFormat, timeFormat)}
+                </Text>
+              )}
+              {(isAdmin || permissions?.canSeeDownloadOwner) && item.userId && (
+                <UserBadge
+                  userId={item.userId}
+                  userName={item.userName}
+                  size="xs"
+                />
+              )}
+            </Group>
           </Group>
         </Stack>
       </Group>

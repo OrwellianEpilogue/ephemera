@@ -805,7 +805,6 @@ export class QueueManager extends EventEmitter {
           size: book.size || undefined,
           userId: d.userId,
           userName: user?.name || undefined,
-          userEmail: user?.email || undefined,
         } as QueueItem;
       }
 
@@ -814,7 +813,6 @@ export class QueueManager extends EventEmitter {
         ...queueItem,
         userId: d.userId,
         userName: user?.name || undefined,
-        userEmail: user?.email || undefined,
       } as QueueItem;
     };
 
