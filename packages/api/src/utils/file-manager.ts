@@ -1,8 +1,7 @@
 import { rename, access, mkdir, stat, unlink, copyFile } from "fs/promises";
 import { join, basename } from "path";
 import { logger } from "./logger.js";
-
-const INGEST_FOLDER = process.env.INGEST_FOLDER || "./final-downloads";
+import { appConfigService } from "../services/app-config.js";
 
 export class FileManager {
   /**
@@ -31,7 +30,8 @@ export class FileManager {
   }
   async ensureDownloadFolder(): Promise<void> {
     try {
-      await mkdir(INGEST_FOLDER, { recursive: true });
+      const ingestFolder = await appConfigService.getIngestFolder();
+      await mkdir(ingestFolder, { recursive: true });
     } catch (error) {
       logger.error("Failed to create download folder:", error);
       throw error;
@@ -59,6 +59,9 @@ export class FileManager {
 
   async moveToFinalDestination(tempPath: string): Promise<string> {
     try {
+      // Get ingest folder from config
+      const ingestFolder = await appConfigService.getIngestFolder();
+
       // Ensure download folder exists
       await this.ensureDownloadFolder();
 
@@ -70,7 +73,7 @@ export class FileManager {
 
       // Use the original filename from the download server (already in tempPath)
       const filename = basename(tempPath);
-      const finalPath = join(INGEST_FOLDER, filename);
+      const finalPath = join(ingestFolder, filename);
 
       logger.info(`Moving file: ${filename}`);
 
@@ -83,7 +86,7 @@ export class FileManager {
         const ext = parts.pop();
         const name = parts.join(".");
         const uniqueFilename = `${name}_${timestamp}.${ext}`;
-        const uniquePath = join(INGEST_FOLDER, uniqueFilename);
+        const uniquePath = join(ingestFolder, uniqueFilename);
 
         logger.warn(`Destination exists, using unique name: ${uniqueFilename}`);
 
@@ -105,6 +108,9 @@ export class FileManager {
 
   async copyToFinalDestination(tempPath: string): Promise<string> {
     try {
+      // Get ingest folder from config
+      const ingestFolder = await appConfigService.getIngestFolder();
+
       // Ensure download folder exists
       await this.ensureDownloadFolder();
 
@@ -116,7 +122,7 @@ export class FileManager {
 
       // Use the original filename from the download server (already in tempPath)
       const filename = basename(tempPath);
-      let finalPath = join(INGEST_FOLDER, filename);
+      let finalPath = join(ingestFolder, filename);
 
       logger.info(`Copying file: ${filename}`);
 
@@ -129,7 +135,7 @@ export class FileManager {
         const ext = parts.pop();
         const name = parts.join(".");
         const uniqueFilename = `${name}_${timestamp}.${ext}`;
-        finalPath = join(INGEST_FOLDER, uniqueFilename);
+        finalPath = join(ingestFolder, uniqueFilename);
 
         logger.warn(`Destination exists, using unique name: ${uniqueFilename}`);
       }

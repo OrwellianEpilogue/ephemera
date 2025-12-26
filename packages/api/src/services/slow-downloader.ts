@@ -5,9 +5,9 @@ import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { logger } from "../utils/logger.js";
 import { downloadTracker } from "./download-tracker.js";
+import { appConfigService } from "./app-config.js";
 
 const AA_BASE_URL = process.env.AA_BASE_URL;
-const TEMP_FOLDER = process.env.DOWNLOAD_FOLDER || "./downloads";
 const FLARESOLVERR_URL =
   process.env.FLARESOLVERR_URL || "http://localhost:8191";
 const LG_BASE_URL = process.env.LG_BASE_URL || "";
@@ -15,8 +15,8 @@ const SLOW_DOWNLOAD_TIMEOUT = parseInt(
   process.env.SLOW_DOWNLOAD_TIMEOUT || "300000",
   10,
 ); // 5 minutes
-const MAX_PATHS = 2; // Anna's Archive has paths 0-1
-const MAX_SERVERS = 7; // Anna's Archive has servers 0-6 per path
+const MAX_PATHS = 2; // AA has paths 0-1
+const MAX_SERVERS = 7; // AA has servers 0-6 per path
 
 // FlareSolverr API types
 interface FlareSolverrRequest {
@@ -205,7 +205,7 @@ export class SlowDownloader {
   }
 
   /**
-   * Download a file using Anna's Archive slow download links
+   * Download a file using AA slow download links
    * Automatically tries servers 0-5 until one succeeds
    */
   async downloadWithRetry(
@@ -319,8 +319,11 @@ export class SlowDownloader {
     let sessionId: string | null = null;
 
     try {
+      // Get temp folder from config
+      const tempFolder = await appConfigService.getDownloadFolder();
+
       // Ensure temp folder exists
-      await mkdir(TEMP_FOLDER, { recursive: true });
+      await mkdir(tempFolder, { recursive: true });
 
       // Create FlareSolverr session
       sessionId = await this.createSession(downloadId);
@@ -512,7 +515,7 @@ export class SlowDownloader {
    * Extract download URL from the slow download page HTML
    */
   private extractDownloadUrl(html: string, downloadId: string): string | null {
-    // Anna's Archive shows the download URL in several places after countdown completes:
+    // AA shows the download URL in several places after countdown completes:
     // 1. In a button's onclick with navigator.clipboard.writeText('URL')
     // 2. In a span with the URL as text content
 
@@ -560,7 +563,7 @@ export class SlowDownloader {
    * Returns the number of seconds to wait, or 0 if not found
    */
   private extractCountdownTime(html: string, downloadId: string): number {
-    // Anna's Archive uses: <span class="js-partner-countdown">45</span>
+    // AA uses: <span class="js-partner-countdown">45</span>
     const patterns = [
       // <span class="js-partner-countdown">45</span>
       /<span[^>]*class=["'][^"']*js-partner-countdown[^"']*["'][^>]*>(\d+)<\/span>/i,
@@ -605,6 +608,9 @@ export class SlowDownloader {
     onProgress?: (info: ProgressInfo) => void,
   ): Promise<string> {
     logger.info(`[${downloadId}] Starting file download...`);
+
+    // Get temp folder from config
+    const tempFolder = await appConfigService.getDownloadFolder();
 
     // Fetch the file
     const controller = new AbortController();
@@ -687,7 +693,7 @@ export class SlowDownloader {
       }
     }
 
-    const filePath = join(TEMP_FOLDER, filename);
+    const filePath = join(tempFolder, filename);
     logger.info(`[${downloadId}] Saving to: ${filePath}`);
 
     // Mark as started in DB

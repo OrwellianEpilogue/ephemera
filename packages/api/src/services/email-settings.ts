@@ -1,12 +1,19 @@
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   emailSettings,
   emailRecipients,
+  user,
   type EmailSettings,
   type EmailRecipient,
 } from "../db/schema.js";
 import { logger } from "../utils/logger.js";
+
+// Extended type to include user info for admin views
+export type EmailRecipientWithUser = EmailRecipient & {
+  userName?: string | null;
+  userEmail?: string | null;
+};
 
 /**
  * Email Settings Service
@@ -166,13 +173,43 @@ class EmailSettingsService {
   // ============== Recipients Management ==============
 
   /**
-   * Get all email recipients
+   * Get email recipients for a specific user
    */
-  async getRecipients(): Promise<EmailRecipient[]> {
+  async getRecipients(userId: string): Promise<EmailRecipient[]> {
     try {
-      return await db.select().from(emailRecipients).all();
+      return await db
+        .select()
+        .from(emailRecipients)
+        .where(eq(emailRecipients.userId, userId))
+        .all();
     } catch (error) {
       logger.error("[Email Settings] Error fetching recipients:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all email recipients with user info (admin only)
+   */
+  async getAllRecipients(): Promise<EmailRecipientWithUser[]> {
+    try {
+      const results = await db
+        .select({
+          id: emailRecipients.id,
+          email: emailRecipients.email,
+          name: emailRecipients.name,
+          autoSend: emailRecipients.autoSend,
+          userId: emailRecipients.userId,
+          createdAt: emailRecipients.createdAt,
+          userName: user.name,
+          userEmail: user.email,
+        })
+        .from(emailRecipients)
+        .leftJoin(user, eq(emailRecipients.userId, user.id))
+        .all();
+      return results;
+    } catch (error) {
+      logger.error("[Email Settings] Error fetching all recipients:", error);
       return [];
     }
   }
@@ -195,9 +232,21 @@ class EmailSettingsService {
   }
 
   /**
-   * Add a new email recipient
+   * Check if a recipient belongs to a user
+   */
+  async isRecipientOwner(
+    recipientId: number,
+    userId: string,
+  ): Promise<boolean> {
+    const recipient = await this.getRecipient(recipientId);
+    return recipient?.userId === userId;
+  }
+
+  /**
+   * Add a new email recipient for a user
    */
   async addRecipient(
+    userId: string,
     email: string,
     name?: string | null,
     autoSend?: boolean,
@@ -205,6 +254,7 @@ class EmailSettingsService {
     const result = await db
       .insert(emailRecipients)
       .values({
+        userId,
         email,
         name: name ?? null,
         autoSend: autoSend ?? false,
@@ -212,7 +262,9 @@ class EmailSettingsService {
       })
       .returning();
 
-    logger.info(`[Email Settings] Added recipient: ${email}`);
+    logger.info(
+      `[Email Settings] Added recipient: ${email} for user: ${userId}`,
+    );
     return result[0];
   }
 
@@ -258,14 +310,59 @@ class EmailSettingsService {
   }
 
   /**
-   * Get recipients with auto-send enabled
+   * Reassign a recipient to another user (admin only)
    */
-  async getAutoSendRecipients(): Promise<EmailRecipient[]> {
+  async reassignRecipient(
+    id: number,
+    newUserId: string,
+  ): Promise<EmailRecipient | null> {
+    const result = await db
+      .update(emailRecipients)
+      .set({ userId: newUserId })
+      .where(eq(emailRecipients.id, id))
+      .returning();
+
+    if (result[0]) {
+      logger.info(
+        `[Email Settings] Reassigned recipient ${id} to user ${newUserId}`,
+      );
+    }
+    return result[0] || null;
+  }
+
+  /**
+   * Migrate orphan recipients (no userId) to a specific user
+   * Called during setup wizard after admin creation
+   */
+  async migrateOrphanRecipients(adminUserId: string): Promise<number> {
+    const result = await db
+      .update(emailRecipients)
+      .set({ userId: adminUserId })
+      .where(isNull(emailRecipients.userId));
+
+    const count = result.changes;
+    if (count > 0) {
+      logger.info(
+        `[Email Settings] Migrated ${count} orphan recipients to admin user ${adminUserId}`,
+      );
+    }
+    return count;
+  }
+
+  /**
+   * Get recipients with auto-send enabled for a specific user
+   */
+  async getAutoSendRecipients(userId: string): Promise<EmailRecipient[]> {
     try {
       return await db
         .select()
         .from(emailRecipients)
-        .where(eq(emailRecipients.autoSend, true))
+        .where(
+          and(
+            eq(emailRecipients.userId, userId),
+            eq(emailRecipients.autoSend, true),
+          ),
+        )
         .all();
     } catch (error) {
       logger.error(

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireAuth } from "../lib/route-auth";
 import {
   Container,
   Title,
@@ -640,5 +641,8 @@ function QueuePage() {
 }
 
 export const Route = createFileRoute("/queue")({
+  beforeLoad: async () => {
+    await requireAuth();
+  },
   component: QueuePage,
 });

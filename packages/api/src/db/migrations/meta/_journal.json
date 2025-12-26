@@ -99,6 +99,27 @@
       "when": 1766748811184,
       "tag": "0013_mean_silvermane",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1766802848868,
+      "tag": "0014_late_jazinda",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1766802900000,
+      "tag": "0015_init_multiuser_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1766808977319,
+      "tag": "0016_proxy_auth_settings",
+      "breakpoints": true
     }
   ]
 }

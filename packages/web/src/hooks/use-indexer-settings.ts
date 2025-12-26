@@ -10,12 +10,13 @@ import {
 /**
  * Hook to fetch indexer settings
  */
-export function useIndexerSettings() {
+export function useIndexerSettings(options?: { enabled?: boolean }) {
   return useQuery<IndexerSettings>({
     queryKey: ["indexer-settings"],
     queryFn: () => apiFetch<IndexerSettings>("/indexer/settings"),
     refetchInterval: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: options?.enabled ?? true,
   });
 }
 

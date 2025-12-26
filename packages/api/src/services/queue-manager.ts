@@ -6,6 +6,7 @@ import { logger } from "../utils/logger.js";
 import { bookloreSettingsService } from "./booklore-settings.js";
 import { bookloreUploader } from "./booklore-uploader.js";
 import { appSettingsService } from "./app-settings.js";
+import { appConfigService } from "./app-config.js";
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
 import { indexerSettingsService } from "./indexer-settings.js";
@@ -18,8 +19,6 @@ import type {
 } from "@ephemera/shared";
 import { getErrorMessage } from "@ephemera/shared";
 import type { Download } from "../db/schema.js";
-
-const MAX_RETRY_ATTEMPTS = parseInt(process.env.RETRY_ATTEMPTS || "3");
 const MAX_DELAYED_RETRY_ATTEMPTS = 24; // 24 hours of hourly retries
 const DELAYED_RETRY_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
 
@@ -92,6 +91,7 @@ export class QueueManager extends EventEmitter {
 
   async addToQueue(
     md5: string,
+    userId: string,
     downloadSource: "web" | "indexer" | "api" = "web",
   ): Promise<{ status: string; position?: number; existing?: Download }> {
     // Get book data from database (should already exist from search)
@@ -140,6 +140,7 @@ export class QueueManager extends EventEmitter {
         title,
         status: "queued",
         downloadSource,
+        userId,
         pathIndex,
         domainIndex,
         queuedAt: Date.now(),
@@ -256,9 +257,12 @@ export class QueueManager extends EventEmitter {
     // Fetch book data for author information in notifications
     const book = await bookService.getBook(md5);
 
+    // Get max retry attempts from config
+    const maxRetryAttempts = await appConfigService.getRetryAttempts();
+
     // Check retry count
     const retryCount = download.retryCount || 0;
-    if (retryCount >= MAX_RETRY_ATTEMPTS) {
+    if (retryCount >= maxRetryAttempts) {
       logger.error(`Max retry attempts reached for ${md5}`);
       await downloadTracker.markError(md5, "Max retry attempts reached");
       this.emitQueueUpdate();
@@ -368,7 +372,7 @@ export class QueueManager extends EventEmitter {
       // Handle regular errors (network, timeouts, etc.) with immediate retries
       const updatedDownload = await downloadTracker.get(md5);
       const currentRetryCount = updatedDownload?.retryCount || 0;
-      if (updatedDownload && currentRetryCount < MAX_RETRY_ATTEMPTS) {
+      if (updatedDownload && currentRetryCount < maxRetryAttempts) {
         // Increment retry count in database BEFORE re-queueing
         await downloadTracker.update(md5, {
           retryCount: currentRetryCount + 1,
@@ -376,7 +380,7 @@ export class QueueManager extends EventEmitter {
         });
 
         logger.info(
-          `Will retry ${md5} (attempt ${currentRetryCount + 1}/${MAX_RETRY_ATTEMPTS})`,
+          `Will retry ${md5} (attempt ${currentRetryCount + 1}/${maxRetryAttempts})`,
         );
         // Re-queue
         this.queue.push(item);
@@ -534,12 +538,13 @@ export class QueueManager extends EventEmitter {
         format: download.format,
       });
 
-      // Auto-send to recipients with auto-send enabled
+      // Auto-send to the downloader's recipients with auto-send enabled
       try {
         const isEmailEnabled = await emailSettingsService.isEnabled();
-        if (isEmailEnabled) {
+        if (isEmailEnabled && download.userId) {
+          // Only send to the downloader's own email recipients with auto-send enabled
           const autoSendRecipients =
-            await emailSettingsService.getAutoSendRecipients();
+            await emailSettingsService.getAutoSendRecipients(download.userId);
           for (const recipient of autoSendRecipients) {
             try {
               logger.info(
@@ -758,10 +763,22 @@ export class QueueManager extends EventEmitter {
     const books = await bookService.getBooksByMd5s(allMd5s);
     const booksMap = new Map(books.map((book) => [book.md5, book]));
 
+    // Fetch all users for these downloads (filter out null userIds from legacy data)
+    const uniqueUserIds = [
+      ...new Set(
+        allDownloadsFromDb
+          .map((d) => d.userId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const users = await this.getUsersByIds(uniqueUserIds);
+    const usersMap = new Map(users.map((user) => [user.id, user]));
+
     // Helper to convert download to queue item with book details
     const toQueueItem = (d: Download): QueueItem => {
       const queueItem = downloadTracker.downloadToQueueItem(d);
       const book = booksMap.get(d.md5);
+      const user = d.userId ? usersMap.get(d.userId) : undefined;
 
       if (book) {
         // Ensure authors is always an array (handle both string and array types)
@@ -778,7 +795,7 @@ export class QueueManager extends EventEmitter {
           }
         }
 
-        // Add book metadata
+        // Add book metadata and user info
         return {
           ...queueItem,
           authors,
@@ -788,10 +805,17 @@ export class QueueManager extends EventEmitter {
           language: book.language || undefined,
           year: book.year || undefined,
           size: book.size || undefined,
-        };
+          userId: d.userId,
+          userName: user?.name || undefined,
+        } as QueueItem;
       }
 
-      return queueItem;
+      // No book metadata, but still include user info
+      return {
+        ...queueItem,
+        userId: d.userId,
+        userName: user?.name || undefined,
+      } as QueueItem;
     };
 
     return {
@@ -813,6 +837,35 @@ export class QueueManager extends EventEmitter {
     };
   }
 
+  /**
+   * Fetch users by IDs for including in queue items
+   */
+  private async getUsersByIds(
+    userIds: string[],
+  ): Promise<Array<{ id: string; name: string; email: string }>> {
+    if (userIds.length === 0) return [];
+
+    try {
+      const { db } = await import("../db/index.js");
+      const { user } = await import("../db/schema.js");
+      const { inArray } = await import("drizzle-orm");
+
+      const users = await db
+        .select({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        })
+        .from(user)
+        .where(inArray(user.id, userIds));
+
+      return users;
+    } catch (error) {
+      logger.error("Failed to fetch users for queue items:", error);
+      return [];
+    }
+  }
+
   async getDownloadStatus(md5: string): Promise<QueueItem | null> {
     const download = await downloadTracker.get(md5);
     if (!download) {
@@ -823,6 +876,13 @@ export class QueueManager extends EventEmitter {
 
     // Try to fetch book details
     const book = await bookService.getBook(md5);
+
+    // Fetch user details (if userId exists)
+    const users = download.userId
+      ? await this.getUsersByIds([download.userId])
+      : [];
+    const user = users[0];
+
     if (book) {
       // Ensure authors is always an array (handle both string and array types)
       let authors: string[] | undefined = undefined;
@@ -846,10 +906,18 @@ export class QueueManager extends EventEmitter {
         format: book.format || undefined,
         language: book.language || undefined,
         year: book.year || undefined,
-      };
+        userId: download.userId,
+        userName: user?.name || undefined,
+        userEmail: user?.email || undefined,
+      } as QueueItem;
     }
 
-    return queueItem;
+    return {
+      ...queueItem,
+      userId: download.userId,
+      userName: user?.name || undefined,
+      userEmail: user?.email || undefined,
+    } as QueueItem;
   }
 
   getQueueLength(): number {

@@ -91,9 +91,20 @@ class RequestCheckerService {
               `[Request Checker] Request #${request.id} found results! Queuing: ${firstBook.title}`,
             );
 
+            // Skip requests without userId (legacy data from before auth)
+            if (!request.userId) {
+              console.warn(
+                `[Request Checker] Request #${request.id} has no userId (legacy data). Skipping auto-download. Please re-create this request.`,
+              );
+              continue;
+            }
+
             try {
-              // Add to download queue
-              const queueResult = await queueManager.addToQueue(firstBook.md5);
+              // Add to download queue using the request owner's user ID
+              const queueResult = await queueManager.addToQueue(
+                firstBook.md5,
+                request.userId,
+              );
 
               // Mark request as fulfilled (emits event)
               await requestsManager.markFulfilled(request.id, firstBook.md5);
@@ -181,8 +192,17 @@ class RequestCheckerService {
       if (searchResult.results.length > 0) {
         const firstBook = searchResult.results[0];
 
-        // Add to download queue
-        await queueManager.addToQueue(firstBook.md5);
+        // Skip requests without userId (legacy data from before auth)
+        if (!request.userId) {
+          return {
+            found: false,
+            error:
+              "Request has no userId (legacy data). Please re-create this request.",
+          };
+        }
+
+        // Add to download queue using the request owner's user ID
+        await queueManager.addToQueue(firstBook.md5, request.userId);
 
         // Mark request as fulfilled (emits event)
         await requestsManager.markFulfilled(requestId, firstBook.md5);

@@ -9,12 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as QueueRouteImport } from './routes/queue'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsOidcRouteImport } from './routes/settings.oidc'
+import { Route as LoginErrorRouteImport } from './routes/login_.error'
 
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -35,52 +44,117 @@ const QueueRoute = QueueRouteImport.update({
   path: '/queue',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsOidcRoute = SettingsOidcRouteImport.update({
+  id: '/oidc',
+  path: '/oidc',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const LoginErrorRoute = LoginErrorRouteImport.update({
+  id: '/login_/error',
+  path: '/login/error',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
   '/search': typeof SearchRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/setup': typeof SetupRoute
+  '/login/error': typeof LoginErrorRoute
+  '/settings/oidc': typeof SettingsOidcRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
   '/search': typeof SearchRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/setup': typeof SetupRoute
+  '/login/error': typeof LoginErrorRoute
+  '/settings/oidc': typeof SettingsOidcRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
   '/search': typeof SearchRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/setup': typeof SetupRoute
+  '/login_/error': typeof LoginErrorRoute
+  '/settings/oidc': typeof SettingsOidcRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/queue' | '/requests' | '/search' | '/settings'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/queue'
+    | '/requests'
+    | '/search'
+    | '/settings'
+    | '/setup'
+    | '/login/error'
+    | '/settings/oidc'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/queue' | '/requests' | '/search' | '/settings'
-  id: '__root__' | '/' | '/queue' | '/requests' | '/search' | '/settings'
+  to:
+    | '/'
+    | '/login'
+    | '/queue'
+    | '/requests'
+    | '/search'
+    | '/settings'
+    | '/setup'
+    | '/login/error'
+    | '/settings/oidc'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/queue'
+    | '/requests'
+    | '/search'
+    | '/settings'
+    | '/setup'
+    | '/login_/error'
+    | '/settings/oidc'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
   QueueRoute: typeof QueueRoute
   RequestsRoute: typeof RequestsRoute
   SearchRoute: typeof SearchRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
+  SetupRoute: typeof SetupRoute
+  LoginErrorRoute: typeof LoginErrorRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -109,6 +183,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QueueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -116,15 +197,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/oidc': {
+      id: '/settings/oidc'
+      path: '/oidc'
+      fullPath: '/settings/oidc'
+      preLoaderRoute: typeof SettingsOidcRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/login_/error': {
+      id: '/login_/error'
+      path: '/login/error'
+      fullPath: '/login/error'
+      preLoaderRoute: typeof LoginErrorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface SettingsRouteChildren {
+  SettingsOidcRoute: typeof SettingsOidcRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsOidcRoute: SettingsOidcRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
   QueueRoute: QueueRoute,
   RequestsRoute: RequestsRoute,
   SearchRoute: SearchRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
+  SetupRoute: SetupRoute,
+  LoginErrorRoute: LoginErrorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

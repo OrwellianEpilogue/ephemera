@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { requireAuth } from "../lib/route-auth";
 import {
   Container,
   Title,
@@ -19,6 +20,8 @@ import {
   Checkbox,
   ActionIcon,
   Tabs,
+  Menu,
+  Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -30,7 +33,11 @@ import {
   IconSettings,
   IconUpload,
   IconServer,
+  IconUsers,
   IconMail,
+  IconUser,
+  IconUserShare,
+  IconShieldCheck,
   IconAlertTriangle,
 } from "@tabler/icons-react";
 import {
@@ -43,6 +50,8 @@ import {
   useAppriseSettings,
   useUpdateAppriseSettings,
   useTestAppriseNotification,
+  useSystemConfig,
+  useUpdateSystemConfig,
 } from "../hooks/useSettings";
 import { useState, useEffect } from "react";
 import type {
@@ -57,6 +66,17 @@ import { formatDate } from "@ephemera/shared";
 import { z } from "zod";
 import { IndexerSettings } from "../components/IndexerSettings";
 import { useIndexerSettings } from "../hooks/use-indexer-settings";
+import { useAuth, usePermissions } from "../hooks/useAuth";
+import { lazy, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@ephemera/shared";
+
+// Minimal User type for reassignment dropdown
+interface UserBasic {
+  id: string;
+  name: string;
+  email: string;
+}
 import {
   useEmailSettings,
   useUpdateEmailSettings,
@@ -65,43 +85,119 @@ import {
   useAddEmailRecipient,
   useDeleteEmailRecipient,
   useUpdateEmailRecipient,
+  useReassignEmailRecipient,
 } from "../hooks/useEmail";
+
+// Lazy load heavy components
+const UsersManagement = lazy(() => import("../components/UsersManagement"));
+const OIDCManagement = lazy(() => import("../components/OIDCManagement"));
+const AccountSettings = lazy(() => import("../components/AccountSettings"));
+const ProxyAuthSettings = lazy(() => import("../components/ProxyAuthSettings"));
 
 const settingsSearchSchema = z.object({
   tab: z
-    .enum(["general", "notifications", "booklore", "indexer", "email"])
+    .enum([
+      "account",
+      "general",
+      "notifications",
+      "booklore",
+      "indexer",
+      "users",
+      "oidc",
+      "email",
+      "proxy-auth",
+    ])
     .optional()
-    .default("general"),
+    .default("account"),
 });
 
 function SettingsComponent() {
   const navigate = useNavigate({ from: "/settings" });
   const { tab } = Route.useSearch();
+  const { isAdmin } = useAuth();
+  const { data: permissions, isLoading: loadingPermissions } = usePermissions();
+
+  // Check granular permissions for each settings area
+  const canConfigureApp = isAdmin || permissions?.canConfigureApp;
+  const canConfigureIntegrations =
+    isAdmin || permissions?.canConfigureIntegrations;
+  const canConfigureNotifications =
+    isAdmin || permissions?.canConfigureNotifications;
+  const canConfigureEmail = isAdmin || permissions?.canConfigureEmail;
+
+  // Define which tabs require which permissions
+  const adminOnlyTabs = ["users", "oidc", "proxy-auth"];
+
+  // Get permission for a specific tab
+  const getTabPermission = (tabName: string): boolean => {
+    switch (tabName) {
+      case "general":
+        return !!canConfigureApp;
+      case "notifications":
+        return !!canConfigureNotifications;
+      case "booklore":
+      case "indexer":
+        return !!canConfigureIntegrations;
+      case "email":
+        return true; // All users can access email tab to manage their own recipients
+      default:
+        return false;
+    }
+  };
+
+  // Redirect users who try to access tabs they don't have permission for
+  useEffect(() => {
+    if (loadingPermissions) return; // Wait for permissions to load
+
+    const isAdminTab = adminOnlyTabs.includes(tab);
+
+    // Redirect non-admins trying to access admin tabs
+    if (isAdminTab && !isAdmin) {
+      navigate({ search: { tab: "account" } });
+      return;
+    }
+
+    // Redirect users without proper permission trying to access settings tabs
+    if (!isAdminTab && tab !== "account" && !getTabPermission(tab)) {
+      navigate({ search: { tab: "account" } });
+      return;
+    }
+  }, [tab, isAdmin, loadingPermissions, navigate, permissions]);
+
+  // Only fetch settings data if user has the specific permission
   const {
     data: settings,
     isLoading: loadingApp,
     isError: errorApp,
-  } = useAppSettings();
+  } = useAppSettings({ enabled: canConfigureApp });
   const {
     data: bookloreSettings,
     isLoading: loadingBooklore,
     isError: errorBooklore,
-  } = useBookloreSettings();
+  } = useBookloreSettings({ enabled: canConfigureIntegrations });
   const {
     data: appriseSettings,
     isLoading: loadingApprise,
     isError: errorApprise,
-  } = useAppriseSettings();
-  const { data: indexerSettings } = useIndexerSettings();
+  } = useAppriseSettings({ enabled: canConfigureNotifications });
+  const { data: indexerSettings } = useIndexerSettings({
+    enabled: canConfigureIntegrations,
+  });
+  const { data: systemConfig } = useSystemConfig({ enabled: canConfigureApp });
+  // Email settings - all users can read to check if enabled
   const {
     data: emailSettings,
     isLoading: loadingEmail,
     isError: errorEmail,
   } = useEmailSettings();
+  // Email recipients - all users can manage their own, admins see all
   const { data: emailRecipients } = useEmailRecipients();
+  // Check if email is properly configured (enabled with SMTP settings)
+  const isEmailConfigured = emailSettings?.enabled && emailSettings?.smtpHost;
   const updateSettings = useUpdateAppSettings();
   const updateBooklore = useUpdateBookloreSettings();
   const updateApprise = useUpdateAppriseSettings();
+  const updateSystemConfig = useUpdateSystemConfig();
   const testConnection = useTestBookloreConnection();
   const testApprise = useTestAppriseNotification();
   const updateEmail = useUpdateEmailSettings();
@@ -109,6 +205,14 @@ function SettingsComponent() {
   const addRecipient = useAddEmailRecipient();
   const deleteRecipient = useDeleteEmailRecipient();
   const updateRecipient = useUpdateEmailRecipient();
+  const reassignRecipient = useReassignEmailRecipient();
+
+  // Fetch users list for admin reassignment
+  const { data: allUsers } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => apiFetch<UserBasic[]>("/users"),
+    enabled: isAdmin,
+  });
 
   // Fetch libraries after authentication
   const { data: librariesData, isLoading: loadingLibraries } =
@@ -170,6 +274,17 @@ function SettingsComponent() {
   const [useTls, setUseTls] = useState(true);
   const [newRecipientEmail, setNewRecipientEmail] = useState("");
   const [newRecipientName, setNewRecipientName] = useState("");
+
+  // System configuration state
+  const [searcherBaseUrl, setSearcherBaseUrl] = useState("");
+  const [searcherApiKey, setSearcherApiKey] = useState("");
+  const [quickBaseUrl, setQuickBaseUrl] = useState("");
+  const [downloadFolder, setDownloadFolder] = useState("./downloads");
+  const [ingestFolder, setIngestFolder] = useState("/path/to/final/books");
+  const [retryAttempts, setRetryAttempts] = useState(3);
+  const [requestTimeout, setRequestTimeout] = useState(30000);
+  const [searchCacheTtl, setSearchCacheTtl] = useState(300);
+  const [maxConcurrentDownloads, setMaxConcurrentDownloads] = useState(1);
 
   // Sync with fetched settings
   useEffect(() => {
@@ -267,6 +382,21 @@ function SettingsComponent() {
     }
   }, [emailSettings]);
 
+  // Sync with system configuration
+  useEffect(() => {
+    if (systemConfig) {
+      setSearcherBaseUrl(systemConfig.searcherBaseUrl || "");
+      setSearcherApiKey(systemConfig.searcherApiKey || "");
+      setQuickBaseUrl(systemConfig.quickBaseUrl || "");
+      setDownloadFolder(systemConfig.downloadFolder);
+      setIngestFolder(systemConfig.ingestFolder);
+      setRetryAttempts(systemConfig.retryAttempts);
+      setRequestTimeout(systemConfig.requestTimeout);
+      setSearchCacheTtl(systemConfig.searchCacheTtl);
+      setMaxConcurrentDownloads(systemConfig.maxConcurrentDownloads);
+    }
+  }, [systemConfig]);
+
   const handleSaveApp = () => {
     updateSettings.mutate({
       postDownloadMoveToIngest,
@@ -280,6 +410,17 @@ function SettingsComponent() {
       dateFormat,
       libraryUrl: libraryUrl || null,
       libraryLinkLocation,
+    });
+    updateSystemConfig.mutate({
+      searcherBaseUrl: searcherBaseUrl || null,
+      searcherApiKey: searcherApiKey || null,
+      quickBaseUrl: quickBaseUrl || null,
+      downloadFolder,
+      ingestFolder,
+      retryAttempts,
+      requestTimeout,
+      searchCacheTtl,
+      maxConcurrentDownloads,
     });
   };
 
@@ -439,11 +580,21 @@ function SettingsComponent() {
       emailSettings.useTls !== useTls
     : emailEnabled; // Allow save if no settings exist yet and email is enabled
 
-  const isLoading =
-    loadingApp || loadingBooklore || loadingApprise || loadingEmail;
-  const isError = errorApp || errorBooklore || errorApprise || errorEmail;
+  // Loading state only matters for non-Account tabs when user has relevant permissions
+  const isSettingsLoading =
+    (canConfigureApp && loadingApp) ||
+    (canConfigureIntegrations && loadingBooklore) ||
+    (canConfigureNotifications && loadingApprise) ||
+    (canConfigureEmail && loadingEmail);
+  const isSettingsError =
+    (canConfigureApp && errorApp) ||
+    (canConfigureIntegrations && errorBooklore) ||
+    (canConfigureNotifications && errorApprise) ||
+    (canConfigureEmail && errorEmail);
 
-  if (isLoading) {
+  // For Account tab, don't block on settings loading/error
+  // For other tabs, show loading/error states if user has access
+  if (tab !== "account" && loadingPermissions) {
     return (
       <Container size="md">
         <Center p="xl">
@@ -453,7 +604,17 @@ function SettingsComponent() {
     );
   }
 
-  if (isError) {
+  if (tab !== "account" && isSettingsLoading) {
+    return (
+      <Container size="md">
+        <Center p="xl">
+          <Loader size="lg" />
+        </Center>
+      </Container>
+    );
+  }
+
+  if (tab !== "account" && isSettingsError) {
     return (
       <Container size="md">
         <Alert icon={<IconInfoCircle size={16} />} title="Error" color="red">
@@ -464,7 +625,7 @@ function SettingsComponent() {
   }
 
   return (
-    <Container size="md">
+    <Container fluid>
       <Stack gap="lg">
         <Title order={1}>Settings</Title>
 
@@ -473,33 +634,94 @@ function SettingsComponent() {
           onChange={(value) =>
             navigate({
               search: {
-                tab: value as "general" | "notifications" | "booklore",
+                tab: value as
+                  | "account"
+                  | "general"
+                  | "notifications"
+                  | "booklore"
+                  | "indexer"
+                  | "users"
+                  | "oidc"
+                  | "proxy-auth",
               },
             })
           }
         >
           <Tabs.List>
-            <Tabs.Tab value="general" leftSection={<IconSettings size={16} />}>
-              General
+            <Tabs.Tab value="account" leftSection={<IconUser size={16} />}>
+              Account
             </Tabs.Tab>
-            <Tabs.Tab
-              value="notifications"
-              leftSection={<IconBell size={16} />}
-            >
-              Notifications
-            </Tabs.Tab>
-            <Tabs.Tab value="booklore" leftSection={<IconUpload size={16} />}>
-              Booklore
-            </Tabs.Tab>
-            <Tabs.Tab value="indexer" leftSection={<IconServer size={16} />}>
-              Indexer
-            </Tabs.Tab>
+            {canConfigureApp && (
+              <Tabs.Tab
+                value="general"
+                leftSection={<IconSettings size={16} />}
+              >
+                General
+              </Tabs.Tab>
+            )}
+            {canConfigureNotifications && (
+              <Tabs.Tab
+                value="notifications"
+                leftSection={<IconBell size={16} />}
+              >
+                Notifications
+              </Tabs.Tab>
+            )}
+            {canConfigureIntegrations && (
+              <>
+                <Tabs.Tab
+                  value="booklore"
+                  leftSection={<IconUpload size={16} />}
+                >
+                  Booklore
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="indexer"
+                  leftSection={<IconServer size={16} />}
+                >
+                  Indexer
+                </Tabs.Tab>
+              </>
+            )}
+            {/* Email tab accessible to all users for managing their own recipients */}
             <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
               Email
             </Tabs.Tab>
+            {isAdmin && (
+              <>
+                <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
+                  Users
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="oidc"
+                  leftSection={<IconPlugConnected size={16} />}
+                >
+                  OIDC
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="proxy-auth"
+                  leftSection={<IconShieldCheck size={16} />}
+                >
+                  Proxy Auth
+                </Tabs.Tab>
+              </>
+            )}
           </Tabs.List>
 
-          <Tabs.Panel value="general" pt="lg">
+          {/* Account Tab - Available to all authenticated users */}
+          <Tabs.Panel value="account" pt="md">
+            <Suspense
+              fallback={
+                <Center p="xl">
+                  <Loader size="lg" />
+                </Center>
+              }
+            >
+              <AccountSettings />
+            </Suspense>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="general" pt="md">
             <Stack gap="lg">
               {/* Post-Download Actions */}
               <Paper p="md" withBorder>
@@ -754,19 +976,133 @@ function SettingsComponent() {
                 </Stack>
               </Paper>
 
+              {/* Archive/Searcher Settings */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Title order={3}>Archive Settings</Title>
+                  <Text size="sm" c="dimmed">
+                    Configure the archive service for book searches and
+                    downloads
+                  </Text>
+
+                  <TextInput
+                    label="Searcher Base URL"
+                    description="Base URL for the archive/searcher service (e.g., Anna's Archive)"
+                    value={searcherBaseUrl}
+                    onChange={(e) => setSearcherBaseUrl(e.target.value)}
+                    placeholder="https://archive.org"
+                    required
+                  />
+
+                  <PasswordInput
+                    label="Searcher API Key"
+                    description="API key for authenticated downloads (optional, for faster downloads)"
+                    value={searcherApiKey}
+                    onChange={(e) => setSearcherApiKey(e.target.value)}
+                    placeholder="Optional API key"
+                  />
+
+                  <TextInput
+                    label="Quick Download URL"
+                    description="Alternative fast download source (optional)"
+                    value={quickBaseUrl}
+                    onChange={(e) => setQuickBaseUrl(e.target.value)}
+                    placeholder="Optional alternative source"
+                  />
+                </Stack>
+              </Paper>
+
+              {/* Folder Paths */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Title order={3}>Folder Paths</Title>
+                  <Text size="sm" c="dimmed">
+                    Configure where downloaded files are stored
+                  </Text>
+
+                  <TextInput
+                    label="Download Folder"
+                    description="Temporary folder for downloads in progress"
+                    value={downloadFolder}
+                    onChange={(e) => setDownloadFolder(e.target.value)}
+                    placeholder="./downloads"
+                  />
+
+                  <TextInput
+                    label="Ingest Folder"
+                    description="Final destination for completed downloads"
+                    value={ingestFolder}
+                    onChange={(e) => setIngestFolder(e.target.value)}
+                    placeholder="/path/to/final/books"
+                  />
+                </Stack>
+              </Paper>
+
+              {/* Download Settings */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Title order={3}>Download Settings</Title>
+                  <Text size="sm" c="dimmed">
+                    Configure download behavior and retry settings
+                  </Text>
+
+                  <NumberInput
+                    label="Max Concurrent Downloads"
+                    description="Maximum number of downloads that can run simultaneously (1-5)"
+                    value={maxConcurrentDownloads}
+                    onChange={(val) =>
+                      setMaxConcurrentDownloads(Number(val) || 1)
+                    }
+                    min={1}
+                    max={5}
+                  />
+
+                  <NumberInput
+                    label="Retry Attempts"
+                    description="Number of times to retry a failed download (1-10)"
+                    value={retryAttempts}
+                    onChange={(val) => setRetryAttempts(Number(val) || 3)}
+                    min={1}
+                    max={10}
+                  />
+
+                  <NumberInput
+                    label="Request Timeout (ms)"
+                    description="Timeout for API requests in milliseconds (5000-300000)"
+                    value={requestTimeout}
+                    onChange={(val) => setRequestTimeout(Number(val) || 30000)}
+                    min={5000}
+                    max={300000}
+                    step={1000}
+                  />
+
+                  <NumberInput
+                    label="Search Cache TTL (seconds)"
+                    description="How long to cache search results (60-86400)"
+                    value={searchCacheTtl}
+                    onChange={(val) => setSearchCacheTtl(Number(val) || 300)}
+                    min={60}
+                    max={86400}
+                    step={60}
+                  />
+                </Stack>
+              </Paper>
+
               <Group justify="flex-end">
                 <Button
                   onClick={handleSaveApp}
                   disabled={!hasAppChanges}
-                  loading={updateSettings.isPending}
+                  loading={
+                    updateSettings.isPending || updateSystemConfig.isPending
+                  }
                 >
-                  Save App Settings
+                  Save Settings
                 </Button>
               </Group>
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="notifications" pt="lg">
+          <Tabs.Panel value="notifications" pt="md">
             <Stack gap="lg">
               {/* Apprise Notifications */}
               <Paper p="md" withBorder>
@@ -976,7 +1312,7 @@ function SettingsComponent() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="booklore" pt="lg">
+          <Tabs.Panel value="booklore" pt="md">
             <Stack gap="lg">
               {/* Booklore Settings */}
               <Paper p="md" withBorder>
@@ -1219,224 +1555,332 @@ function SettingsComponent() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="indexer" pt="lg">
+          <Tabs.Panel value="indexer" pt="md">
             <IndexerSettings />
           </Tabs.Panel>
 
-          <Tabs.Panel value="email" pt="lg">
+          <Tabs.Panel value="email" pt="md">
             <Stack gap="lg">
-              {/* Email Settings */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <div>
-                      <Title order={3}>Email Settings</Title>
-                      <Text size="sm" c="dimmed">
-                        Configure SMTP settings to send books via email
-                      </Text>
-                    </div>
-                    <Switch
-                      checked={emailEnabled}
-                      onChange={(e) => setEmailEnabled(e.currentTarget.checked)}
-                      label="Enabled"
-                      size="lg"
-                    />
-                  </Group>
-
-                  {emailEnabled && !settings?.postDownloadKeepInDownloads && (
-                    <Alert
-                      icon={<IconAlertTriangle size={16} />}
-                      color="orange"
-                      title="File access disabled"
-                    >
-                      <Text size="sm">
-                        Enable <strong>"Keep copy in downloads folder"</strong>{" "}
-                        in the General tab under Post-Download Actions to use
-                        email sending. Without this setting, downloaded files
-                        may not be available for email attachments.
-                      </Text>
-                    </Alert>
-                  )}
-
-                  {emailEnabled && (
-                    <Stack gap="sm">
-                      <TextInput
-                        label="SMTP Host"
-                        placeholder="smtp.gmail.com"
-                        value={smtpHost}
-                        onChange={(e) => setSmtpHost(e.target.value)}
-                        required
-                      />
-                      <NumberInput
-                        label="SMTP Port"
-                        value={smtpPort}
-                        onChange={(val) => setSmtpPort(Number(val) || 587)}
-                        min={1}
-                        max={65535}
-                      />
-                      <TextInput
-                        label="SMTP Username"
-                        placeholder="user@gmail.com"
-                        value={smtpUser}
-                        onChange={(e) => setSmtpUser(e.target.value)}
-                      />
-                      <PasswordInput
-                        label="SMTP Password"
-                        placeholder="Your SMTP password or app password"
-                        value={smtpPassword}
-                        onChange={(e) => setSmtpPassword(e.target.value)}
-                      />
-                      <TextInput
-                        label="Sender Email"
-                        placeholder="books@example.com"
-                        value={senderEmail}
-                        onChange={(e) => setSenderEmail(e.target.value)}
-                        required
-                      />
-                      <TextInput
-                        label="Sender Name"
-                        placeholder="Book Library"
-                        value={senderName}
-                        onChange={(e) => setSenderName(e.target.value)}
-                      />
+              {/* SMTP Settings - Only for users with canConfigureEmail permission */}
+              {canConfigureEmail && (
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Group justify="space-between">
+                      <div>
+                        <Title order={3}>Email Settings</Title>
+                        <Text size="sm" c="dimmed">
+                          Configure SMTP settings to send books via email
+                        </Text>
+                      </div>
                       <Switch
-                        checked={useTls}
-                        onChange={(e) => setUseTls(e.currentTarget.checked)}
-                        label="Use TLS/STARTTLS"
+                        checked={emailEnabled}
+                        onChange={(e) =>
+                          setEmailEnabled(e.currentTarget.checked)
+                        }
+                        label="Enabled"
+                        size="lg"
                       />
+                    </Group>
 
-                      <Group justify="flex-end" mt="md">
-                        <Button
-                          variant="outline"
-                          onClick={handleTestEmail}
-                          loading={testEmail.isPending}
-                          disabled={!smtpHost || !senderEmail}
-                        >
-                          Test Connection
-                        </Button>
-                        <Button
-                          onClick={handleSaveEmail}
-                          disabled={!hasEmailChanges}
-                          loading={updateEmail.isPending}
-                        >
-                          Save Settings
-                        </Button>
-                      </Group>
-                    </Stack>
-                  )}
-
-                  {!emailEnabled && (
-                    <>
-                      <Alert icon={<IconInfoCircle size={16} />} color="gray">
+                    {emailEnabled && !settings?.postDownloadKeepInDownloads && (
+                      <Alert
+                        icon={<IconAlertTriangle size={16} />}
+                        color="orange"
+                        title="File access disabled"
+                      >
                         <Text size="sm">
-                          Email sending is currently disabled. Enable it above
-                          to configure SMTP settings.
+                          Enable{" "}
+                          <strong>"Keep copy in downloads folder"</strong> in
+                          the General tab under Post-Download Actions to use
+                          email sending. Without this setting, downloaded files
+                          may not be available for email attachments.
                         </Text>
                       </Alert>
+                    )}
 
-                      {/* Show save button if user toggled email off */}
-                      {emailSettings && emailSettings.enabled && (
-                        <Group justify="flex-end">
+                    {emailEnabled && (
+                      <Stack gap="sm">
+                        <TextInput
+                          label="SMTP Host"
+                          placeholder="smtp.gmail.com"
+                          value={smtpHost}
+                          onChange={(e) => setSmtpHost(e.target.value)}
+                          required
+                        />
+                        <NumberInput
+                          label="SMTP Port"
+                          value={smtpPort}
+                          onChange={(val) => setSmtpPort(Number(val) || 587)}
+                          min={1}
+                          max={65535}
+                        />
+                        <TextInput
+                          label="SMTP Username"
+                          placeholder="user@gmail.com"
+                          value={smtpUser}
+                          onChange={(e) => setSmtpUser(e.target.value)}
+                        />
+                        <PasswordInput
+                          label="SMTP Password"
+                          placeholder="Your SMTP password or app password"
+                          value={smtpPassword}
+                          onChange={(e) => setSmtpPassword(e.target.value)}
+                        />
+                        <TextInput
+                          label="Sender Email"
+                          placeholder="books@example.com"
+                          value={senderEmail}
+                          onChange={(e) => setSenderEmail(e.target.value)}
+                          required
+                        />
+                        <TextInput
+                          label="Sender Name"
+                          placeholder="Book Library"
+                          value={senderName}
+                          onChange={(e) => setSenderName(e.target.value)}
+                        />
+                        <Switch
+                          checked={useTls}
+                          onChange={(e) => setUseTls(e.currentTarget.checked)}
+                          label="Use TLS/STARTTLS"
+                        />
+
+                        <Group justify="flex-end" mt="md">
+                          <Button
+                            variant="outline"
+                            onClick={handleTestEmail}
+                            loading={testEmail.isPending}
+                            disabled={!smtpHost || !senderEmail}
+                          >
+                            Test Connection
+                          </Button>
                           <Button
                             onClick={handleSaveEmail}
+                            disabled={!hasEmailChanges}
                             loading={updateEmail.isPending}
                           >
                             Save Settings
                           </Button>
                         </Group>
+                      </Stack>
+                    )}
+
+                    {!emailEnabled && (
+                      <>
+                        <Alert icon={<IconInfoCircle size={16} />} color="gray">
+                          <Text size="sm">
+                            Email sending is currently disabled. Enable it above
+                            to configure SMTP settings.
+                          </Text>
+                        </Alert>
+
+                        {/* Show save button if user toggled email off */}
+                        {emailSettings && emailSettings.enabled && (
+                          <Group justify="flex-end">
+                            <Button
+                              onClick={handleSaveEmail}
+                              loading={updateEmail.isPending}
+                            >
+                              Save Settings
+                            </Button>
+                          </Group>
+                        )}
+                      </>
+                    )}
+                  </Stack>
+                </Paper>
+              )}
+
+              {/* Email Recipients - All users can manage their own recipients */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <div>
+                    <Title order={3}>Email Recipients</Title>
+                    <Text size="sm" c="dimmed">
+                      {isAdmin
+                        ? "Manage email addresses for all users"
+                        : "Manage your email addresses for sending books"}
+                    </Text>
+                  </div>
+
+                  {/* Show notice if email is not configured */}
+                  {!isEmailConfigured && (
+                    <Alert icon={<IconInfoCircle size={16} />} color="yellow">
+                      <Text size="sm">
+                        Email sending is not configured yet.{" "}
+                        {canConfigureEmail
+                          ? "Enable email in the settings above to add recipients."
+                          : "An administrator needs to configure SMTP settings before you can add email recipients."}
+                      </Text>
+                    </Alert>
+                  )}
+
+                  {/* Only show form when email is configured */}
+                  {isEmailConfigured && (
+                    <>
+                      <Group gap="xs">
+                        <TextInput
+                          placeholder="recipient@example.com"
+                          value={newRecipientEmail}
+                          onChange={(e) => setNewRecipientEmail(e.target.value)}
+                          style={{ flex: 2 }}
+                        />
+                        <TextInput
+                          placeholder="Name (optional)"
+                          value={newRecipientName}
+                          onChange={(e) => setNewRecipientName(e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <Button
+                          leftSection={<IconPlus size={14} />}
+                          onClick={handleAddRecipient}
+                          loading={addRecipient.isPending}
+                          disabled={!newRecipientEmail}
+                        >
+                          Add
+                        </Button>
+                      </Group>
+
+                      {emailRecipients && emailRecipients.length > 0 && (
+                        <Stack gap="xs">
+                          {emailRecipients.map((recipient) => (
+                            <Group key={recipient.id} justify="space-between">
+                              <Stack gap={0}>
+                                <Group gap="xs">
+                                  {recipient.name && (
+                                    <Text size="sm" fw={500}>
+                                      {recipient.name}
+                                    </Text>
+                                  )}
+                                  {/* Show owner for admins */}
+                                  {isAdmin && recipient.userName && (
+                                    <Text size="xs" c="dimmed">
+                                      ({recipient.userName})
+                                    </Text>
+                                  )}
+                                </Group>
+                                <Text
+                                  size="sm"
+                                  c={recipient.name ? "dimmed" : undefined}
+                                >
+                                  {recipient.email}
+                                </Text>
+                              </Stack>
+                              <Group gap="sm">
+                                <Switch
+                                  size="xs"
+                                  label="Auto-send"
+                                  checked={recipient.autoSend}
+                                  onChange={(e) =>
+                                    updateRecipient.mutate({
+                                      id: recipient.id,
+                                      autoSend: e.currentTarget.checked,
+                                    })
+                                  }
+                                />
+                                {/* Reassign menu for admins */}
+                                {isAdmin && allUsers && allUsers.length > 1 && (
+                                  <Menu shadow="md" width={200}>
+                                    <Menu.Target>
+                                      <Tooltip label="Reassign to user">
+                                        <ActionIcon
+                                          color="blue"
+                                          variant="light"
+                                          loading={reassignRecipient.isPending}
+                                        >
+                                          <IconUserShare size={16} />
+                                        </ActionIcon>
+                                      </Tooltip>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                      <Menu.Label>Reassign to:</Menu.Label>
+                                      {allUsers
+                                        .filter(
+                                          (u) => u.id !== recipient.userId,
+                                        )
+                                        .map((u) => (
+                                          <Menu.Item
+                                            key={u.id}
+                                            onClick={() =>
+                                              reassignRecipient.mutate({
+                                                recipientId: recipient.id,
+                                                userId: u.id,
+                                              })
+                                            }
+                                          >
+                                            {u.name || u.email}
+                                          </Menu.Item>
+                                        ))}
+                                    </Menu.Dropdown>
+                                  </Menu>
+                                )}
+                                <ActionIcon
+                                  color="red"
+                                  variant="light"
+                                  onClick={() =>
+                                    deleteRecipient.mutate(recipient.id)
+                                  }
+                                  loading={deleteRecipient.isPending}
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
+                              </Group>
+                            </Group>
+                          ))}
+                        </Stack>
+                      )}
+
+                      {(!emailRecipients || emailRecipients.length === 0) && (
+                        <Text size="sm" c="dimmed" fs="italic">
+                          No recipients added yet
+                        </Text>
                       )}
                     </>
                   )}
                 </Stack>
               </Paper>
-
-              {/* Email Recipients */}
-              {emailEnabled && (
-                <Paper p="md" withBorder>
-                  <Stack gap="md">
-                    <Title order={3}>Email Recipients</Title>
-                    <Text size="sm" c="dimmed">
-                      Manage email addresses for sending books
-                    </Text>
-
-                    <Group gap="xs">
-                      <TextInput
-                        placeholder="recipient@example.com"
-                        value={newRecipientEmail}
-                        onChange={(e) => setNewRecipientEmail(e.target.value)}
-                        style={{ flex: 2 }}
-                      />
-                      <TextInput
-                        placeholder="Name (optional)"
-                        value={newRecipientName}
-                        onChange={(e) => setNewRecipientName(e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                      <Button
-                        leftSection={<IconPlus size={14} />}
-                        onClick={handleAddRecipient}
-                        loading={addRecipient.isPending}
-                        disabled={!newRecipientEmail}
-                      >
-                        Add
-                      </Button>
-                    </Group>
-
-                    {emailRecipients && emailRecipients.length > 0 && (
-                      <Stack gap="xs">
-                        {emailRecipients.map((recipient) => (
-                          <Group key={recipient.id} justify="space-between">
-                            <Stack gap={0}>
-                              {recipient.name && (
-                                <Text size="sm" fw={500}>
-                                  {recipient.name}
-                                </Text>
-                              )}
-                              <Text
-                                size="sm"
-                                c={recipient.name ? "dimmed" : undefined}
-                              >
-                                {recipient.email}
-                              </Text>
-                            </Stack>
-                            <Group gap="sm">
-                              <Switch
-                                size="xs"
-                                label="Auto-send"
-                                checked={recipient.autoSend}
-                                onChange={(e) =>
-                                  updateRecipient.mutate({
-                                    id: recipient.id,
-                                    autoSend: e.currentTarget.checked,
-                                  })
-                                }
-                              />
-                              <ActionIcon
-                                color="red"
-                                variant="light"
-                                onClick={() =>
-                                  deleteRecipient.mutate(recipient.id)
-                                }
-                                loading={deleteRecipient.isPending}
-                              >
-                                <IconTrash size={16} />
-                              </ActionIcon>
-                            </Group>
-                          </Group>
-                        ))}
-                      </Stack>
-                    )}
-
-                    {(!emailRecipients || emailRecipients.length === 0) && (
-                      <Text size="sm" c="dimmed" fs="italic">
-                        No recipients added yet
-                      </Text>
-                    )}
-                  </Stack>
-                </Paper>
-              )}
             </Stack>
           </Tabs.Panel>
+
+          {isAdmin && (
+            <>
+              <Tabs.Panel value="users" pt="md">
+                <Suspense
+                  fallback={
+                    <Center p="xl">
+                      <Loader size="lg" />
+                    </Center>
+                  }
+                >
+                  <UsersManagement />
+                </Suspense>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="oidc" pt="md">
+                <Suspense
+                  fallback={
+                    <Center p="xl">
+                      <Loader size="lg" />
+                    </Center>
+                  }
+                >
+                  <OIDCManagement />
+                </Suspense>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="proxy-auth" pt="md">
+                <Suspense
+                  fallback={
+                    <Center p="xl">
+                      <Loader size="lg" />
+                    </Center>
+                  }
+                >
+                  <ProxyAuthSettings />
+                </Suspense>
+              </Tabs.Panel>
+            </>
+          )}
         </Tabs>
       </Stack>
     </Container>
@@ -1444,6 +1888,9 @@ function SettingsComponent() {
 }
 
 export const Route = createFileRoute("/settings")({
+  beforeLoad: async () => {
+    await requireAuth();
+  },
   component: SettingsComponent,
   validateSearch: settingsSearchSchema,
 });

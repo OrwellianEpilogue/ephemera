@@ -138,6 +138,12 @@ export const savedRequestWithBookSchema = savedRequestSchema.extend({
     .nullable()
     .optional()
     .describe("Fulfilled book info if available"),
+  // User information (for multi-user support, nullable for legacy data)
+  userId: z.string().nullable().describe("ID of user who created this request"),
+  userName: z
+    .string()
+    .optional()
+    .describe("Name of user who created this request"),
 });
 
 export type SavedRequestWithBook = z.infer<typeof savedRequestWithBookSchema>;
@@ -297,6 +303,12 @@ export const queueItemSchema = z.object({
     .enum(["web", "indexer", "api"])
     .optional()
     .describe("Source of the download request"),
+  // User information (for multi-user support, nullable for legacy data)
+  userId: z.string().nullable().describe("ID of user who queued this download"),
+  userName: z
+    .string()
+    .optional()
+    .describe("Name of user who queued this download"),
 });
 
 export type QueueItem = z.infer<typeof queueItemSchema>;
@@ -925,7 +937,19 @@ export const emailRecipientSchema = z.object({
   email: z.string().email().describe("Recipient email address"),
   name: z.string().nullable().describe("Recipient display name"),
   autoSend: z.boolean().describe("Auto-send books when download completes"),
+  userId: z.string().nullable().optional().describe("Owner user ID"),
   createdAt: z.string().datetime().describe("When recipient was added"),
+  // Admin view extras
+  userName: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Owner user name (admin view)"),
+  userEmail: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Owner user email (admin view)"),
 });
 
 export type EmailRecipient = z.infer<typeof emailRecipientSchema>;
@@ -994,3 +1018,190 @@ export const emailTestResponseSchema = z.object({
 });
 
 export type EmailTestResponse = z.infer<typeof emailTestResponseSchema>;
+
+// System configuration schema (folder paths, download settings)
+export const systemConfigSchema = z.object({
+  searcherBaseUrl: z
+    .string()
+    .nullable()
+    .describe("Base URL for the searcher/archive service"),
+  searcherApiKey: z
+    .string()
+    .nullable()
+    .describe("API key for authenticated downloads"),
+  quickBaseUrl: z
+    .string()
+    .nullable()
+    .describe("Alternative fast download source URL"),
+  downloadFolder: z
+    .string()
+    .min(1)
+    .describe("Folder path for temporary downloads"),
+  ingestFolder: z
+    .string()
+    .min(1)
+    .describe("Folder path for final/ingested books"),
+  retryAttempts: z
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .describe("Number of retry attempts for failed downloads (1-10)"),
+  requestTimeout: z
+    .number()
+    .int()
+    .min(5000)
+    .max(300000)
+    .describe("Request timeout in milliseconds (5000-300000)"),
+  searchCacheTtl: z
+    .number()
+    .int()
+    .min(60)
+    .max(86400)
+    .describe("Search cache TTL in seconds (60-86400)"),
+  maxConcurrentDownloads: z
+    .number()
+    .int()
+    .min(1)
+    .max(5)
+    .describe("Maximum concurrent downloads (1-5)"),
+});
+
+export type SystemConfig = z.infer<typeof systemConfigSchema>;
+
+// System configuration update request schema
+export const updateSystemConfigSchema = z.object({
+  searcherBaseUrl: z
+    .string()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe("Base URL for the searcher/archive service"),
+  searcherApiKey: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("API key for authenticated downloads"),
+  quickBaseUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Alternative fast download source URL"),
+  downloadFolder: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Folder path for temporary downloads"),
+  ingestFolder: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("Folder path for final/ingested books"),
+  retryAttempts: z
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .optional()
+    .describe("Number of retry attempts for failed downloads"),
+  requestTimeout: z
+    .number()
+    .int()
+    .min(5000)
+    .max(300000)
+    .optional()
+    .describe("Request timeout in milliseconds"),
+  searchCacheTtl: z
+    .number()
+    .int()
+    .min(60)
+    .max(86400)
+    .optional()
+    .describe("Search cache TTL in seconds"),
+  maxConcurrentDownloads: z
+    .number()
+    .int()
+    .min(1)
+    .max(5)
+    .optional()
+    .describe("Maximum concurrent downloads"),
+});
+
+export type UpdateSystemConfig = z.infer<typeof updateSystemConfigSchema>;
+
+// Proxy Auth user identifier enum
+export const proxyAuthUserIdentifierSchema = z.enum(["email", "username"]);
+
+export type ProxyAuthUserIdentifier = z.infer<
+  typeof proxyAuthUserIdentifierSchema
+>;
+
+// Proxy Auth settings schema
+export const proxyAuthSettingsSchema = z.object({
+  id: z.number().describe("Settings ID (always 1)"),
+  enabled: z.boolean().describe("Whether proxy auth is enabled"),
+  headerName: z
+    .string()
+    .min(1)
+    .describe("HTTP header name containing the authenticated username/email"),
+  userIdentifier: proxyAuthUserIdentifierSchema.describe(
+    "How to match header value to users: email or username",
+  ),
+  trustedProxies: z
+    .string()
+    .describe("Comma-separated list of trusted proxy IPs/CIDRs"),
+  logoutRedirectUrl: z
+    .string()
+    .url()
+    .nullable()
+    .describe("URL to redirect to after logout"),
+  createdAt: z.string().datetime().describe("When settings were created"),
+  updatedAt: z.string().datetime().describe("When settings were last updated"),
+});
+
+export type ProxyAuthSettings = z.infer<typeof proxyAuthSettingsSchema>;
+
+// Proxy Auth settings update request schema
+export const updateProxyAuthSettingsSchema = z
+  .object({
+    enabled: z.boolean().optional().describe("Enable/disable proxy auth"),
+    headerName: z
+      .string()
+      .min(1)
+      .max(100)
+      .regex(
+        /^[a-zA-Z][a-zA-Z0-9-]*$/,
+        "Header name must start with a letter and contain only letters, numbers, and hyphens",
+      )
+      .optional()
+      .describe("HTTP header name"),
+    userIdentifier: proxyAuthUserIdentifierSchema
+      .optional()
+      .describe("How to match header value to users"),
+    trustedProxies: z
+      .string()
+      .optional()
+      .describe("Comma-separated list of trusted proxy IPs/CIDRs"),
+    logoutRedirectUrl: z
+      .string()
+      .url()
+      .nullable()
+      .optional()
+      .describe("URL to redirect to after logout"),
+  })
+  .refine(
+    (data) => {
+      // If enabling, require trustedProxies to be non-empty
+      if (data.enabled === true && data.trustedProxies !== undefined) {
+        return data.trustedProxies.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: "Trusted proxies must be configured when enabling proxy auth",
+    },
+  );
+
+export type UpdateProxyAuthSettings = z.infer<
+  typeof updateProxyAuthSettingsSchema
+>;

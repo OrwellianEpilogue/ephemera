@@ -16,8 +16,12 @@ import {
   getErrorMessage,
 } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
+import type { User } from "../db/schema.js";
 
 const app = new OpenAPIHono();
+
+// Helper to check if user is admin
+const isAdmin = (user: User): boolean => user.role === "admin";
 
 // ============== Settings Routes ==============
 
@@ -195,19 +199,26 @@ app.openapi(testEmailConnectionRoute, async (c) => {
 
 // ============== Recipients Routes ==============
 
+// Extended schema for admin response with user info
+const emailRecipientWithUserSchema = emailRecipientSchema.extend({
+  userName: z.string().nullable().optional(),
+  userEmail: z.string().nullable().optional(),
+});
+
 // GET /email/recipients
 const getEmailRecipientsRoute = createRoute({
   method: "get",
   path: "/email/recipients",
   tags: ["Email"],
-  summary: "Get all email recipients",
-  description: "Get list of all configured email recipients",
+  summary: "Get email recipients",
+  description:
+    "Get list of email recipients. Admins see all, users see only their own.",
   responses: {
     200: {
       description: "List of recipients",
       content: {
         "application/json": {
-          schema: z.array(emailRecipientSchema),
+          schema: z.array(emailRecipientWithUserSchema),
         },
       },
     },
@@ -215,27 +226,45 @@ const getEmailRecipientsRoute = createRoute({
 });
 
 app.openapi(getEmailRecipientsRoute, async (c) => {
-  const recipients = await emailSettingsService.getRecipients();
-  // Convert timestamps to ISO strings
-  const formatted = recipients.map((r) => ({
-    ...r,
-    createdAt: new Date(r.createdAt).toISOString(),
-  }));
-  return c.json(formatted, 200);
+  const user = c.get("user") as User;
+
+  if (isAdmin(user)) {
+    // Admins see all recipients with user info
+    const recipients = await emailSettingsService.getAllRecipients();
+    const formatted = recipients.map((r) => ({
+      ...r,
+      createdAt: new Date(r.createdAt).toISOString(),
+    }));
+    return c.json(formatted, 200);
+  } else {
+    // Regular users only see their own
+    const recipients = await emailSettingsService.getRecipients(user.id);
+    const formatted = recipients.map((r) => ({
+      ...r,
+      createdAt: new Date(r.createdAt).toISOString(),
+    }));
+    return c.json(formatted, 200);
+  }
 });
 
 // POST /email/recipients
+// Extended create schema to allow admin to specify userId
+const emailRecipientCreateWithUserSchema = emailRecipientCreateSchema.extend({
+  userId: z.string().optional(), // Admin can specify userId to add for another user
+});
+
 const addEmailRecipientRoute = createRoute({
   method: "post",
   path: "/email/recipients",
   tags: ["Email"],
   summary: "Add email recipient",
-  description: "Add a new email recipient",
+  description:
+    "Add a new email recipient. Admins can specify userId to add for another user.",
   request: {
     body: {
       content: {
         "application/json": {
-          schema: emailRecipientCreateSchema,
+          schema: emailRecipientCreateWithUserSchema,
         },
       },
     },
@@ -257,13 +286,38 @@ const addEmailRecipientRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "Forbidden - cannot add for other users",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
   },
 });
 
 app.openapi(addEmailRecipientRoute, async (c) => {
   try {
-    const { email, name, autoSend } = c.req.valid("json");
+    const user = c.get("user") as User;
+    const { email, name, autoSend, userId: targetUserId } = c.req.valid("json");
+
+    // Determine which user to add the recipient for
+    let effectiveUserId = user.id;
+
+    if (targetUserId && targetUserId !== user.id) {
+      // Trying to add for another user - must be admin
+      if (!isAdmin(user)) {
+        return c.json(
+          { error: "Only admins can add recipients for other users" },
+          403,
+        );
+      }
+      effectiveUserId = targetUserId;
+    }
+
     const recipient = await emailSettingsService.addRecipient(
+      effectiveUserId,
       email,
       name,
       autoSend,
@@ -294,7 +348,8 @@ const deleteEmailRecipientRoute = createRoute({
   path: "/email/recipients/{id}",
   tags: ["Email"],
   summary: "Delete email recipient",
-  description: "Delete an email recipient by ID",
+  description:
+    "Delete an email recipient. Users can only delete their own, admins can delete any.",
   request: {
     params: z.object({
       id: z.coerce.number().int().positive(),
@@ -303,6 +358,14 @@ const deleteEmailRecipientRoute = createRoute({
   responses: {
     204: {
       description: "Recipient deleted",
+    },
+    403: {
+      description: "Forbidden - cannot delete others' recipients",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
     },
     404: {
       description: "Recipient not found",
@@ -316,7 +379,17 @@ const deleteEmailRecipientRoute = createRoute({
 });
 
 app.openapi(deleteEmailRecipientRoute, async (c) => {
+  const user = c.get("user") as User;
   const { id } = c.req.valid("param");
+
+  // Check ownership unless admin
+  if (!isAdmin(user)) {
+    const isOwner = await emailSettingsService.isRecipientOwner(id, user.id);
+    if (!isOwner) {
+      return c.json({ error: "You can only delete your own recipients" }, 403);
+    }
+  }
+
   const deleted = await emailSettingsService.deleteRecipient(id);
 
   if (!deleted) {
@@ -332,7 +405,8 @@ const updateEmailRecipientRoute = createRoute({
   path: "/email/recipients/{id}",
   tags: ["Email"],
   summary: "Update email recipient",
-  description: "Update an email recipient by ID",
+  description:
+    "Update an email recipient. Users can only update their own, admins can update any.",
   request: {
     params: z.object({
       id: z.coerce.number().int().positive(),
@@ -362,6 +436,14 @@ const updateEmailRecipientRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "Forbidden - cannot update others' recipients",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
     404: {
       description: "Recipient not found",
       content: {
@@ -375,8 +457,21 @@ const updateEmailRecipientRoute = createRoute({
 
 app.openapi(updateEmailRecipientRoute, async (c) => {
   try {
+    const user = c.get("user") as User;
     const { id } = c.req.valid("param");
     const updates = c.req.valid("json");
+
+    // Check ownership unless admin
+    if (!isAdmin(user)) {
+      const isOwner = await emailSettingsService.isRecipientOwner(id, user.id);
+      if (!isOwner) {
+        return c.json(
+          { error: "You can only update your own recipients" },
+          403,
+        );
+      }
+    }
+
     const recipient = await emailSettingsService.updateRecipient(id, updates);
 
     if (!recipient) {
@@ -402,6 +497,82 @@ app.openapi(updateEmailRecipientRoute, async (c) => {
   }
 });
 
+// ============== Admin Routes ==============
+
+// POST /email/recipients/:id/reassign
+const reassignEmailRecipientRoute = createRoute({
+  method: "post",
+  path: "/email/recipients/{id}/reassign",
+  tags: ["Email"],
+  summary: "Reassign email recipient",
+  description: "Reassign an email recipient to another user (admin only)",
+  request: {
+    params: z.object({
+      id: z.coerce.number().int().positive(),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            userId: z.string().min(1),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Recipient reassigned",
+      content: {
+        "application/json": {
+          schema: emailRecipientSchema,
+        },
+      },
+    },
+    403: {
+      description: "Forbidden - admin only",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Recipient not found",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(reassignEmailRecipientRoute, async (c) => {
+  const user = c.get("user") as User;
+
+  if (!isAdmin(user)) {
+    return c.json({ error: "Only admins can reassign recipients" }, 403);
+  }
+
+  const { id } = c.req.valid("param");
+  const { userId: newUserId } = c.req.valid("json");
+
+  const recipient = await emailSettingsService.reassignRecipient(id, newUserId);
+
+  if (!recipient) {
+    return c.json({ error: "Recipient not found" }, 404);
+  }
+
+  return c.json(
+    {
+      ...recipient,
+      createdAt: new Date(recipient.createdAt).toISOString(),
+    },
+    200,
+  );
+});
+
 // ============== Send Email Route ==============
 
 // POST /email/send
@@ -410,7 +581,8 @@ const sendEmailRoute = createRoute({
   path: "/email/send",
   tags: ["Email"],
   summary: "Send book to recipient",
-  description: "Send a downloaded book as email attachment to a recipient",
+  description:
+    "Send a downloaded book as email attachment to a recipient. Users can only send to their own recipients.",
   request: {
     body: {
       content: {
@@ -437,6 +609,14 @@ const sendEmailRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "Forbidden - can only send to own recipients",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
     500: {
       description: "Send failed",
       content: {
@@ -450,7 +630,22 @@ const sendEmailRoute = createRoute({
 
 app.openapi(sendEmailRoute, async (c) => {
   try {
+    const user = c.get("user") as User;
     const { recipientId, md5 } = c.req.valid("json");
+
+    // Verify user owns the recipient (users can only send to their own recipients)
+    if (!isAdmin(user)) {
+      const isOwner = await emailSettingsService.isRecipientOwner(
+        recipientId,
+        user.id,
+      );
+      if (!isOwner) {
+        return c.json(
+          { error: "You can only send to your own email recipients" },
+          403,
+        );
+      }
+    }
 
     await emailService.sendBook(recipientId, md5);
 

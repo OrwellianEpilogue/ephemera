@@ -1,6 +1,250 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
-import { relations } from "drizzle-orm";
+import {
+  sqliteTable,
+  text,
+  integer,
+  real,
+  index,
+} from "drizzle-orm/sqlite-core";
+import { relations, sql } from "drizzle-orm";
 import type { RequestQueryParams } from "@ephemera/shared";
+
+// ============================================================================
+// Better Auth Core Tables
+// These tables are managed by better-auth CLI and must match its expectations
+// Run: pnpm dlx @better-auth/cli migrate --config ./src/auth.ts
+// ============================================================================
+
+export const user = sqliteTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: integer("email_verified", { mode: "boolean" })
+    .default(false)
+    .notNull(),
+  image: text("image"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+  // Admin plugin fields
+  role: text("role"),
+  banned: integer("banned", { mode: "boolean" }).default(false),
+  banReason: text("ban_reason"),
+  banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
+});
+
+export const session = sqliteTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .$onUpdate(() => new Date())
+      .notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Admin plugin field for impersonation
+    impersonatedBy: text("impersonated_by"),
+  },
+  (table) => ({
+    session_userId_idx: index("session_userId_idx").on(table.userId),
+  }),
+);
+
+export const account = sqliteTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: integer("access_token_expires_at", {
+      mode: "timestamp_ms",
+    }),
+    refreshTokenExpiresAt: integer("refresh_token_expires_at", {
+      mode: "timestamp_ms",
+    }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    account_userId_idx: index("account_userId_idx").on(table.userId),
+  }),
+);
+
+export const verification = sqliteTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    verification_identifier_idx: index("verification_identifier_idx").on(
+      table.identifier,
+    ),
+  }),
+);
+
+// API Key table (managed by better-auth apiKey plugin)
+export const apikey = sqliteTable(
+  "apikey",
+  {
+    id: text("id").primaryKey(),
+    name: text("name"),
+    start: text("start"),
+    prefix: text("prefix"),
+    key: text("key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    refillInterval: integer("refill_interval"),
+    refillAmount: integer("refill_amount"),
+    lastRefillAt: integer("last_refill_at", { mode: "timestamp_ms" }),
+    enabled: integer("enabled", { mode: "boolean" }).default(true),
+    rateLimitEnabled: integer("rate_limit_enabled", {
+      mode: "boolean",
+    }).default(true),
+    rateLimitTimeWindow: integer("rate_limit_time_window").default(86400000),
+    rateLimitMax: integer("rate_limit_max").default(10),
+    requestCount: integer("request_count").default(0),
+    remaining: integer("remaining"),
+    lastRequest: integer("last_request", { mode: "timestamp_ms" }),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+    permissions: text("permissions"),
+    metadata: text("metadata"),
+    deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+  },
+  (table) => ({
+    apikey_key_idx: index("apikey_key_idx").on(table.key),
+    apikey_userId_idx: index("apikey_userId_idx").on(table.userId),
+  }),
+);
+
+// SSO Provider table (managed by better-auth SSO plugin)
+// Extended with our custom fields for OIDC control
+export const ssoProvider = sqliteTable("sso_provider", {
+  id: text("id").primaryKey(),
+  issuer: text("issuer").notNull(),
+  oidcConfig: text("oidc_config"),
+  samlConfig: text("saml_config"),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+  providerId: text("provider_id").notNull().unique(),
+  organizationId: text("organization_id"),
+  domain: text("domain").notNull().default(""),
+  // Our custom extensions (not in better-auth base schema)
+  name: text("name"),
+  allowAutoProvision: integer("allow_auto_provision", { mode: "boolean" })
+    .default(false)
+    .notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// Multi-user extension tables
+export const userPermissions = sqliteTable("user_permissions", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  canDeleteDownloads: integer("can_delete_downloads", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  canConfigureNotifications: integer("can_configure_notifications", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
+  canManageRequests: integer("can_manage_requests", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  canConfigureApp: integer("can_configure_app", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  canConfigureIntegrations: integer("can_configure_integrations", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
+  canConfigureEmail: integer("can_configure_email", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  canSeeDownloadOwner: integer("can_see_download_owner", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  canManageApiKeys: integer("can_manage_api_keys", { mode: "boolean" })
+    .notNull()
+    .default(false),
+});
+
+export const appConfig = sqliteTable("app_config", {
+  id: integer("id").primaryKey().default(1),
+  isSetupComplete: integer("is_setup_complete", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  authMethod: text("auth_method"),
+  searcherBaseUrl: text("searcher_base_url"),
+  searcherApiKey: text("searcher_api_key"),
+  quickBaseUrl: text("quick_base_url"),
+  downloadFolder: text("download_folder").notNull().default("./downloads"),
+  ingestFolder: text("ingest_folder").notNull().default("/path/to/final/books"),
+  retryAttempts: integer("retry_attempts").notNull().default(3),
+  requestTimeout: integer("request_timeout").notNull().default(30000),
+  searchCacheTtl: integer("search_cache_ttl").notNull().default(300),
+  maxConcurrentDownloads: integer("max_concurrent_downloads")
+    .notNull()
+    .default(1),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+export const calibreConfig = sqliteTable("calibre_config", {
+  id: integer("id").primaryKey().default(1),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  dbPath: text("db_path"),
+  baseUrl: text("base_url"),
+});
 
 export const downloads = sqliteTable("downloads", {
   md5: text("md5").primaryKey(),
@@ -11,6 +255,9 @@ export const downloads = sqliteTable("downloads", {
   language: text("language"),
   format: text("format"),
   year: integer("year"),
+
+  // User ownership (nullable for migration from pre-auth versions)
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
 
   // Download source tracking
   downloadSource: text("download_source", {
@@ -202,6 +449,9 @@ export const books = sqliteTable("books", {
 export const downloadRequests = sqliteTable("download_requests", {
   id: integer("id").primaryKey({ autoIncrement: true }),
 
+  // User ownership (nullable for migration from pre-auth versions)
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+
   // Search parameters (stores the full search query)
   queryParams: text("query_params", { mode: "json" })
     .notNull()
@@ -320,10 +570,69 @@ export const emailRecipients = sqliteTable("email_recipients", {
   email: text("email").notNull(),
   name: text("name"),
   autoSend: integer("auto_send", { mode: "boolean" }).notNull().default(false),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
   createdAt: integer("created_at").notNull(),
 });
 
+// Proxy Authentication Settings (reverse proxy header auth)
+export const proxyAuthSettings = sqliteTable("proxy_auth_settings", {
+  id: integer("id").primaryKey().default(1),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  headerName: text("header_name").notNull().default("Remote-User"),
+  userIdentifier: text("user_identifier", { enum: ["email", "username"] })
+    .notNull()
+    .default("email"),
+  trustedProxies: text("trusted_proxies").notNull().default(""),
+  logoutRedirectUrl: text("logout_redirect_url"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 // Relations
+export const userRelations = relations(user, ({ many, one }) => ({
+  sessions: many(session),
+  accounts: many(account),
+  downloads: many(downloads),
+  downloadRequests: many(downloadRequests),
+  emailRecipients: many(emailRecipients),
+  permissions: one(userPermissions, {
+    fields: [user.id],
+    references: [userPermissions.userId],
+  }),
+}));
+
+export const emailRecipientsRelations = relations(
+  emailRecipients,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [emailRecipients.userId],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const userPermissionsRelations = relations(
+  userPermissions,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [userPermissions.userId],
+      references: [user.id],
+    }),
+  }),
+);
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, {
+    fields: [account.userId],
+    references: [user.id],
+  }),
+}));
+
 export const booksRelations = relations(books, ({ many }) => ({
   downloads: many(downloads),
   downloadRequests: many(downloadRequests),
@@ -334,6 +643,10 @@ export const downloadsRelations = relations(downloads, ({ one }) => ({
     fields: [downloads.md5],
     references: [books.md5],
   }),
+  user: one(user, {
+    fields: [downloads.userId],
+    references: [user.id],
+  }),
 }));
 
 export const downloadRequestsRelations = relations(
@@ -343,9 +656,32 @@ export const downloadRequestsRelations = relations(
       fields: [downloadRequests.fulfilledBookMd5],
       references: [books.md5],
     }),
+    user: one(user, {
+      fields: [downloadRequests.userId],
+      references: [user.id],
+    }),
   }),
 );
 
+// Better Auth types
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
+export type Session = typeof session.$inferSelect;
+export type NewSession = typeof session.$inferInsert;
+export type Account = typeof account.$inferSelect;
+export type NewAccount = typeof account.$inferInsert;
+export type Verification = typeof verification.$inferSelect;
+export type NewVerification = typeof verification.$inferInsert;
+
+// Multi-user extension types
+export type UserPermissions = typeof userPermissions.$inferSelect;
+export type NewUserPermissions = typeof userPermissions.$inferInsert;
+export type AppConfig = typeof appConfig.$inferSelect;
+export type NewAppConfig = typeof appConfig.$inferInsert;
+export type CalibreConfig = typeof calibreConfig.$inferSelect;
+export type NewCalibreConfig = typeof calibreConfig.$inferInsert;
+
+// Existing types
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
 export type SearchCache = typeof searchCache.$inferSelect;
@@ -366,3 +702,5 @@ export type EmailSettings = typeof emailSettings.$inferSelect;
 export type NewEmailSettings = typeof emailSettings.$inferInsert;
 export type EmailRecipient = typeof emailRecipients.$inferSelect;
 export type NewEmailRecipient = typeof emailRecipients.$inferInsert;
+export type ProxyAuthSettings = typeof proxyAuthSettings.$inferSelect;
+export type NewProxyAuthSettings = typeof proxyAuthSettings.$inferInsert;

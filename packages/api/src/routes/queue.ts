@@ -47,6 +47,7 @@ const queueStatusRoute = createRoute({
 app.openapi(queueStatusRoute, async (c) => {
   try {
     const status = await queueManager.getQueueStatus();
+
     return c.json(status, 200);
   } catch (error: unknown) {
     logger.error("Queue status error:", error);

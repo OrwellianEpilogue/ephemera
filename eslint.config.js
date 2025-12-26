@@ -42,7 +42,9 @@ export default [
         module: "readonly",
         exports: "readonly",
         // Browser globals (for web package)
+        window: "readonly",
         localStorage: "readonly",
+        sessionStorage: "readonly",
         confirm: "readonly",
         document: "readonly",
         HTMLDivElement: "readonly",

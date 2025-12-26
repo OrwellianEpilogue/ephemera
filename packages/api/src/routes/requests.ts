@@ -70,11 +70,15 @@ const createRequestRoute = createRoute({
 
 app.openapi(createRequestRoute, async (c) => {
   try {
+    const user = c.get("user"); // Set by requireAuth middleware
+
     const queryParams = await c.req.json();
 
-    logger.info(`Creating download request for query: ${queryParams.q}`);
+    logger.info(
+      `Creating download request for query: ${queryParams.q} by user ${user.id}`,
+    );
 
-    const request = await requestsManager.createRequest(queryParams);
+    const request = await requestsManager.createRequest(queryParams, user.id);
 
     return c.json(request, 200);
   } catch (error: unknown) {

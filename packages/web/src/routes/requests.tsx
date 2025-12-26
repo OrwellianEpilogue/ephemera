@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requireAuth } from "../lib/route-auth";
 import {
   Container,
   Title,
@@ -29,6 +30,8 @@ import {
   useDeleteRequest,
 } from "../hooks/useRequests";
 import { useAppSettings } from "../hooks/useSettings";
+import { useAuth, usePermissions } from "../hooks/useAuth";
+import { UserBadge } from "../components/UserBadge";
 import type { SavedRequestWithBook } from "@ephemera/shared";
 
 // Helper function to format check interval for display
@@ -49,6 +52,8 @@ function formatCheckInterval(interval: string): string {
 // Request card component
 function RequestCard({ request }: { request: SavedRequestWithBook }) {
   const deleteRequest = useDeleteRequest();
+  const { isAdmin } = useAuth();
+  const { data: permissions } = usePermissions();
 
   const handleDelete = () => {
     if (confirm("Are you sure you want to delete this request?")) {
@@ -100,6 +105,9 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
       cancelled: "gray",
     }[request.status as string] || "gray";
 
+  // Check if user has permission to manage requests
+  const hasManagePermission = isAdmin || permissions?.canManageRequests;
+
   const getDisplayTitle = () => {
     if (params.q) return params.q;
 
@@ -126,16 +134,18 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
             <Badge color={statusColor} size="sm">
               {request.status}
             </Badge>
-            <Tooltip label="Delete request">
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                onClick={handleDelete}
-                loading={deleteRequest.isPending}
-              >
-                <IconTrash size={16} />
-              </ActionIcon>
-            </Tooltip>
+            {hasManagePermission && (
+              <Tooltip label="Delete request">
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  onClick={handleDelete}
+                  loading={deleteRequest.isPending}
+                >
+                  <IconTrash size={16} />
+                </ActionIcon>
+              </Tooltip>
+            )}
           </Group>
         </Group>
 
@@ -146,6 +156,17 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
                 {filter}
               </Badge>
             ))}
+          </Group>
+        )}
+
+        {/* Show user badge for admins */}
+        {isAdmin && request.userId && (
+          <Group gap="xs">
+            <UserBadge
+              userId={request.userId}
+              userName={request.userName}
+              size="sm"
+            />
           </Group>
         )}
 
@@ -379,5 +400,8 @@ function RequestsPage() {
 }
 
 export const Route = createFileRoute("/requests")({
+  beforeLoad: async () => {
+    await requireAuth();
+  },
   component: RequestsPage,
 });
