@@ -174,6 +174,8 @@ All other settings have sensible defaults, but you can override them:
 | `SEARCH_CACHE_TTL` | `300`                   | Search cache (seconds) |
 | `API_BASE_PATH`    | `/api`                  | API base path          |
 | `HTML_BASE_HREF`   | `empty`                 | HTML base href (iframes) |
+| `BASE_URL`         | `http://localhost:8286` | Public URL for CORS/auth |
+| `ALLOWED_ORIGINS`  | `empty`                 | Additional CORS origins (comma-separated) |
 
 ### Advanced: Configurable API Base Path
 
