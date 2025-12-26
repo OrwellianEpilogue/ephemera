@@ -214,6 +214,13 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const canDownload = ["done", "available"].includes(item.status);
   const showProgress = item.status === "downloading";
 
+  // Check if file access is available (keepInDownloads must be enabled for browser download/email)
+  const keepInDownloads = settings?.postDownloadKeepInDownloads ?? false;
+  const fileAccessDisabled = canDownload && !keepInDownloads;
+  const fileAccessTooltip = fileAccessDisabled
+    ? 'Enable "Keep copy in downloads folder" in Settings to use browser downloads and email'
+    : undefined;
+
   // Use settings for date/time formatting, fall back to defaults
   const timeFormat = settings?.timeFormat ?? "24h";
   const dateFormat = settings?.dateFormat ?? "us";
@@ -264,12 +271,16 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                 </Tooltip>
               )}
               {canDownload && (
-                <Tooltip label="Download file">
+                <Tooltip
+                  label={fileAccessTooltip || "Download file"}
+                  color={fileAccessDisabled ? "orange" : undefined}
+                >
                   <ActionIcon
-                    color="green"
+                    color={fileAccessDisabled ? "gray" : "green"}
                     variant="subtle"
                     onClick={handleDownload}
                     loading={downloadFile.isPending}
+                    disabled={fileAccessDisabled}
                   >
                     <IconDownload size={16} />
                   </ActionIcon>
@@ -278,7 +289,14 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               {canDownload &&
                 emailSettings?.enabled &&
                 emailRecipients &&
-                emailRecipients.length > 0 && (
+                emailRecipients.length > 0 &&
+                (fileAccessDisabled ? (
+                  <Tooltip label={fileAccessTooltip} color="orange">
+                    <ActionIcon color="gray" variant="subtle" disabled>
+                      <IconMail size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : (
                   <Menu shadow="md" width={200}>
                     <Menu.Target>
                       <Tooltip label="Send via email">
@@ -308,7 +326,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                       ))}
                     </Menu.Dropdown>
                   </Menu>
-                )}
+                ))}
               {canDelete && (
                 <Tooltip label="Delete download">
                   <ActionIcon

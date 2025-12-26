@@ -416,23 +416,21 @@ app.openapi(fileRoute, async (c) => {
       );
     }
 
-    // Determine which path to use
-    const filePath =
-      download.status === "available" ? download.finalPath : download.tempPath;
+    // Determine which path to use - prefer tempPath when it exists (for keepInDownloads mode)
+    let filePath: string | null = null;
 
-    if (!filePath) {
-      return c.json(
-        {
-          error: "File path not found",
-          details: "The download record does not have a file path.",
-        },
-        404,
-      );
+    // First try tempPath (always available when keepInDownloads is enabled)
+    if (download.tempPath && existsSync(download.tempPath)) {
+      filePath = download.tempPath;
+    } else if (download.finalPath && existsSync(download.finalPath)) {
+      // Fall back to finalPath
+      filePath = download.finalPath;
     }
 
-    // Check if file exists
-    if (!existsSync(filePath)) {
-      logger.error(`File not found at path: ${filePath}`);
+    if (!filePath) {
+      logger.error(
+        `File not found - tempPath: ${download.tempPath}, finalPath: ${download.finalPath}`,
+      );
       return c.json(
         {
           error: "File not found",

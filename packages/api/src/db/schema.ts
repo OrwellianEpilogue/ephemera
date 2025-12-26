@@ -118,11 +118,11 @@ export const appSettings = sqliteTable("app_settings", {
   })
     .notNull()
     .default(false),
-  postDownloadDeleteTemp: integer("post_download_delete_temp", {
+  postDownloadKeepInDownloads: integer("post_download_keep_in_downloads", {
     mode: "boolean",
   })
     .notNull()
-    .default(true),
+    .default(false),
 
   // Legacy field - will be removed after migration
   postDownloadAction: text("post_download_action", {
