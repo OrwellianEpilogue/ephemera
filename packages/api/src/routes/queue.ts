@@ -168,7 +168,7 @@ const clearQueueRoute = createRoute({
   tags: ["Queue"],
   summary: "Clear completed downloads",
   description:
-    "Delete all downloads with status: done, available, error, or cancelled. Active downloads (queued, downloading, delayed) are not affected. This will emit an SSE event to update connected clients.",
+    "Delete all downloads with status: done, available, error, or cancelled. Active downloads (queued, downloading, delayed) are not affected. This will emit an SSE event to update connected clients. Admin only.",
   responses: {
     200: {
       description: "Queue cleared successfully",
@@ -179,6 +179,14 @@ const clearQueueRoute = createRoute({
             deletedCount: z.number().describe("Number of downloads deleted"),
             message: z.string(),
           }),
+        },
+      },
+    },
+    403: {
+      description: "Forbidden - admin only",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
         },
       },
     },
@@ -195,7 +203,20 @@ const clearQueueRoute = createRoute({
 
 app.openapi(clearQueueRoute, async (c) => {
   try {
-    logger.info("Clear queue request received");
+    const user = c.get("user");
+
+    // Only admins can clear the entire queue (affects all users)
+    if (user.role !== "admin") {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "Only administrators can clear the entire download queue",
+        },
+        403,
+      );
+    }
+
+    logger.info(`Clear queue request received from admin ${user.id}`);
 
     const deletedCount = await queueManager.clearCompletedDownloads();
 

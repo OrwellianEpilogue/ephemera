@@ -4,6 +4,7 @@ import { queueManager } from "../services/queue-manager.js";
 import { errorResponseSchema, getErrorMessage } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
 import { downloadTracker } from "../services/download-tracker.js";
+import { permissionsService } from "../services/permissions.js";
 import { existsSync, createReadStream, statSync } from "fs";
 import { extname } from "path";
 import { stream } from "hono/streaming";
@@ -139,6 +140,22 @@ const cancelRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "Forbidden - not owner and lacks permission",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Download not found",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
     500: {
       description: "Internal server error",
       content: {
@@ -153,8 +170,39 @@ const cancelRoute = createRoute({
 app.openapi(cancelRoute, async (c) => {
   try {
     const { md5 } = c.req.valid("param");
+    const user = c.get("user");
 
-    logger.info(`Cancel request for: ${md5}`);
+    // Get the download to check ownership
+    const download = await downloadTracker.get(md5);
+
+    if (!download) {
+      return c.json(
+        {
+          error: "Download not found",
+          details: `No download found with MD5: ${md5}`,
+        },
+        404,
+      );
+    }
+
+    // Check ownership OR permission (handle null userId for legacy downloads)
+    const isOwner = download.userId === user.id;
+    const isAdmin = user.role === "admin";
+    const hasPermission =
+      isAdmin ||
+      (await permissionsService.canPerform(user.id, "canDeleteDownloads"));
+
+    if (!isOwner && !hasPermission) {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "You can only cancel your own downloads",
+        },
+        403,
+      );
+    }
+
+    logger.info(`Cancel request for: ${md5} by user ${user.id}`);
 
     const success = await queueManager.cancelDownload(md5);
 
@@ -210,6 +258,22 @@ const deleteRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "Forbidden - not owner and lacks permission",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Download not found",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
     500: {
       description: "Server error",
       content: {
@@ -224,8 +288,39 @@ const deleteRoute = createRoute({
 app.openapi(deleteRoute, async (c) => {
   try {
     const { md5 } = c.req.valid("param");
+    const user = c.get("user");
 
-    logger.info(`Delete request for: ${md5}`);
+    // Get the download to check ownership
+    const download = await downloadTracker.get(md5);
+
+    if (!download) {
+      return c.json(
+        {
+          error: "Download not found",
+          details: `No download found with MD5: ${md5}`,
+        },
+        404,
+      );
+    }
+
+    // Check ownership OR permission (handle null userId for legacy downloads)
+    const isOwner = download.userId === user.id;
+    const isAdmin = user.role === "admin";
+    const hasPermission =
+      isAdmin ||
+      (await permissionsService.canPerform(user.id, "canDeleteDownloads"));
+
+    if (!isOwner && !hasPermission) {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "You can only delete your own downloads",
+        },
+        403,
+      );
+    }
+
+    logger.info(`Delete request for: ${md5} by user ${user.id}`);
 
     const success = await queueManager.deleteDownload(md5);
 
