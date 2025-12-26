@@ -1017,6 +1017,18 @@ export type EmailTestResponse = z.infer<typeof emailTestResponseSchema>;
 
 // System configuration schema (folder paths, download settings)
 export const systemConfigSchema = z.object({
+  searcherBaseUrl: z
+    .string()
+    .nullable()
+    .describe("Base URL for the searcher/archive service"),
+  searcherApiKey: z
+    .string()
+    .nullable()
+    .describe("API key for authenticated downloads"),
+  quickBaseUrl: z
+    .string()
+    .nullable()
+    .describe("Alternative fast download source URL"),
   downloadFolder: z
     .string()
     .min(1)
@@ -1055,6 +1067,22 @@ export type SystemConfig = z.infer<typeof systemConfigSchema>;
 
 // System configuration update request schema
 export const updateSystemConfigSchema = z.object({
+  searcherBaseUrl: z
+    .string()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe("Base URL for the searcher/archive service"),
+  searcherApiKey: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("API key for authenticated downloads"),
+  quickBaseUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Alternative fast download source URL"),
   downloadFolder: z
     .string()
     .min(1)

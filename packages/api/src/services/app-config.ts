@@ -75,6 +75,9 @@ class AppConfigService {
     updates: Partial<
       Pick<
         AppConfig,
+        | "searcherBaseUrl"
+        | "searcherApiKey"
+        | "quickBaseUrl"
         | "downloadFolder"
         | "ingestFolder"
         | "retryAttempts"
@@ -97,16 +100,38 @@ class AppConfigService {
         );
       }
 
-      const configData = {
-        downloadFolder: updates.downloadFolder ?? existing[0].downloadFolder,
-        ingestFolder: updates.ingestFolder ?? existing[0].ingestFolder,
-        retryAttempts: updates.retryAttempts ?? existing[0].retryAttempts,
-        requestTimeout: updates.requestTimeout ?? existing[0].requestTimeout,
-        searchCacheTtl: updates.searchCacheTtl ?? existing[0].searchCacheTtl,
-        maxConcurrentDownloads:
-          updates.maxConcurrentDownloads ?? existing[0].maxConcurrentDownloads,
+      const configData: Record<string, unknown> = {
         updatedAt: new Date(),
       };
+
+      // Only update fields that are explicitly provided (including null)
+      if (updates.searcherBaseUrl !== undefined) {
+        configData.searcherBaseUrl = updates.searcherBaseUrl;
+      }
+      if (updates.searcherApiKey !== undefined) {
+        configData.searcherApiKey = updates.searcherApiKey;
+      }
+      if (updates.quickBaseUrl !== undefined) {
+        configData.quickBaseUrl = updates.quickBaseUrl;
+      }
+      if (updates.downloadFolder !== undefined) {
+        configData.downloadFolder = updates.downloadFolder;
+      }
+      if (updates.ingestFolder !== undefined) {
+        configData.ingestFolder = updates.ingestFolder;
+      }
+      if (updates.retryAttempts !== undefined) {
+        configData.retryAttempts = updates.retryAttempts;
+      }
+      if (updates.requestTimeout !== undefined) {
+        configData.requestTimeout = updates.requestTimeout;
+      }
+      if (updates.searchCacheTtl !== undefined) {
+        configData.searchCacheTtl = updates.searchCacheTtl;
+      }
+      if (updates.maxConcurrentDownloads !== undefined) {
+        configData.maxConcurrentDownloads = updates.maxConcurrentDownloads;
+      }
 
       await db.update(appConfig).set(configData).where(eq(appConfig.id, 1));
 
@@ -181,6 +206,9 @@ class AppConfigService {
    * Get config for API response (with date formatting)
    */
   async getConfigForResponse(): Promise<{
+    searcherBaseUrl: string | null;
+    searcherApiKey: string | null;
+    quickBaseUrl: string | null;
     downloadFolder: string;
     ingestFolder: string;
     retryAttempts: number;
@@ -190,6 +218,9 @@ class AppConfigService {
   }> {
     const config = await this.getConfig();
     return {
+      searcherBaseUrl: config.searcherBaseUrl,
+      searcherApiKey: config.searcherApiKey,
+      quickBaseUrl: config.quickBaseUrl,
       downloadFolder: config.downloadFolder,
       ingestFolder: config.ingestFolder,
       retryAttempts: config.retryAttempts,

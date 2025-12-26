@@ -37,7 +37,6 @@ import {
   IconMail,
   IconUser,
   IconUserShare,
-  IconFolders,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -97,7 +96,6 @@ const settingsSearchSchema = z.object({
     .enum([
       "account",
       "general",
-      "system",
       "notifications",
       "booklore",
       "indexer",
@@ -130,7 +128,6 @@ function SettingsComponent() {
   const getTabPermission = (tabName: string): boolean => {
     switch (tabName) {
       case "general":
-      case "system":
         return !!canConfigureApp;
       case "notifications":
         return !!canConfigureNotifications;
@@ -182,11 +179,7 @@ function SettingsComponent() {
   const { data: indexerSettings } = useIndexerSettings({
     enabled: canConfigureIntegrations,
   });
-  const {
-    data: systemConfig,
-    isLoading: loadingSystemConfig,
-    isError: errorSystemConfig,
-  } = useSystemConfig({ enabled: canConfigureApp });
+  const { data: systemConfig } = useSystemConfig({ enabled: canConfigureApp });
   // Email settings - all users can read to check if enabled
   const {
     data: emailSettings,
@@ -279,6 +272,9 @@ function SettingsComponent() {
   const [newRecipientName, setNewRecipientName] = useState("");
 
   // System configuration state
+  const [searcherBaseUrl, setSearcherBaseUrl] = useState("");
+  const [searcherApiKey, setSearcherApiKey] = useState("");
+  const [quickBaseUrl, setQuickBaseUrl] = useState("");
   const [downloadFolder, setDownloadFolder] = useState("./downloads");
   const [ingestFolder, setIngestFolder] = useState("/path/to/final/books");
   const [retryAttempts, setRetryAttempts] = useState(3);
@@ -383,6 +379,9 @@ function SettingsComponent() {
   // Sync with system configuration
   useEffect(() => {
     if (systemConfig) {
+      setSearcherBaseUrl(systemConfig.searcherBaseUrl || "");
+      setSearcherApiKey(systemConfig.searcherApiKey || "");
+      setQuickBaseUrl(systemConfig.quickBaseUrl || "");
       setDownloadFolder(systemConfig.downloadFolder);
       setIngestFolder(systemConfig.ingestFolder);
       setRetryAttempts(systemConfig.retryAttempts);
@@ -406,10 +405,10 @@ function SettingsComponent() {
       libraryUrl: libraryUrl || null,
       libraryLinkLocation,
     });
-  };
-
-  const handleSaveSystemConfig = () => {
     updateSystemConfig.mutate({
+      searcherBaseUrl: searcherBaseUrl || null,
+      searcherApiKey: searcherApiKey || null,
+      quickBaseUrl: quickBaseUrl || null,
       downloadFolder,
       ingestFolder,
       retryAttempts,
@@ -626,7 +625,6 @@ function SettingsComponent() {
 
         <Tabs
           value={tab}
-          orientation="vertical"
           onChange={(value) =>
             navigate({
               search: {
@@ -642,25 +640,17 @@ function SettingsComponent() {
             })
           }
         >
-          <Tabs.List miw={160}>
+          <Tabs.List>
             <Tabs.Tab value="account" leftSection={<IconUser size={16} />}>
               Account
             </Tabs.Tab>
             {canConfigureApp && (
-              <>
-                <Tabs.Tab
-                  value="general"
-                  leftSection={<IconSettings size={16} />}
-                >
-                  General
-                </Tabs.Tab>
-                <Tabs.Tab
-                  value="system"
-                  leftSection={<IconFolders size={16} />}
-                >
-                  System
-                </Tabs.Tab>
-              </>
+              <Tabs.Tab
+                value="general"
+                leftSection={<IconSettings size={16} />}
+              >
+                General
+              </Tabs.Tab>
             )}
             {canConfigureNotifications && (
               <Tabs.Tab
@@ -706,7 +696,7 @@ function SettingsComponent() {
           </Tabs.List>
 
           {/* Account Tab - Available to all authenticated users */}
-          <Tabs.Panel value="account" pl="xl">
+          <Tabs.Panel value="account" pt="md">
             <Suspense
               fallback={
                 <Center p="xl">
@@ -718,7 +708,7 @@ function SettingsComponent() {
             </Suspense>
           </Tabs.Panel>
 
-          <Tabs.Panel value="general" pl="xl">
+          <Tabs.Panel value="general" pt="md">
             <Stack gap="lg">
               {/* Post-Download Actions */}
               <Paper p="md" withBorder>
@@ -970,125 +960,133 @@ function SettingsComponent() {
                 </Stack>
               </Paper>
 
+              {/* Archive/Searcher Settings */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Title order={3}>Archive Settings</Title>
+                  <Text size="sm" c="dimmed">
+                    Configure the archive service for book searches and
+                    downloads
+                  </Text>
+
+                  <TextInput
+                    label="Searcher Base URL"
+                    description="Base URL for the archive/searcher service (e.g., Anna's Archive)"
+                    value={searcherBaseUrl}
+                    onChange={(e) => setSearcherBaseUrl(e.target.value)}
+                    placeholder="https://archive.org"
+                    required
+                  />
+
+                  <PasswordInput
+                    label="Searcher API Key"
+                    description="API key for authenticated downloads (optional, for faster downloads)"
+                    value={searcherApiKey}
+                    onChange={(e) => setSearcherApiKey(e.target.value)}
+                    placeholder="Optional API key"
+                  />
+
+                  <TextInput
+                    label="Quick Download URL"
+                    description="Alternative fast download source (optional)"
+                    value={quickBaseUrl}
+                    onChange={(e) => setQuickBaseUrl(e.target.value)}
+                    placeholder="Optional alternative source"
+                  />
+                </Stack>
+              </Paper>
+
+              {/* Folder Paths */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Title order={3}>Folder Paths</Title>
+                  <Text size="sm" c="dimmed">
+                    Configure where downloaded files are stored
+                  </Text>
+
+                  <TextInput
+                    label="Download Folder"
+                    description="Temporary folder for downloads in progress"
+                    value={downloadFolder}
+                    onChange={(e) => setDownloadFolder(e.target.value)}
+                    placeholder="./downloads"
+                  />
+
+                  <TextInput
+                    label="Ingest Folder"
+                    description="Final destination for completed downloads"
+                    value={ingestFolder}
+                    onChange={(e) => setIngestFolder(e.target.value)}
+                    placeholder="/path/to/final/books"
+                  />
+                </Stack>
+              </Paper>
+
+              {/* Download Settings */}
+              <Paper p="md" withBorder>
+                <Stack gap="md">
+                  <Title order={3}>Download Settings</Title>
+                  <Text size="sm" c="dimmed">
+                    Configure download behavior and retry settings
+                  </Text>
+
+                  <NumberInput
+                    label="Max Concurrent Downloads"
+                    description="Maximum number of downloads that can run simultaneously (1-5)"
+                    value={maxConcurrentDownloads}
+                    onChange={(val) =>
+                      setMaxConcurrentDownloads(Number(val) || 1)
+                    }
+                    min={1}
+                    max={5}
+                  />
+
+                  <NumberInput
+                    label="Retry Attempts"
+                    description="Number of times to retry a failed download (1-10)"
+                    value={retryAttempts}
+                    onChange={(val) => setRetryAttempts(Number(val) || 3)}
+                    min={1}
+                    max={10}
+                  />
+
+                  <NumberInput
+                    label="Request Timeout (ms)"
+                    description="Timeout for API requests in milliseconds (5000-300000)"
+                    value={requestTimeout}
+                    onChange={(val) => setRequestTimeout(Number(val) || 30000)}
+                    min={5000}
+                    max={300000}
+                    step={1000}
+                  />
+
+                  <NumberInput
+                    label="Search Cache TTL (seconds)"
+                    description="How long to cache search results (60-86400)"
+                    value={searchCacheTtl}
+                    onChange={(val) => setSearchCacheTtl(Number(val) || 300)}
+                    min={60}
+                    max={86400}
+                    step={60}
+                  />
+                </Stack>
+              </Paper>
+
               <Group justify="flex-end">
                 <Button
                   onClick={handleSaveApp}
                   disabled={!hasAppChanges}
-                  loading={updateSettings.isPending}
+                  loading={
+                    updateSettings.isPending || updateSystemConfig.isPending
+                  }
                 >
-                  Save App Settings
+                  Save Settings
                 </Button>
               </Group>
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="system" pl="xl">
-            <Stack gap="lg">
-              {loadingSystemConfig ? (
-                <Center py="xl">
-                  <Loader />
-                </Center>
-              ) : errorSystemConfig ? (
-                <Alert color="red" title="Error">
-                  Failed to load system configuration
-                </Alert>
-              ) : (
-                <>
-                  {/* Folder Paths */}
-                  <Paper p="md" withBorder>
-                    <Stack gap="md">
-                      <Title order={3}>Folder Paths</Title>
-                      <Text size="sm" c="dimmed">
-                        Configure where downloaded files are stored
-                      </Text>
-
-                      <TextInput
-                        label="Download Folder"
-                        description="Temporary folder for downloads in progress"
-                        value={downloadFolder}
-                        onChange={(e) => setDownloadFolder(e.target.value)}
-                        placeholder="./downloads"
-                      />
-
-                      <TextInput
-                        label="Ingest Folder"
-                        description="Final destination for completed downloads"
-                        value={ingestFolder}
-                        onChange={(e) => setIngestFolder(e.target.value)}
-                        placeholder="/path/to/final/books"
-                      />
-                    </Stack>
-                  </Paper>
-
-                  {/* Download Settings */}
-                  <Paper p="md" withBorder>
-                    <Stack gap="md">
-                      <Title order={3}>Download Settings</Title>
-                      <Text size="sm" c="dimmed">
-                        Configure download behavior and retry settings
-                      </Text>
-
-                      <NumberInput
-                        label="Max Concurrent Downloads"
-                        description="Maximum number of downloads that can run simultaneously (1-5)"
-                        value={maxConcurrentDownloads}
-                        onChange={(val) =>
-                          setMaxConcurrentDownloads(Number(val) || 1)
-                        }
-                        min={1}
-                        max={5}
-                      />
-
-                      <NumberInput
-                        label="Retry Attempts"
-                        description="Number of times to retry a failed download (1-10)"
-                        value={retryAttempts}
-                        onChange={(val) => setRetryAttempts(Number(val) || 3)}
-                        min={1}
-                        max={10}
-                      />
-
-                      <NumberInput
-                        label="Request Timeout (ms)"
-                        description="Timeout for API requests in milliseconds (5000-300000)"
-                        value={requestTimeout}
-                        onChange={(val) =>
-                          setRequestTimeout(Number(val) || 30000)
-                        }
-                        min={5000}
-                        max={300000}
-                        step={1000}
-                      />
-
-                      <NumberInput
-                        label="Search Cache TTL (seconds)"
-                        description="How long to cache search results (60-86400)"
-                        value={searchCacheTtl}
-                        onChange={(val) =>
-                          setSearchCacheTtl(Number(val) || 300)
-                        }
-                        min={60}
-                        max={86400}
-                        step={60}
-                      />
-                    </Stack>
-                  </Paper>
-
-                  {/* Save Button */}
-                  <Group justify="flex-end">
-                    <Button
-                      onClick={handleSaveSystemConfig}
-                      loading={updateSystemConfig.isPending}
-                    >
-                      Save System Configuration
-                    </Button>
-                  </Group>
-                </>
-              )}
-            </Stack>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="notifications" pl="xl">
+          <Tabs.Panel value="notifications" pt="md">
             <Stack gap="lg">
               {/* Apprise Notifications */}
               <Paper p="md" withBorder>
@@ -1298,7 +1296,7 @@ function SettingsComponent() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="booklore" pl="xl">
+          <Tabs.Panel value="booklore" pt="md">
             <Stack gap="lg">
               {/* Booklore Settings */}
               <Paper p="md" withBorder>
@@ -1541,11 +1539,11 @@ function SettingsComponent() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="indexer" pl="xl">
+          <Tabs.Panel value="indexer" pt="md">
             <IndexerSettings />
           </Tabs.Panel>
 
-          <Tabs.Panel value="email" pl="xl">
+          <Tabs.Panel value="email" pt="md">
             <Stack gap="lg">
               {/* SMTP Settings - Only for users with canConfigureEmail permission */}
               {canConfigureEmail && (
@@ -1814,7 +1812,7 @@ function SettingsComponent() {
 
           {isAdmin && (
             <>
-              <Tabs.Panel value="users" pl="xl">
+              <Tabs.Panel value="users" pt="md">
                 <Suspense
                   fallback={
                     <Center p="xl">
@@ -1826,7 +1824,7 @@ function SettingsComponent() {
                 </Suspense>
               </Tabs.Panel>
 
-              <Tabs.Panel value="oidc" pl="xl">
+              <Tabs.Panel value="oidc" pt="md">
                 <Suspense
                   fallback={
                     <Center p="xl">
