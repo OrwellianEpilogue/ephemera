@@ -106,6 +106,51 @@ export class FileManager {
     }
   }
 
+  async copyToFinalDestination(tempPath: string): Promise<string> {
+    try {
+      // Get ingest folder from config
+      const ingestFolder = await appConfigService.getIngestFolder();
+
+      // Ensure download folder exists
+      await this.ensureDownloadFolder();
+
+      // Check if source file exists
+      const exists = await this.fileExists(tempPath);
+      if (!exists) {
+        throw new Error(`Source file does not exist: ${tempPath}`);
+      }
+
+      // Use the original filename from the download server (already in tempPath)
+      const filename = basename(tempPath);
+      let finalPath = join(ingestFolder, filename);
+
+      logger.info(`Copying file: ${filename}`);
+
+      // Check if destination already exists
+      const destExists = await this.fileExists(finalPath);
+      if (destExists) {
+        // If destination exists, add timestamp to make unique
+        const timestamp = Date.now();
+        const parts = filename.split(".");
+        const ext = parts.pop();
+        const name = parts.join(".");
+        const uniqueFilename = `${name}_${timestamp}.${ext}`;
+        finalPath = join(ingestFolder, uniqueFilename);
+
+        logger.warn(`Destination exists, using unique name: ${uniqueFilename}`);
+      }
+
+      // Copy file (keeping original)
+      await copyFile(tempPath, finalPath);
+      logger.success(`File copied to: ${finalPath}`);
+
+      return finalPath;
+    } catch (error) {
+      logger.error(`Failed to copy file from ${tempPath}:`, error);
+      throw error;
+    }
+  }
+
   async moveToIndexerDirectory(
     tempPath: string,
     baseDir: string,

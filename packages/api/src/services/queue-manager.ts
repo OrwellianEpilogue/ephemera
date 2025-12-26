@@ -426,11 +426,11 @@ export class QueueManager extends EventEmitter {
       postDownloadMoveToIngest,
       postDownloadUploadToBooklore,
       postDownloadMoveToIndexer,
-      postDownloadDeleteTemp,
+      postDownloadKeepInDownloads,
     } = appSettings;
 
     logger.info(
-      `[Post-Download] Settings: moveToIngest=${postDownloadMoveToIngest}, uploadToBooklore=${postDownloadUploadToBooklore}, moveToIndexer=${postDownloadMoveToIndexer}, deleteTemp=${postDownloadDeleteTemp}`,
+      `[Post-Download] Settings: moveToIngest=${postDownloadMoveToIngest}, keepInDownloads=${postDownloadKeepInDownloads}, uploadToBooklore=${postDownloadUploadToBooklore}, moveToIndexer=${postDownloadMoveToIndexer}`,
     );
 
     try {
@@ -452,10 +452,21 @@ export class QueueManager extends EventEmitter {
         movedToFinal = true;
         logger.info(`[Post-Download] Moved to indexer directory: ${finalPath}`);
       } else if (!isIndexerDownload && postDownloadMoveToIngest) {
-        // Move to regular ingest directory for non-indexer downloads
-        finalPath = await fileManager.moveToFinalDestination(result.filePath);
-        movedToFinal = true;
-        logger.info(`[Post-Download] Moved to ingest directory: ${finalPath}`);
+        if (postDownloadKeepInDownloads) {
+          // Copy to ingest directory, keeping original in downloads folder
+          finalPath = await fileManager.copyToFinalDestination(result.filePath);
+          movedToFinal = true;
+          logger.info(
+            `[Post-Download] Copied to ingest directory (keeping original): ${finalPath}`,
+          );
+        } else {
+          // Move to regular ingest directory for non-indexer downloads
+          finalPath = await fileManager.moveToFinalDestination(result.filePath);
+          movedToFinal = true;
+          logger.info(
+            `[Post-Download] Moved to ingest directory: ${finalPath}`,
+          );
+        }
       }
 
       // Step 2: Upload to Booklore if enabled
@@ -498,23 +509,6 @@ export class QueueManager extends EventEmitter {
         } else {
           logger.warn(
             `[Booklore] Skipping upload for ${title} - Booklore is not enabled or not fully configured`,
-          );
-        }
-      }
-
-      // Step 3: Delete temp file if requested and file was moved
-      if (
-        postDownloadDeleteTemp &&
-        movedToFinal &&
-        finalPath !== result.filePath
-      ) {
-        try {
-          await fileManager.deleteFile(result.filePath);
-          logger.info(`[Post-Download] Deleted temp file: ${result.filePath}`);
-        } catch (deleteError) {
-          logger.warn(
-            `[Post-Download] Failed to delete temp file: ${result.filePath}`,
-            deleteError,
           );
         }
       }

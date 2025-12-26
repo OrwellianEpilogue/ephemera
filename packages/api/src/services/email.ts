@@ -141,10 +141,18 @@ class EmailService {
       throw new Error(`Cannot send book with status: ${download.status}`);
     }
 
-    // Determine file path
-    const filePath =
-      download.status === "available" ? download.finalPath : download.tempPath;
-    if (!filePath || !existsSync(filePath)) {
+    // Determine file path - prefer tempPath when it exists (for keepInDownloads mode)
+    let filePath: string | null = null;
+
+    // First try tempPath (always available when keepInDownloads is enabled)
+    if (download.tempPath && existsSync(download.tempPath)) {
+      filePath = download.tempPath;
+    } else if (download.finalPath && existsSync(download.finalPath)) {
+      // Fall back to finalPath
+      filePath = download.finalPath;
+    }
+
+    if (!filePath) {
       throw new Error("Book file not found on server");
     }
 

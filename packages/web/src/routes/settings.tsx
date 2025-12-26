@@ -38,6 +38,7 @@ import {
   IconUser,
   IconUserShare,
   IconShieldCheck,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -224,8 +225,8 @@ function SettingsComponent() {
     useState<boolean>(false);
   const [postDownloadMoveToIndexer, setPostDownloadMoveToIndexer] =
     useState<boolean>(false);
-  const [postDownloadDeleteTemp, setPostDownloadDeleteTemp] =
-    useState<boolean>(true);
+  const [postDownloadKeepInDownloads, setPostDownloadKeepInDownloads] =
+    useState<boolean>(false);
 
   const [bookRetentionDays, setBookRetentionDays] = useState<number>(30);
   const [bookSearchCacheDays, setUndownloadedBookRetentionDays] =
@@ -298,7 +299,9 @@ function SettingsComponent() {
           : false,
       );
       setPostDownloadMoveToIndexer(settings.postDownloadMoveToIndexer ?? false);
-      setPostDownloadDeleteTemp(settings.postDownloadDeleteTemp ?? true);
+      setPostDownloadKeepInDownloads(
+        settings.postDownloadKeepInDownloads ?? false,
+      );
       setBookRetentionDays(settings.bookRetentionDays);
       setUndownloadedBookRetentionDays(settings.bookSearchCacheDays);
       setRequestCheckInterval(settings.requestCheckInterval);
@@ -399,7 +402,7 @@ function SettingsComponent() {
       postDownloadMoveToIngest,
       postDownloadUploadToBooklore,
       postDownloadMoveToIndexer,
-      postDownloadDeleteTemp,
+      postDownloadKeepInDownloads,
       bookRetentionDays,
       bookSearchCacheDays,
       requestCheckInterval,
@@ -525,7 +528,7 @@ function SettingsComponent() {
     (settings.postDownloadMoveToIngest !== postDownloadMoveToIngest ||
       settings.postDownloadUploadToBooklore !== postDownloadUploadToBooklore ||
       settings.postDownloadMoveToIndexer !== postDownloadMoveToIndexer ||
-      settings.postDownloadDeleteTemp !== postDownloadDeleteTemp ||
+      settings.postDownloadKeepInDownloads !== postDownloadKeepInDownloads ||
       settings.bookRetentionDays !== bookRetentionDays ||
       settings.bookSearchCacheDays !== bookSearchCacheDays ||
       settings.requestCheckInterval !== requestCheckInterval ||
@@ -740,6 +743,18 @@ function SettingsComponent() {
                     />
 
                     <Checkbox
+                      checked={postDownloadKeepInDownloads}
+                      onChange={(event) =>
+                        setPostDownloadKeepInDownloads(
+                          event.currentTarget.checked,
+                        )
+                      }
+                      label="Keep copy in downloads folder"
+                      description="Keep the original file in the downloads folder for email/browser downloads (copies instead of moves)"
+                      disabled={!postDownloadMoveToIngest}
+                    />
+
+                    <Checkbox
                       checked={postDownloadUploadToBooklore}
                       onChange={(event) =>
                         setPostDownloadUploadToBooklore(
@@ -767,15 +782,6 @@ function SettingsComponent() {
                         !indexerSettings?.newznabEnabled &&
                         !indexerSettings?.sabnzbdEnabled
                       }
-                    />
-
-                    <Checkbox
-                      checked={postDownloadDeleteTemp}
-                      onChange={(event) =>
-                        setPostDownloadDeleteTemp(event.currentTarget.checked)
-                      }
-                      label="Delete Temporary Files"
-                      description="Remove temporary download files after processing"
                     />
                   </Stack>
 
@@ -1575,6 +1581,22 @@ function SettingsComponent() {
                         size="lg"
                       />
                     </Group>
+
+                    {emailEnabled && !settings?.postDownloadKeepInDownloads && (
+                      <Alert
+                        icon={<IconAlertTriangle size={16} />}
+                        color="orange"
+                        title="File access disabled"
+                      >
+                        <Text size="sm">
+                          Enable{" "}
+                          <strong>"Keep copy in downloads folder"</strong> in
+                          the General tab under Post-Download Actions to use
+                          email sending. Without this setting, downloaded files
+                          may not be available for email attachments.
+                        </Text>
+                      </Alert>
+                    )}
 
                     {emailEnabled && (
                       <Stack gap="sm">

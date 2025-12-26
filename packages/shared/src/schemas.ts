@@ -636,9 +636,11 @@ export const appSettingsSchema = z.object({
   postDownloadMoveToIndexer: z
     .boolean()
     .describe("Move indexer downloads to the indexer completed directory"),
-  postDownloadDeleteTemp: z
+  postDownloadKeepInDownloads: z
     .boolean()
-    .describe("Delete temporary files after post-processing"),
+    .describe(
+      "Keep a copy of downloaded files in the downloads folder for email/browser downloads",
+    ),
 
   // Legacy field (kept for migration)
   postDownloadAction: postDownloadActionSchema
@@ -701,10 +703,12 @@ export const updateAppSettingsSchema = z.object({
     .boolean()
     .optional()
     .describe("Move indexer downloads to the indexer completed directory"),
-  postDownloadDeleteTemp: z
+  postDownloadKeepInDownloads: z
     .boolean()
     .optional()
-    .describe("Delete temporary files after post-processing"),
+    .describe(
+      "Keep a copy of downloaded files in the downloads folder for email/browser downloads",
+    ),
 
   bookRetentionDays: z
     .number()

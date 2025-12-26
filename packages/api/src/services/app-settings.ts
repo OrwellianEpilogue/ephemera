@@ -57,7 +57,7 @@ class AppSettingsService {
       postDownloadMoveToIngest: true,
       postDownloadUploadToBooklore: false,
       postDownloadMoveToIndexer: false,
-      postDownloadDeleteTemp: true,
+      postDownloadKeepInDownloads: false,
       bookRetentionDays: 30,
       bookSearchCacheDays: 7,
       requestCheckInterval: "6h",
@@ -96,10 +96,10 @@ class AppSettingsService {
           updates.postDownloadMoveToIndexer ??
           existing[0]?.postDownloadMoveToIndexer ??
           false,
-        postDownloadDeleteTemp:
-          updates.postDownloadDeleteTemp ??
-          existing[0]?.postDownloadDeleteTemp ??
-          true,
+        postDownloadKeepInDownloads:
+          updates.postDownloadKeepInDownloads ??
+          existing[0]?.postDownloadKeepInDownloads ??
+          false,
         bookRetentionDays:
           updates.bookRetentionDays ?? existing[0]?.bookRetentionDays ?? 30,
         bookSearchCacheDays:
@@ -158,7 +158,7 @@ class AppSettingsService {
 
       if (result.length === 0) {
         console.log(
-          "[App Settings] Initializing default settings (moveToIngest=true, uploadToBooklore=false, moveToIndexer=false, deleteTemp=true, bookRetentionDays=30, bookSearchCacheDays=7, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)",
+          "[App Settings] Initializing default settings (moveToIngest=true, uploadToBooklore=false, moveToIndexer=false, keepInDownloads=false, bookRetentionDays=30, bookSearchCacheDays=7, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)",
         );
         await db.insert(appSettings).values({
           id: 1,
@@ -166,7 +166,7 @@ class AppSettingsService {
           postDownloadMoveToIngest: true,
           postDownloadUploadToBooklore: false,
           postDownloadMoveToIndexer: false,
-          postDownloadDeleteTemp: true,
+          postDownloadKeepInDownloads: false,
           bookRetentionDays: 30,
           bookSearchCacheDays: 7,
           requestCheckInterval: "6h",

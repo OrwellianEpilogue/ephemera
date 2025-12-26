@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f0e3ef97-343c-4d1b-adc7-5987c6133eed",
-  "prevId": "280a6c9d-426e-4bc6-8aa0-1090c54c71c5",
+  "id": "280a6c9d-426e-4bc6-8aa0-1090c54c71c5",
+  "prevId": "505b37d9-a885-406a-b78f-af69ba6ecbf4",
   "tables": {
     "app_settings": {
       "name": "app_settings",
@@ -39,13 +39,13 @@
           "autoincrement": false,
           "default": false
         },
-        "post_download_keep_in_downloads": {
-          "name": "post_download_keep_in_downloads",
+        "post_download_delete_temp": {
+          "name": "post_download_delete_temp",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": false
+          "default": true
         },
         "post_download_action": {
           "name": "post_download_action",

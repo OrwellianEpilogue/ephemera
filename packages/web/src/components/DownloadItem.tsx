@@ -221,6 +221,13 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   // Check if user has permission to delete/cancel downloads
   const hasDeletePermission = isAdmin || permissions?.canDeleteDownloads;
 
+  // Check if file access is available (keepInDownloads must be enabled for browser download/email)
+  const keepInDownloads = settings?.postDownloadKeepInDownloads ?? false;
+  const fileAccessDisabled = canDownload && !keepInDownloads;
+  const fileAccessTooltip = fileAccessDisabled
+    ? 'Enable "Keep copy in downloads folder" in Settings to use browser downloads and email'
+    : undefined;
+
   // Use settings for date/time formatting, fall back to defaults
   const timeFormat = settings?.timeFormat ?? "24h";
   const dateFormat = settings?.dateFormat ?? "us";
@@ -271,12 +278,16 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                 </Tooltip>
               )}
               {canDownload && (
-                <Tooltip label="Download file">
+                <Tooltip
+                  label={fileAccessTooltip || "Download file"}
+                  color={fileAccessDisabled ? "orange" : undefined}
+                >
                   <ActionIcon
-                    color="green"
+                    color={fileAccessDisabled ? "gray" : "green"}
                     variant="subtle"
                     onClick={handleDownload}
                     loading={downloadFile.isPending}
+                    disabled={fileAccessDisabled}
                   >
                     <IconDownload size={16} />
                   </ActionIcon>
@@ -286,8 +297,14 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               {canDownload &&
                 emailSettings?.enabled &&
                 emailRecipients &&
-                emailRecipients.length === 1 &&
-                emailRecipients[0] && (
+                emailRecipients.length > 0 &&
+                (fileAccessDisabled ? (
+                  <Tooltip label={fileAccessTooltip} color="orange">
+                    <ActionIcon color="gray" variant="subtle" disabled>
+                      <IconMail size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : emailRecipients.length === 1 && emailRecipients[0] ? (
                   // Single recipient - direct send without dropdown
                   <Tooltip
                     label={`Send to ${emailRecipients[0].name || emailRecipients[0].email}`}
@@ -306,11 +323,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                       <IconMail size={16} />
                     </ActionIcon>
                   </Tooltip>
-                )}
-              {canDownload &&
-                emailSettings?.enabled &&
-                emailRecipients &&
-                emailRecipients.length > 1 && (
+                ) : (
                   // Multiple recipients - show dropdown
                   <Menu shadow="md" width={250}>
                     <Menu.Target>
@@ -390,7 +403,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                       )}
                     </Menu.Dropdown>
                   </Menu>
-                )}
+                ))}
               {canDelete && hasDeletePermission && (
                 <Tooltip label="Delete download">
                   <ActionIcon
