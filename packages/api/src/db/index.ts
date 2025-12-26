@@ -5,7 +5,7 @@ import { mkdir } from "fs/promises";
 import { dirname } from "path";
 import { bookloreSettings } from "./schema.js";
 
-const dbPath = process.env.DB_PATH || "./data/downloads.db";
+const dbPath = process.env.DB_PATH || "./data/database.db";
 
 // Ensure data directory exists
 await mkdir(dirname(dbPath), { recursive: true });

@@ -250,6 +250,10 @@ app.get(API_BASE_PATH, (c) => {
   });
 });
 
+// Mount custom auth routes BEFORE Better Auth to handle /api/auth/methods
+// (Better Auth doesn't have this endpoint, but we need it for the login page)
+app.route(`${API_BASE_PATH}/auth`, authRoutes);
+
 // Mount Better Auth - must come before other routes that need auth
 app.on(["POST", "GET"], "/api/auth/*", (c) => {
   return auth.handler(c.req.raw);
@@ -347,7 +351,7 @@ app.use(
 
 // Mount API routes
 app.route(`${API_BASE_PATH}/setup`, setupRoutes); // Public (for initial setup)
-app.route(`${API_BASE_PATH}/auth`, authRoutes); // Public (for login page)
+// Note: authRoutes already mounted above before Better Auth handler
 app.use(`${API_BASE_PATH}/search`, requireAuth); // Protect search endpoint
 app.route(API_BASE_PATH, searchRoutes);
 app.route(API_BASE_PATH, downloadRoutes); // Protected (middleware applied above)
