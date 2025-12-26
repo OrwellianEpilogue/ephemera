@@ -313,7 +313,7 @@ app.openapi(postStep2Route, async (c) => {
     // Update user role to admin
     await db.update(user).set({ role: "admin" }).where(eq(user.id, userId));
 
-    // Create admin permissions
+    // Create admin permissions (all permissions enabled)
     await db.insert(userPermissions).values({
       userId: userId,
       canDeleteDownloads: true,
@@ -322,6 +322,8 @@ app.openapi(postStep2Route, async (c) => {
       canConfigureApp: true,
       canConfigureIntegrations: true,
       canConfigureEmail: true,
+      canSeeDownloadOwner: true,
+      canManageApiKeys: true,
     });
 
     // Migrate any orphan email recipients to the new admin user

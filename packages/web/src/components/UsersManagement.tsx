@@ -496,12 +496,18 @@ export default function UsersManagement() {
             }
           />
 
-          <PermissionsForm
-            permissions={createForm.permissions}
-            onChange={(permissions) =>
-              setCreateForm({ ...createForm, permissions })
-            }
-          />
+          {createForm.role === "admin" ? (
+            <Alert color="blue" variant="light">
+              Admins automatically have all permissions
+            </Alert>
+          ) : (
+            <PermissionsForm
+              permissions={createForm.permissions}
+              onChange={(permissions) =>
+                setCreateForm({ ...createForm, permissions })
+              }
+            />
+          )}
 
           <Group justify="flex-end" mt="md">
             <Button
@@ -593,12 +599,18 @@ export default function UsersManagement() {
               />
             )}
 
-            <PermissionsForm
-              permissions={selectedUser.permissions || DEFAULT_PERMISSIONS}
-              onChange={(permissions) =>
-                setSelectedUser({ ...selectedUser, permissions })
-              }
-            />
+            {selectedUser.role === "admin" ? (
+              <Alert color="blue" variant="light">
+                Admins automatically have all permissions
+              </Alert>
+            ) : (
+              <PermissionsForm
+                permissions={selectedUser.permissions || DEFAULT_PERMISSIONS}
+                onChange={(permissions) =>
+                  setSelectedUser({ ...selectedUser, permissions })
+                }
+              />
+            )}
 
             {/* Password Reset Section */}
             <Stack gap="xs">

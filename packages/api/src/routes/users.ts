@@ -32,6 +32,7 @@ const UserWithPermissionsSchema = UserSchema.extend({
       canConfigureIntegrations: z.boolean(),
       canConfigureEmail: z.boolean(),
       canSeeDownloadOwner: z.boolean(),
+      canManageApiKeys: z.boolean(),
     })
     .nullable(),
   hasPassword: z.boolean(),
@@ -52,6 +53,7 @@ const CreateUserSchema = z.object({
       canConfigureIntegrations: z.boolean().default(false),
       canConfigureEmail: z.boolean().default(false),
       canSeeDownloadOwner: z.boolean().default(false),
+      canManageApiKeys: z.boolean().default(false),
     })
     .optional(),
 });
@@ -72,6 +74,7 @@ const UpdateUserSchema = z.object({
       canConfigureIntegrations: z.boolean().optional(),
       canConfigureEmail: z.boolean().optional(),
       canSeeDownloadOwner: z.boolean().optional(),
+      canManageApiKeys: z.boolean().optional(),
     })
     .optional(),
 });
@@ -164,6 +167,7 @@ app.openapi(getUsersRoute, async (c) => {
               canConfigureIntegrations: u.permissions.canConfigureIntegrations,
               canConfigureEmail: u.permissions.canConfigureEmail,
               canSeeDownloadOwner: u.permissions.canSeeDownloadOwner,
+              canManageApiKeys: u.permissions.canManageApiKeys,
             }
           : null,
         hasPassword:
@@ -265,6 +269,7 @@ app.openapi(createUserRoute, async (c) => {
       canConfigureIntegrations: false,
       canConfigureEmail: false,
       canSeeDownloadOwner: false,
+      canManageApiKeys: false,
     };
 
     await db.insert(userPermissions).values({
@@ -276,6 +281,7 @@ app.openapi(createUserRoute, async (c) => {
       canConfigureIntegrations: permissionsData.canConfigureIntegrations,
       canConfigureEmail: permissionsData.canConfigureEmail,
       canSeeDownloadOwner: permissionsData.canSeeDownloadOwner,
+      canManageApiKeys: permissionsData.canManageApiKeys,
     });
 
     // Fetch the created user with permissions and accounts
@@ -315,6 +321,7 @@ app.openapi(createUserRoute, async (c) => {
                 createdUser.permissions.canConfigureIntegrations,
               canConfigureEmail: createdUser.permissions.canConfigureEmail,
               canSeeDownloadOwner: createdUser.permissions.canSeeDownloadOwner,
+              canManageApiKeys: createdUser.permissions.canManageApiKeys,
             }
           : null,
         hasPassword:
@@ -434,6 +441,8 @@ app.openapi(updateUserRoute, async (c) => {
       if (body.permissions.canSeeDownloadOwner !== undefined)
         permissionsUpdate.canSeeDownloadOwner =
           body.permissions.canSeeDownloadOwner;
+      if (body.permissions.canManageApiKeys !== undefined)
+        permissionsUpdate.canManageApiKeys = body.permissions.canManageApiKeys;
 
       if (existingPermissions) {
         await db
@@ -452,6 +461,7 @@ app.openapi(updateUserRoute, async (c) => {
             permissionsUpdate.canConfigureIntegrations || false,
           canConfigureEmail: permissionsUpdate.canConfigureEmail || false,
           canSeeDownloadOwner: permissionsUpdate.canSeeDownloadOwner || false,
+          canManageApiKeys: permissionsUpdate.canManageApiKeys || false,
         });
       }
     }
@@ -493,6 +503,7 @@ app.openapi(updateUserRoute, async (c) => {
                 updatedUser.permissions.canConfigureIntegrations,
               canConfigureEmail: updatedUser.permissions.canConfigureEmail,
               canSeeDownloadOwner: updatedUser.permissions.canSeeDownloadOwner,
+              canManageApiKeys: updatedUser.permissions.canManageApiKeys,
             }
           : null,
         hasPassword:
