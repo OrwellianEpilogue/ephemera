@@ -155,18 +155,44 @@ app.use("*", async (c, next) => {
   return honoLogger()(c, next);
 });
 
+// Build allowed origins from environment
+// Includes: dev servers, BASE_URL, and any additional ALLOWED_ORIGINS
+function buildAllowedOrigins(): Set<string> {
+  const origins = new Set<string>([
+    "http://localhost:5222", // Vite dev server (primary)
+    "http://localhost:5223", // Vite dev server (backup port)
+    "http://localhost:8286", // Default production port
+  ]);
+
+  // Add BASE_URL if configured
+  if (process.env.BASE_URL) {
+    origins.add(process.env.BASE_URL);
+    // Also add without trailing slash if present
+    origins.add(process.env.BASE_URL.replace(/\/$/, ""));
+  }
+
+  // Add any additional allowed origins (comma-separated)
+  if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+      .forEach((o) => origins.add(o));
+  }
+
+  return origins;
+}
+
+const allowedOrigins = buildAllowedOrigins();
+const defaultOrigin = process.env.BASE_URL || "http://localhost:8286";
+logger.info(`[CORS] Allowed origins: ${[...allowedOrigins].join(", ")}`);
+
 // CORS configuration - allow credentials from frontend dev server and production
 app.use(
   "*",
   cors({
     origin: (origin) => {
-      // Allow requests from Vite dev server and production origin
-      const allowedOrigins = [
-        "http://localhost:5222", // Vite dev server (primary)
-        "http://localhost:5223", // Vite dev server (backup port)
-        "http://localhost:8286", // Production (same origin)
-      ];
-      return allowedOrigins.includes(origin) ? origin : "http://localhost:8286";
+      // Allow requests from configured origins
+      return allowedOrigins.has(origin) ? origin : defaultOrigin;
     },
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],

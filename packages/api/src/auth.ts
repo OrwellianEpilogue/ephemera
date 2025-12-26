@@ -29,14 +29,40 @@ try {
   console.log("[Auth] SSO provider table not ready, skipping provider load");
 }
 
+// Build trusted origins from environment
+// Includes: dev servers, BASE_URL, and any additional ALLOWED_ORIGINS
+function buildTrustedOrigins(): string[] {
+  const origins = new Set<string>([
+    "http://localhost:5222", // Vite dev server (primary)
+    "http://localhost:5223", // Vite dev server (backup port)
+    "http://localhost:8286", // Default production port
+  ]);
+
+  // Add BASE_URL if configured
+  if (process.env.BASE_URL) {
+    origins.add(process.env.BASE_URL);
+    // Also add without trailing slash if present
+    origins.add(process.env.BASE_URL.replace(/\/$/, ""));
+  }
+
+  // Add any additional allowed origins (comma-separated)
+  if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean)
+      .forEach((o) => origins.add(o));
+  }
+
+  return [...origins];
+}
+
+const trustedOrigins = buildTrustedOrigins();
+console.log("[Auth] Trusted origins:", trustedOrigins);
+
 export const auth = betterAuth({
   basePath: "/api/auth",
   baseURL: process.env.BASE_URL || "http://localhost:8286",
-  trustedOrigins: [
-    "http://localhost:5222", // Vite dev server (primary)
-    "http://localhost:5223", // Vite dev server (backup port)
-    "http://localhost:8286", // Production (same origin)
-  ],
+  trustedOrigins,
 
   // Cookie configuration for cross-origin setup (dev) and same-origin (prod)
   cookie: {
