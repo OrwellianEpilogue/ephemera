@@ -1,5 +1,11 @@
 # @ephemera/shared
 
+## 1.4.2
+
+### Patch Changes
+
+- - feat: add keepInDownloads setting for browser/email downloads
+
 ## 1.4.1
 
 ### Patch Changes
