@@ -138,8 +138,8 @@ export const savedRequestWithBookSchema = savedRequestSchema.extend({
     .nullable()
     .optional()
     .describe("Fulfilled book info if available"),
-  // User information (for multi-user support)
-  userId: z.string().describe("ID of user who created this request"),
+  // User information (for multi-user support, nullable for legacy data)
+  userId: z.string().nullable().describe("ID of user who created this request"),
   userName: z
     .string()
     .optional()
@@ -303,8 +303,8 @@ export const queueItemSchema = z.object({
     .enum(["web", "indexer", "api"])
     .optional()
     .describe("Source of the download request"),
-  // User information (for multi-user support)
-  userId: z.string().describe("ID of user who queued this download"),
+  // User information (for multi-user support, nullable for legacy data)
+  userId: z.string().nullable().describe("ID of user who queued this download"),
   userName: z
     .string()
     .optional()

@@ -194,16 +194,34 @@ class ProxyAuthSettingsService {
   }
 
   /**
-   * Check if an IPv4 address is within a CIDR range
+   * Check if an IP address is within a CIDR range (supports IPv4 and IPv6)
    */
   private isIPInCIDR(ip: string, cidr: string): boolean {
     const [network, prefixStr] = cidr.split("/");
     const prefix = parseInt(prefixStr, 10);
 
+    // Detect IP version
+    const isIPv6 = ip.includes(":");
+    const isCIDRv6 = network.includes(":");
+
+    // IP versions must match
+    if (isIPv6 !== isCIDRv6) return false;
+
+    if (isIPv6) {
+      return this.isIPv6InCIDR(ip, network, prefix);
+    } else {
+      return this.isIPv4InCIDR(ip, network, prefix);
+    }
+  }
+
+  /**
+   * Check if an IPv4 address is within a CIDR range
+   */
+  private isIPv4InCIDR(ip: string, network: string, prefix: number): boolean {
     if (isNaN(prefix) || prefix < 0 || prefix > 32) return false;
 
-    const ipNum = this.ipToNumber(ip);
-    const networkNum = this.ipToNumber(network);
+    const ipNum = this.ipv4ToNumber(ip);
+    const networkNum = this.ipv4ToNumber(network);
 
     if (ipNum === null || networkNum === null) return false;
 
@@ -212,9 +230,108 @@ class ProxyAuthSettingsService {
   }
 
   /**
+   * Check if an IPv6 address is within a CIDR range
+   */
+  private isIPv6InCIDR(ip: string, network: string, prefix: number): boolean {
+    if (isNaN(prefix) || prefix < 0 || prefix > 128) return false;
+
+    const ipParts = this.expandIPv6(ip);
+    const networkParts = this.expandIPv6(network);
+
+    if (!ipParts || !networkParts) return false;
+
+    // Compare bits up to the prefix length
+    let bitsRemaining = prefix;
+    for (let i = 0; i < 8 && bitsRemaining > 0; i++) {
+      const bitsInThisGroup = Math.min(16, bitsRemaining);
+      const mask =
+        bitsInThisGroup === 16
+          ? 0xffff
+          : (0xffff << (16 - bitsInThisGroup)) & 0xffff;
+
+      if ((ipParts[i] & mask) !== (networkParts[i] & mask)) {
+        return false;
+      }
+      bitsRemaining -= 16;
+    }
+
+    return true;
+  }
+
+  /**
+   * Expand an IPv6 address to its full 8-group representation
+   * Returns array of 8 16-bit numbers, or null if invalid
+   */
+  private expandIPv6(ip: string): number[] | null {
+    // Handle IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)
+    if (ip.includes(".")) {
+      const lastColon = ip.lastIndexOf(":");
+      const ipv4Part = ip.substring(lastColon + 1);
+      const ipv4Num = this.ipv4ToNumber(ipv4Part);
+      if (ipv4Num === null) return null;
+
+      // Convert to IPv4-mapped IPv6
+      const prefix = ip.substring(0, lastColon);
+      const expandedPrefix = this.expandIPv6Pure(prefix + ":");
+      if (!expandedPrefix) return null;
+
+      // Replace last two groups with IPv4 representation
+      expandedPrefix[6] = (ipv4Num >>> 16) & 0xffff;
+      expandedPrefix[7] = ipv4Num & 0xffff;
+      return expandedPrefix;
+    }
+
+    return this.expandIPv6Pure(ip);
+  }
+
+  /**
+   * Expand a pure IPv6 address (no embedded IPv4)
+   */
+  private expandIPv6Pure(ip: string): number[] | null {
+    const parts: number[] = [];
+
+    // Handle :: expansion
+    if (ip.includes("::")) {
+      const [left, right] = ip.split("::");
+      const leftParts = left ? left.split(":").filter(Boolean) : [];
+      const rightParts = right ? right.split(":").filter(Boolean) : [];
+
+      const missingGroups = 8 - leftParts.length - rightParts.length;
+      if (missingGroups < 0) return null;
+
+      for (const part of leftParts) {
+        const num = parseInt(part, 16);
+        if (isNaN(num) || num < 0 || num > 0xffff) return null;
+        parts.push(num);
+      }
+
+      for (let i = 0; i < missingGroups; i++) {
+        parts.push(0);
+      }
+
+      for (const part of rightParts) {
+        const num = parseInt(part, 16);
+        if (isNaN(num) || num < 0 || num > 0xffff) return null;
+        parts.push(num);
+      }
+    } else {
+      const groups = ip.split(":");
+      if (groups.length !== 8) return null;
+
+      for (const part of groups) {
+        const num = parseInt(part, 16);
+        if (isNaN(num) || num < 0 || num > 0xffff) return null;
+        parts.push(num);
+      }
+    }
+
+    return parts.length === 8 ? parts : null;
+  }
+
+  /**
    * Convert an IPv4 address string to a 32-bit number
    */
-  private ipToNumber(ip: string): number | null {
+  private ipv4ToNumber(ip: string): number | null {
     const parts = ip.split(".");
     if (parts.length !== 4) return null;
 

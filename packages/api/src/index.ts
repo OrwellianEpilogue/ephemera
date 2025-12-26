@@ -59,6 +59,7 @@ import emailRoutes from "./routes/email.js";
 import systemConfigRoutes from "./routes/system-config.js";
 import apiKeysRoutes from "./routes/api-keys.js";
 import proxyAuthRoutes from "./routes/proxy-auth.js";
+import { setupSecurityService } from "./services/setup-security.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -106,6 +107,9 @@ process.stderr.write = ((
 
 // Initialize database
 await initializeDatabase();
+
+// Initialize setup security (checks for existing installs and generates key if needed)
+await setupSecurityService.initialize();
 
 // Initialize app settings with defaults
 await appSettingsService.initializeDefaults();

@@ -1,7 +1,19 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { getCookie, setCookie } from "hono/cookie";
+import type { Context } from "hono";
 import { db } from "../db/index.js";
 import { appConfig } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { setupSecurityService } from "../services/setup-security.js";
+
+const SETUP_TOKEN_COOKIE = "ephemera-setup-token";
+
+// Helper to check if client has valid setup token
+function hasValidSetupToken(c: Context): boolean {
+  if (!setupSecurityService.requiresSetupKey()) return true;
+  const token = getCookie(c, SETUP_TOKEN_COOKIE);
+  return setupSecurityService.isTokenValid(token);
+}
 
 const app = new OpenAPIHono();
 
@@ -20,6 +32,8 @@ async function isSetupAlreadyComplete(): Promise<boolean> {
 // Schema for setup status response
 const SetupStatusSchema = z.object({
   isSetupComplete: z.boolean(),
+  requiresSetupKey: z.boolean(),
+  setupKeyValidated: z.boolean(),
 });
 
 // Schema for env defaults response
@@ -73,11 +87,15 @@ app.openapi(getStatusRoute, async (c) => {
 
     return c.json({
       isSetupComplete: config?.isSetupComplete ?? false,
+      requiresSetupKey: setupSecurityService.requiresSetupKey(),
+      setupKeyValidated: hasValidSetupToken(c),
     });
   } catch (error) {
     console.error("[Setup Status] Error:", error);
     return c.json({
       isSetupComplete: false,
+      requiresSetupKey: setupSecurityService.requiresSetupKey(),
+      setupKeyValidated: hasValidSetupToken(c),
     });
   }
 });
@@ -98,6 +116,14 @@ const getDefaultsRoute = createRoute({
         },
       },
     },
+    401: {
+      description: "Setup key validation required",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
     403: {
       description: "Setup already complete",
       content: {
@@ -115,6 +141,11 @@ app.openapi(getDefaultsRoute, async (c) => {
     return c.json({ error: "Setup already complete" }, 403);
   }
 
+  // Security: Require valid setup token if key protection is enabled
+  if (!hasValidSetupToken(c)) {
+    return c.json({ error: "Setup key validation required" }, 401);
+  }
+
   // Read from deprecated env vars to pre-populate setup wizard
   return c.json(
     {
@@ -126,6 +157,77 @@ app.openapi(getDefaultsRoute, async (c) => {
     },
     200,
   );
+});
+
+// Schema for setup key validation
+const SetupKeySchema = z.object({
+  key: z.string().min(1),
+});
+
+// POST /setup/validate-key - Validate the setup key
+const validateKeyRoute = createRoute({
+  method: "post",
+  path: "/validate-key",
+  summary: "Validate setup key",
+  description: "Validates the setup key for existing installs",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: SetupKeySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Key validated",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean() }),
+        },
+      },
+    },
+    400: {
+      description: "Key not required",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    401: {
+      description: "Invalid key",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+});
+
+app.openapi(validateKeyRoute, async (c) => {
+  if (!setupSecurityService.requiresSetupKey()) {
+    return c.json({ error: "Setup key not required" }, 400);
+  }
+
+  const { key } = c.req.valid("json");
+
+  if (!setupSecurityService.validateKey(key)) {
+    return c.json({ error: "Invalid setup key" }, 401);
+  }
+
+  // Generate and set validation token cookie
+  const token = setupSecurityService.generateValidationToken();
+  setCookie(c, SETUP_TOKEN_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: 30 * 60, // 30 minutes
+  });
+
+  return c.json({ success: true }, 200);
 });
 
 // POST /setup/step1 - Save system configuration
@@ -152,6 +254,14 @@ const postStep1Route = createRoute({
         },
       },
     },
+    401: {
+      description: "Setup key validation required",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
     403: {
       description: "Setup already complete",
       content: {
@@ -175,6 +285,11 @@ app.openapi(postStep1Route, async (c) => {
   // Block access if setup is already complete
   if (await isSetupAlreadyComplete()) {
     return c.json({ error: "Setup already complete" }, 403);
+  }
+
+  // Security: Require valid setup token if key protection is enabled
+  if (!hasValidSetupToken(c)) {
+    return c.json({ error: "Setup key validation required" }, 401);
   }
 
   const body = c.req.valid("json");
@@ -226,7 +341,10 @@ app.openapi(postStep1Route, async (c) => {
     return c.json({ success: true }, 200);
   } catch (error) {
     console.error("[Setup Step 1] Error:", error);
-    return c.json({ success: false, error: String(error) }, 500);
+    return c.json(
+      { success: false, error: "Failed to save configuration" },
+      500,
+    );
   }
 });
 
@@ -254,6 +372,14 @@ const postStep2Route = createRoute({
         },
       },
     },
+    401: {
+      description: "Setup key validation required",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
     403: {
       description: "Setup already complete",
       content: {
@@ -277,6 +403,11 @@ app.openapi(postStep2Route, async (c) => {
   // Block access if setup is already complete
   if (await isSetupAlreadyComplete()) {
     return c.json({ error: "Setup already complete" }, 403);
+  }
+
+  // Security: Require valid setup token if key protection is enabled
+  if (!hasValidSetupToken(c)) {
+    return c.json({ error: "Setup key validation required" }, 401);
   }
 
   const body = c.req.valid("json");
@@ -335,7 +466,12 @@ app.openapi(postStep2Route, async (c) => {
     return c.json({ success: true }, 200);
   } catch (error) {
     console.error("[Setup Step 2] Error:", error);
-    return c.json({ success: false, error: String(error) }, 500);
+    // Provide user-friendly error message without exposing internal details
+    const message =
+      error instanceof Error && error.message.includes("UNIQUE constraint")
+        ? "A user with this email already exists"
+        : "Failed to create admin user";
+    return c.json({ success: false, error: message }, 500);
   }
 });
 
@@ -351,6 +487,14 @@ const postCompleteRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({ success: z.boolean() }),
+        },
+      },
+    },
+    401: {
+      description: "Setup key validation required",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
         },
       },
     },
@@ -379,6 +523,11 @@ app.openapi(postCompleteRoute, async (c) => {
     return c.json({ error: "Setup already complete" }, 403);
   }
 
+  // Security: Require valid setup token if key protection is enabled
+  if (!hasValidSetupToken(c)) {
+    return c.json({ error: "Setup key validation required" }, 401);
+  }
+
   try {
     await db
       .update(appConfig)
@@ -391,7 +540,7 @@ app.openapi(postCompleteRoute, async (c) => {
     return c.json({ success: true }, 200);
   } catch (error) {
     console.error("[Setup Complete] Error:", error);
-    return c.json({ success: false, error: String(error) }, 500);
+    return c.json({ success: false, error: "Failed to complete setup" }, 500);
   }
 });
 

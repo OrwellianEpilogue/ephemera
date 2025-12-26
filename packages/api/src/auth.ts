@@ -41,7 +41,7 @@ export const auth = betterAuth({
   // Cookie configuration for cross-origin setup (dev) and same-origin (prod)
   cookie: {
     sameSite: "lax", // Allow cookies to be sent on redirects (critical for OIDC)
-    secure: false, // Set to true in production with HTTPS
+    secure: process.env.NODE_ENV === "production", // Require HTTPS in production
     httpOnly: true,
     path: "/",
     // Don't set domain - let browser handle it (works for both localhost and production)

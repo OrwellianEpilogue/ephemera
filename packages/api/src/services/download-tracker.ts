@@ -502,7 +502,7 @@ export class DownloadTracker {
         ? new Date(download.uploadedAt).toISOString()
         : undefined,
       uploadError: download.uploadError || undefined,
-      // User information (required userId, optional userName)
+      // User information (userId may be null for legacy data pre-migration)
       userId: download.userId,
       userName: undefined, // Not joined in current queries
     };

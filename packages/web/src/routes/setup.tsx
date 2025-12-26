@@ -21,6 +21,8 @@ import {
   IconAlertCircle,
   IconSettings,
   IconUser,
+  IconKey,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 
 function SetupWizard() {
@@ -31,6 +33,13 @@ function SetupWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingSetup, setCheckingSetup] = useState(true);
+
+  // Setup key state (for older installs)
+  const [requiresSetupKey, setRequiresSetupKey] = useState(false);
+  const [setupKeyValidated, setSetupKeyValidated] = useState(false);
+  const [setupKeyInput, setSetupKeyInput] = useState("");
+  const [setupKeyError, setSetupKeyError] = useState<string | null>(null);
+  const [validatingKey, setValidatingKey] = useState(false);
 
   // Step 1: System Configuration
   const [step1, setStep1] = useState({
@@ -46,12 +55,17 @@ function SetupWizard() {
   useEffect(() => {
     const checkSetupStatus = async () => {
       try {
-        const response = await fetch("/api/setup/status");
+        const response = await fetch("/api/setup/status", {
+          credentials: "include",
+        });
         const data = await response.json();
         if (data.isSetupComplete) {
           navigate({ to: "/login" });
           return;
         }
+        // Check if setup key is required (older install)
+        setRequiresSetupKey(data.requiresSetupKey ?? false);
+        setSetupKeyValidated(data.setupKeyValidated ?? false);
       } catch (err) {
         console.error("Failed to check setup status:", err);
       } finally {
@@ -61,11 +75,19 @@ function SetupWizard() {
     checkSetupStatus();
   }, [navigate]);
 
-  // Fetch environment defaults on mount
+  // Fetch environment defaults when key is validated (or not required)
   useEffect(() => {
     const fetchDefaults = async () => {
+      // Only fetch if we don't need key validation, or key is already validated
+      if (requiresSetupKey && !setupKeyValidated) {
+        setLoadingDefaults(false);
+        return;
+      }
+
       try {
-        const response = await fetch("/api/setup/defaults");
+        const response = await fetch("/api/setup/defaults", {
+          credentials: "include",
+        });
         if (response.ok) {
           const defaults = await response.json();
           setStep1((prev) => ({
@@ -75,6 +97,9 @@ function SetupWizard() {
             downloadFolder: defaults.downloadFolder || prev.downloadFolder,
             ingestFolder: defaults.ingestFolder || prev.ingestFolder,
           }));
+        } else if (response.status === 401) {
+          // Key validation expired or failed
+          setSetupKeyValidated(false);
         }
       } catch (err) {
         console.error("Failed to fetch defaults:", err);
@@ -83,7 +108,7 @@ function SetupWizard() {
       }
     };
     fetchDefaults();
-  }, []);
+  }, [requiresSetupKey, setupKeyValidated]);
 
   // Step 2: Admin Account
   const [adminForm, setAdminForm] = useState({
@@ -115,6 +140,16 @@ function SetupWizard() {
       setError("Username is required");
       return false;
     }
+    if (!adminForm.email) {
+      setError("Email is required");
+      return false;
+    }
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(adminForm.email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
     if (!adminForm.password) {
       setError("Password is required");
       return false;
@@ -128,6 +163,35 @@ function SetupWizard() {
       return false;
     }
     return true;
+  };
+
+  // Setup key validation handler
+  const handleSetupKeySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSetupKeyError(null);
+    setValidatingKey(true);
+
+    try {
+      const response = await fetch("/api/setup/validate-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: setupKeyInput }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Invalid setup key");
+      }
+
+      setSetupKeyValidated(true);
+    } catch (err) {
+      setSetupKeyError(
+        err instanceof Error ? err.message : "Validation failed",
+      );
+    } finally {
+      setValidatingKey(false);
+    }
   };
 
   // Step handlers
@@ -146,6 +210,7 @@ function SetupWizard() {
         const response = await fetch("/api/setup/step1", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify(step1),
         });
 
@@ -165,6 +230,7 @@ function SetupWizard() {
         const response = await fetch("/api/setup/step2", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             username: adminForm.username,
             email: adminForm.email,
@@ -182,6 +248,7 @@ function SetupWizard() {
         // Complete setup
         const response = await fetch("/api/setup/complete", {
           method: "POST",
+          credentials: "include",
         });
 
         if (!response.ok) {
@@ -203,7 +270,7 @@ function SetupWizard() {
     setActive((current) => (current > 0 ? current - 1 : current));
   };
 
-  if (checkingSetup || loadingDefaults) {
+  if (checkingSetup) {
     return (
       <Box
         style={{
@@ -218,6 +285,86 @@ function SetupWizard() {
           <Stack align="center" gap="md">
             <Loader size="lg" />
             <Text c="dimmed">Loading...</Text>
+          </Stack>
+        </Center>
+      </Box>
+    );
+  }
+
+  // Show setup key entry UI for older installs
+  if (requiresSetupKey && !setupKeyValidated) {
+    return (
+      <Box
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--mantine-color-gray-0)",
+        }}
+      >
+        <Container size="sm" py="xl">
+          <Paper shadow="md" p="xl" radius="md">
+            <Stack gap="lg">
+              <div>
+                <Title order={2}>Setup Key Required</Title>
+                <Text c="dimmed" size="sm">
+                  An existing installation was detected
+                </Text>
+              </div>
+
+              <Alert color="blue" icon={<IconInfoCircle size={16} />}>
+                For security, you need to enter the setup key from your server
+                logs. Find your setup key by running:{" "}
+                <Text component="span" fw={600} ff="monospace">
+                  docker logs ephemera
+                </Text>
+              </Alert>
+
+              {setupKeyError && (
+                <Alert icon={<IconAlertCircle size={16} />} color="red">
+                  {setupKeyError}
+                </Alert>
+              )}
+
+              <form onSubmit={handleSetupKeySubmit}>
+                <Stack gap="md">
+                  <PasswordInput
+                    label="Setup Key"
+                    placeholder="Enter your setup key from server logs"
+                    required
+                    value={setupKeyInput}
+                    onChange={(e) => setSetupKeyInput(e.target.value)}
+                    leftSection={<IconKey size={16} />}
+                  />
+                  <Button type="submit" loading={validatingKey} fullWidth>
+                    Validate Key
+                  </Button>
+                </Stack>
+              </form>
+            </Stack>
+          </Paper>
+        </Container>
+      </Box>
+    );
+  }
+
+  // Show loading while fetching defaults after key validation
+  if (loadingDefaults) {
+    return (
+      <Box
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--mantine-color-gray-0)",
+        }}
+      >
+        <Center>
+          <Stack align="center" gap="md">
+            <Loader size="lg" />
+            <Text c="dimmed">Loading configuration...</Text>
           </Stack>
         </Center>
       </Box>
@@ -345,8 +492,9 @@ function SetupWizard() {
 
                   <TextInput
                     label="Email"
-                    placeholder="admin@localhost"
+                    placeholder="admin@example.com"
                     type="email"
+                    required
                     value={adminForm.email}
                     onChange={(e) =>
                       setAdminForm({ ...adminForm, email: e.target.value })

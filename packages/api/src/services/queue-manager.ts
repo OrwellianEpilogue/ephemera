@@ -763,8 +763,14 @@ export class QueueManager extends EventEmitter {
     const books = await bookService.getBooksByMd5s(allMd5s);
     const booksMap = new Map(books.map((book) => [book.md5, book]));
 
-    // Fetch all users for these downloads
-    const uniqueUserIds = [...new Set(allDownloadsFromDb.map((d) => d.userId))];
+    // Fetch all users for these downloads (filter out null userIds from legacy data)
+    const uniqueUserIds = [
+      ...new Set(
+        allDownloadsFromDb
+          .map((d) => d.userId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
     const users = await this.getUsersByIds(uniqueUserIds);
     const usersMap = new Map(users.map((user) => [user.id, user]));
 
@@ -772,7 +778,7 @@ export class QueueManager extends EventEmitter {
     const toQueueItem = (d: Download): QueueItem => {
       const queueItem = downloadTracker.downloadToQueueItem(d);
       const book = booksMap.get(d.md5);
-      const user = usersMap.get(d.userId);
+      const user = d.userId ? usersMap.get(d.userId) : undefined;
 
       if (book) {
         // Ensure authors is always an array (handle both string and array types)
@@ -871,8 +877,10 @@ export class QueueManager extends EventEmitter {
     // Try to fetch book details
     const book = await bookService.getBook(md5);
 
-    // Fetch user details
-    const users = await this.getUsersByIds([download.userId]);
+    // Fetch user details (if userId exists)
+    const users = download.userId
+      ? await this.getUsersByIds([download.userId])
+      : [];
     const user = users[0];
 
     if (book) {

@@ -140,5 +140,5 @@ CREATE TABLE `verification` (
 --> statement-breakpoint
 CREATE INDEX `verification_identifier_idx` ON `verification` (`identifier`);--> statement-breakpoint
 ALTER TABLE `email_recipients` ADD `user_id` text REFERENCES user(id) ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE `download_requests` ADD `user_id` text NOT NULL REFERENCES user(id);--> statement-breakpoint
-ALTER TABLE `downloads` ADD `user_id` text NOT NULL REFERENCES user(id);
+ALTER TABLE `download_requests` ADD `user_id` text REFERENCES user(id);--> statement-breakpoint
+ALTER TABLE `downloads` ADD `user_id` text REFERENCES user(id);
