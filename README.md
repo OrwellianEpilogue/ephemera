@@ -44,21 +44,13 @@ services:
       - "8286:8286"
 
     environment:
-      # Required:
-      AA_BASE_URL:
-      # FlareSolverr is used for slow download fallback when API key is missing or quota exhausted
-      # Default: http://127.0.0.1:8191 (or http://flaresolverr:8191 in Docker)
-      FLARESOLVERR_URL: http://127.0.0.1:8191
+      # FlareSolverr URL (for slow download fallback)
+      FLARESOLVERR_URL: http://flaresolverr:8191
 
-      # Optional
+      # Optional: Set your public URL for CORS (required if not using localhost)
+      # BASE_URL: https://ephemera.yourdomain.com
 
-      # Alternative Download Source (optional, but highly recommended)
-      # If set, LG fast download will be attempted before falling back to slow servers
-      # Leave empty to disable this feature
-      # li, bz, etc.
-      LG_BASE_URL: #https://gen.com
-
-      AA_API_KEY: # Only for paid members of AA, otherwise leave blank for slow downloads
+      # User/Group IDs
       PUID: 1000
       PGID: 100
 
@@ -142,40 +134,22 @@ docker pull ghcr.io/orwellianepilogue/ephemera:dev-sha-7aa9d68
 
 > **Note:** The `latest` tag always points to the most recent stable release. If you want to test new features before they're released, use the `dev` tag.
 
-### Required Environment Variables
+### Environment Variables
 
-Only two variables are required:
+Most settings are now configured via the **web UI setup wizard** and stored in the database. Only infrastructure-level settings need environment variables.
 
-| Variable           | Description                     | Example                   |
-| ------------------ | ------------------------------- | ------------------------- |
-| `AA_BASE_URL`      | Base URL of your archive        | `https://yourarchive.org` |
-| `FLARESOLVERR_URL` | Flaresolverr URL from container | `http://127.0.0.1:8191`   |
+| Variable           | Default                 | Description                                  |
+| ------------------ | ----------------------- | -------------------------------------------- |
+| `FLARESOLVERR_URL` | `http://127.0.0.1:8191` | FlareSolverr URL (required for slow downloads) |
+| `PORT`             | `8286`                  | Application port                             |
+| `DB_PATH`          | `/app/data/database.db` | Database location                            |
+| `NODE_ENV`         | `production`            | Node environment                             |
+| `API_BASE_PATH`    | `/api`                  | API base path                                |
+| `HTML_BASE_HREF`   | `empty`                 | HTML base href (for iframes/subpaths)        |
+| `BASE_URL`         | `http://localhost:8286` | Public URL (for CORS/auth in production)     |
+| `ALLOWED_ORIGINS`  | `empty`                 | Additional CORS origins (comma-separated)    |
 
-### Recommended Environment Variables
-
-| Variable      | Default | Description                    |
-| ------------- | ------- | ------------------------------ |
-| `LG_BASE_URL` | `empty` | `https://gen.com, li, bz etc.` |
-
-### Optional Environment Variables
-
-All other settings have sensible defaults, but you can override them:
-
-| Variable           | Default                 | Description            |
-| ------------------ | ----------------------- | ---------------------- |
-| `AA_API_KEY`       | `empty`                 | `dhw8adhwa8...` Only for paid members of AA, otherwise leave blank for slow downloads       |
-| `PORT`             | `8286`                  | Application port       |
-| `DB_PATH`          | `/app/data/database.db` | Database location      |
-| `DOWNLOAD_FOLDER`  | `/app/downloads`        | Temp download folder   |
-| `INGEST_FOLDER`    | `/app/ingest`           | Final books folder     |
-| `NODE_ENV`         | `production`            | Node environment       |
-| `RETRY_ATTEMPTS`   | `3`                     | Download retries       |
-| `REQUEST_TIMEOUT`  | `30000`                 | API timeout (ms)       |
-| `SEARCH_CACHE_TTL` | `300`                   | Search cache (seconds) |
-| `API_BASE_PATH`    | `/api`                  | API base path          |
-| `HTML_BASE_HREF`   | `empty`                 | HTML base href (iframes) |
-| `BASE_URL`         | `http://localhost:8286` | Public URL for CORS/auth |
-| `ALLOWED_ORIGINS`  | `empty`                 | Additional CORS origins (comma-separated) |
+> **Note:** Archive URLs, API keys, download folders, and other app settings are configured in the setup wizard on first run.
 
 ### Advanced: Configurable API Base Path
 
