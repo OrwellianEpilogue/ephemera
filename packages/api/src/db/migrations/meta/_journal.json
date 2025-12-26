@@ -92,6 +92,13 @@
       "when": 1766702900000,
       "tag": "0012_init_multiuser_data",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1766708977319,
+      "tag": "0013_proxy_auth_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ import {
   requireAdmin,
   requirePermission,
 } from "./middleware/auth.js";
+import { proxyAuthMiddleware } from "./middleware/proxy-auth.js";
 import type { Context, Next } from "hono";
 
 // Helper to compose auth middleware with permission/admin checks
@@ -57,6 +58,7 @@ import authRoutes from "./routes/auth.js";
 import emailRoutes from "./routes/email.js";
 import systemConfigRoutes from "./routes/system-config.js";
 import apiKeysRoutes from "./routes/api-keys.js";
+import proxyAuthRoutes from "./routes/proxy-auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -167,6 +169,11 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization", "x-api-key"],
   }),
 );
+
+// Proxy auth middleware - handles trusted header authentication for web routes
+// SECURITY: This middleware explicitly skips /api/* routes to prevent header auth on API endpoints
+// Only web routes (serving SPA) can use proxy header authentication
+app.use("*", proxyAuthMiddleware);
 
 // Error handling middleware
 app.onError((err, c) => {
@@ -298,6 +305,15 @@ app.use(
   "/api/api-keys",
   withAuth((c, next) => requirePermission("canManageApiKeys")(c, next)),
 );
+// Proxy auth settings: admin only (security-sensitive configuration)
+app.use(
+  "/api/settings/proxy-auth/*",
+  withAuth((c, next) => requireAdmin(c, next)),
+);
+app.use(
+  "/api/settings/proxy-auth",
+  withAuth((c, next) => requireAdmin(c, next)),
+);
 
 // Mount API routes
 app.route(`${API_BASE_PATH}/setup`, setupRoutes); // Public (for initial setup)
@@ -320,6 +336,7 @@ app.route(API_BASE_PATH, emailRoutes); // Protected
 app.route(`${API_BASE_PATH}/users`, usersRoutes); // Admin only
 app.route(`${API_BASE_PATH}/oidc-providers`, oidcProvidersRoutes); // Admin only
 app.route(API_BASE_PATH, apiKeysRoutes); // Protected by canManageApiKeys
+app.route(`${API_BASE_PATH}/settings/proxy-auth`, proxyAuthRoutes); // Admin only
 app.route("/newznab", newznabRoutes); // Public (has API key auth)
 app.route("/sabnzbd", sabnzbdRoutes); // Public (has API key auth)
 
@@ -378,6 +395,11 @@ app.doc(`${API_BASE_PATH}/openapi.json`, {
     {
       name: "Version",
       description: "Application version information and update checks",
+    },
+    {
+      name: "Proxy Auth",
+      description:
+        "Proxy authentication settings for reverse proxy header auth (Authelia, Authentik, etc.)",
     },
   ],
 });

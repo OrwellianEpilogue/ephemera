@@ -37,6 +37,7 @@ import {
   IconMail,
   IconUser,
   IconUserShare,
+  IconShieldCheck,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -90,6 +91,7 @@ import {
 const UsersManagement = lazy(() => import("../components/UsersManagement"));
 const OIDCManagement = lazy(() => import("../components/OIDCManagement"));
 const AccountSettings = lazy(() => import("../components/AccountSettings"));
+const ProxyAuthSettings = lazy(() => import("../components/ProxyAuthSettings"));
 
 const settingsSearchSchema = z.object({
   tab: z
@@ -102,6 +104,7 @@ const settingsSearchSchema = z.object({
       "users",
       "oidc",
       "email",
+      "proxy-auth",
     ])
     .optional()
     .default("account"),
@@ -122,7 +125,7 @@ function SettingsComponent() {
   const canConfigureEmail = isAdmin || permissions?.canConfigureEmail;
 
   // Define which tabs require which permissions
-  const adminOnlyTabs = ["users", "oidc"];
+  const adminOnlyTabs = ["users", "oidc", "proxy-auth"];
 
   // Get permission for a specific tab
   const getTabPermission = (tabName: string): boolean => {
@@ -635,7 +638,8 @@ function SettingsComponent() {
                   | "booklore"
                   | "indexer"
                   | "users"
-                  | "oidc",
+                  | "oidc"
+                  | "proxy-auth",
               },
             })
           }
@@ -690,6 +694,12 @@ function SettingsComponent() {
                   leftSection={<IconPlugConnected size={16} />}
                 >
                   OIDC
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="proxy-auth"
+                  leftSection={<IconShieldCheck size={16} />}
+                >
+                  Proxy Auth
                 </Tabs.Tab>
               </>
             )}
@@ -1833,6 +1843,18 @@ function SettingsComponent() {
                   }
                 >
                   <OIDCManagement />
+                </Suspense>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="proxy-auth" pt="md">
+                <Suspense
+                  fallback={
+                    <Center p="xl">
+                      <Loader size="lg" />
+                    </Center>
+                  }
+                >
+                  <ProxyAuthSettings />
                 </Suspense>
               </Tabs.Panel>
             </>

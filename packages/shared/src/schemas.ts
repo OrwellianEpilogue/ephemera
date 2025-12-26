@@ -1124,3 +1124,80 @@ export const updateSystemConfigSchema = z.object({
 });
 
 export type UpdateSystemConfig = z.infer<typeof updateSystemConfigSchema>;
+
+// Proxy Auth user identifier enum
+export const proxyAuthUserIdentifierSchema = z.enum(["email", "username"]);
+
+export type ProxyAuthUserIdentifier = z.infer<
+  typeof proxyAuthUserIdentifierSchema
+>;
+
+// Proxy Auth settings schema
+export const proxyAuthSettingsSchema = z.object({
+  id: z.number().describe("Settings ID (always 1)"),
+  enabled: z.boolean().describe("Whether proxy auth is enabled"),
+  headerName: z
+    .string()
+    .min(1)
+    .describe("HTTP header name containing the authenticated username/email"),
+  userIdentifier: proxyAuthUserIdentifierSchema.describe(
+    "How to match header value to users: email or username",
+  ),
+  trustedProxies: z
+    .string()
+    .describe("Comma-separated list of trusted proxy IPs/CIDRs"),
+  logoutRedirectUrl: z
+    .string()
+    .url()
+    .nullable()
+    .describe("URL to redirect to after logout"),
+  createdAt: z.string().datetime().describe("When settings were created"),
+  updatedAt: z.string().datetime().describe("When settings were last updated"),
+});
+
+export type ProxyAuthSettings = z.infer<typeof proxyAuthSettingsSchema>;
+
+// Proxy Auth settings update request schema
+export const updateProxyAuthSettingsSchema = z
+  .object({
+    enabled: z.boolean().optional().describe("Enable/disable proxy auth"),
+    headerName: z
+      .string()
+      .min(1)
+      .max(100)
+      .regex(
+        /^[a-zA-Z][a-zA-Z0-9-]*$/,
+        "Header name must start with a letter and contain only letters, numbers, and hyphens",
+      )
+      .optional()
+      .describe("HTTP header name"),
+    userIdentifier: proxyAuthUserIdentifierSchema
+      .optional()
+      .describe("How to match header value to users"),
+    trustedProxies: z
+      .string()
+      .optional()
+      .describe("Comma-separated list of trusted proxy IPs/CIDRs"),
+    logoutRedirectUrl: z
+      .string()
+      .url()
+      .nullable()
+      .optional()
+      .describe("URL to redirect to after logout"),
+  })
+  .refine(
+    (data) => {
+      // If enabling, require trustedProxies to be non-empty
+      if (data.enabled === true && data.trustedProxies !== undefined) {
+        return data.trustedProxies.trim().length > 0;
+      }
+      return true;
+    },
+    {
+      message: "Trusted proxies must be configured when enabling proxy auth",
+    },
+  );
+
+export type UpdateProxyAuthSettings = z.infer<
+  typeof updateProxyAuthSettingsSchema
+>;

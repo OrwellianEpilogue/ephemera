@@ -578,6 +578,25 @@ export const emailRecipients = sqliteTable("email_recipients", {
   createdAt: integer("created_at").notNull(),
 });
 
+// Proxy Authentication Settings (reverse proxy header auth)
+export const proxyAuthSettings = sqliteTable("proxy_auth_settings", {
+  id: integer("id").primaryKey().default(1),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  headerName: text("header_name").notNull().default("Remote-User"),
+  userIdentifier: text("user_identifier", { enum: ["email", "username"] })
+    .notNull()
+    .default("email"),
+  trustedProxies: text("trusted_proxies").notNull().default(""),
+  logoutRedirectUrl: text("logout_redirect_url"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 // Relations
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
@@ -687,3 +706,5 @@ export type EmailSettings = typeof emailSettings.$inferSelect;
 export type NewEmailSettings = typeof emailSettings.$inferInsert;
 export type EmailRecipient = typeof emailRecipients.$inferSelect;
 export type NewEmailRecipient = typeof emailRecipients.$inferInsert;
+export type ProxyAuthSettings = typeof proxyAuthSettings.$inferSelect;
+export type NewProxyAuthSettings = typeof proxyAuthSettings.$inferInsert;
