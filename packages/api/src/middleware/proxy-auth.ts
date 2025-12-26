@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context, Next } from "hono";
 import crypto from "node:crypto";
 import { db } from "../db/index.js";
@@ -12,9 +13,9 @@ import { auth } from "../auth.js";
  * This prevents spoofing - only the configured proxy should be able to send auth headers
  */
 function getDirectConnectionIP(c: Context): string {
-  // For Hono/Node.js, get the socket remote address
-  const socket = (c.req.raw as { socket?: { remoteAddress?: string } }).socket;
-  const remoteAddress = socket?.remoteAddress || "";
+  // Use Hono's getConnInfo for proper socket access in Node.js
+  const connInfo = getConnInfo(c);
+  const remoteAddress = connInfo?.remote?.address || "";
 
   // Handle IPv6-mapped IPv4 addresses (::ffff:192.168.1.1)
   if (remoteAddress.startsWith("::ffff:")) {
