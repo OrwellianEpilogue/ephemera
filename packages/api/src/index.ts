@@ -501,6 +501,13 @@ const webDistPath = join(__dirname, "../../web/dist");
 if (existsSync(webDistPath)) {
   logger.info(`Serving static files from: ${webDistPath}`);
 
+  // Prevent caching of service worker (critical for PWA migration)
+  app.use("/sw.js", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    c.header("Service-Worker-Allowed", "/");
+  });
+
   // Serve static assets with caching
   app.use(
     "/*",
@@ -532,6 +539,8 @@ if (existsSync(webDistPath)) {
 
       html = html.replace("</head>", `${injections}</head>`);
 
+      // Prevent caching of HTML to ensure users get latest version
+      c.header("Cache-Control", "no-cache, no-store, must-revalidate");
       return c.html(html);
     }
 
