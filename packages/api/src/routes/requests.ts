@@ -14,6 +14,7 @@ import {
 import { logger, getErrorMessage } from "../utils/logger.js";
 import { permissionsService } from "../services/permissions.js";
 import { appriseService } from "../services/apprise.js";
+import { requestCheckerService } from "../services/request-checker.js";
 
 const app = new OpenAPIHono();
 
@@ -588,10 +589,24 @@ app.openapi(approveRequestRoute, async (c) => {
       author: request.queryParams.author,
     });
 
+    // Immediately process the request (don't wait for cron)
+    // Run async without blocking the response
+    requestCheckerService.checkSingleRequest(id).then((result) => {
+      if (result.found) {
+        logger.info(
+          `Request ${id} immediately fulfilled with book ${result.bookMd5}`,
+        );
+      } else if (result.error) {
+        logger.warn(`Request ${id} immediate check failed: ${result.error}`);
+      } else {
+        logger.info(`Request ${id} checked - no results yet`);
+      }
+    });
+
     return c.json(
       {
         success: true,
-        message: "Request approved successfully",
+        message: "Request approved and processing started",
       },
       200,
     );
