@@ -1240,3 +1240,141 @@ export const updateProxyAuthSettingsSchema = z
 export type UpdateProxyAuthSettings = z.infer<
   typeof updateProxyAuthSettingsSchema
 >;
+
+// Tolino reseller enum
+export const tolinoResellerSchema = z.enum(["buchhandlung", "hugendubel"]);
+
+export type TolinoReseller = z.infer<typeof tolinoResellerSchema>;
+
+// Tolino reseller info (for display)
+export const tolinoResellerInfoSchema = z.object({
+  id: tolinoResellerSchema.describe("Reseller identifier"),
+  name: z.string().describe("Display name"),
+  country: z.string().describe("Country"),
+});
+
+export type TolinoResellerInfo = z.infer<typeof tolinoResellerInfoSchema>;
+
+// Tolino settings response schema (shows connection status, not credentials)
+export const tolinoSettingsResponseSchema = z.object({
+  resellerId: tolinoResellerSchema.describe("Selected reseller"),
+  email: z.string().email().describe("Tolino account email"),
+  autoUpload: z.boolean().describe("Automatically upload books after download"),
+  isConnected: z
+    .boolean()
+    .describe("Whether currently authenticated with valid tokens"),
+  tokenExpiresAt: z
+    .number()
+    .int()
+    .nullable()
+    .describe("Token expiration timestamp (milliseconds)"),
+  createdAt: z.string().datetime().describe("When settings were created"),
+  updatedAt: z.string().datetime().describe("When settings were last updated"),
+});
+
+export type TolinoSettingsResponse = z.infer<
+  typeof tolinoSettingsResponseSchema
+>;
+
+// Tolino settings create/update request schema
+export const tolinoSettingsInputSchema = z.object({
+  resellerId: tolinoResellerSchema.describe("Reseller to use"),
+  email: z.string().email().describe("Tolino account email"),
+  password: z.string().min(1).describe("Tolino account password"),
+  autoUpload: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Automatically upload books after download"),
+});
+
+export type TolinoSettingsInput = z.infer<typeof tolinoSettingsInputSchema>;
+
+// Tolino upload request schema
+export const tolinoUploadRequestSchema = z.object({
+  md5: z
+    .string()
+    .regex(/^[a-f0-9]{32}$/)
+    .describe("MD5 hash of the book to upload"),
+});
+
+export type TolinoUploadRequest = z.infer<typeof tolinoUploadRequestSchema>;
+
+// Tolino upload response schema
+export const tolinoUploadResponseSchema = z.object({
+  success: z.boolean().describe("Whether upload was successful"),
+  message: z.string().describe("Result message"),
+  uploadedAt: z
+    .string()
+    .datetime()
+    .optional()
+    .describe("When file was uploaded"),
+});
+
+export type TolinoUploadResponse = z.infer<typeof tolinoUploadResponseSchema>;
+
+// Tolino test connection response schema
+export const tolinoTestResponseSchema = z.object({
+  success: z.boolean().describe("Whether connection test passed"),
+  message: z.string().describe("Result message"),
+});
+
+export type TolinoTestResponse = z.infer<typeof tolinoTestResponseSchema>;
+
+// Tolino can-upload check response schema
+export const tolinoCanUploadResponseSchema = z.object({
+  canUpload: z.boolean().describe("Whether the book can be uploaded"),
+  needsConversion: z
+    .boolean()
+    .describe("Whether format conversion is required"),
+  reason: z.string().optional().describe("Reason if cannot upload"),
+});
+
+export type TolinoCanUploadResponse = z.infer<
+  typeof tolinoCanUploadResponseSchema
+>;
+
+// Calibre status response schema
+export const calibreStatusResponseSchema = z.object({
+  available: z.boolean().describe("Whether Calibre CLI is available"),
+  version: z.string().nullable().describe("Calibre version if available"),
+});
+
+export type CalibreStatusResponse = z.infer<typeof calibreStatusResponseSchema>;
+
+// Calibre formats response schema
+export const calibreFormatsResponseSchema = z.object({
+  input: z.array(z.string()).describe("Supported input formats"),
+  output: z.array(z.string()).describe("Supported output formats"),
+});
+
+export type CalibreFormatsResponse = z.infer<
+  typeof calibreFormatsResponseSchema
+>;
+
+// Calibre convert request schema
+export const calibreConvertRequestSchema = z.object({
+  md5: z
+    .string()
+    .regex(/^[a-f0-9]{32}$/)
+    .describe("MD5 hash of the book to convert"),
+  outputFormat: z
+    .enum(["epub", "pdf", "mobi", "azw3"])
+    .describe("Target format"),
+});
+
+export type CalibreConvertRequest = z.infer<typeof calibreConvertRequestSchema>;
+
+// Calibre convert response schema
+export const calibreConvertResponseSchema = z.object({
+  success: z.boolean().describe("Whether conversion was successful"),
+  convertedPath: z
+    .string()
+    .optional()
+    .describe("Path to converted file if successful"),
+  error: z.string().optional().describe("Error message if failed"),
+});
+
+export type CalibreConvertResponse = z.infer<
+  typeof calibreConvertResponseSchema
+>;

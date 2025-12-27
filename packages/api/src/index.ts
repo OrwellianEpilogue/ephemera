@@ -33,6 +33,7 @@ import { appSettingsService } from "./services/app-settings.js";
 import { bookloreSettingsService } from "./services/booklore-settings.js";
 import { appriseService } from "./services/apprise.js";
 import { bookloreTokenRefresher } from "./services/booklore-token-refresher.js";
+import { tolinoTokenRefresher } from "./services/tolino-token-refresher.js";
 import { bookCleanupService } from "./services/book-cleanup.js";
 import { requestCheckerService } from "./services/request-checker.js";
 import { versionService } from "./services/version.js";
@@ -60,6 +61,8 @@ import emailRoutes from "./routes/email.js";
 import systemConfigRoutes from "./routes/system-config.js";
 import apiKeysRoutes from "./routes/api-keys.js";
 import proxyAuthRoutes from "./routes/proxy-auth.js";
+import calibreRoutes from "./routes/calibre.js";
+import tolinoRoutes from "./routes/tolino.js";
 import { setupSecurityService } from "./services/setup-security.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -129,6 +132,9 @@ await emailSettingsService.initializeDefaults();
 
 // Start Booklore token refresher service
 bookloreTokenRefresher.start();
+
+// Start Tolino token refresher service
+tolinoTokenRefresher.start();
 
 // Cleanup expired cache on startup
 const cleanedUp = await searchCacheManager.cleanup();
@@ -260,6 +266,8 @@ app.get(API_BASE_PATH, (c) => {
       booklore: `${API_BASE_PATH}/booklore/*`,
       apprise: `${API_BASE_PATH}/apprise/*`,
       email: `${API_BASE_PATH}/email/*`,
+      tolino: `${API_BASE_PATH}/tolino/*`,
+      calibre: `${API_BASE_PATH}/calibre/*`,
       imageProxy: `${API_BASE_PATH}/proxy/image`,
       version: `${API_BASE_PATH}/version`,
       newznab: "/newznab/api",
@@ -368,6 +376,9 @@ app.use(
   "/api/settings/proxy-auth",
   withAuth((c, next) => requireAdmin(c, next)),
 );
+// Tolino routes: require auth (permission check is done in routes)
+app.use("/api/tolino/*", requireAuth);
+app.use("/api/tolino", requireAuth);
 
 // Mount API routes
 app.route(`${API_BASE_PATH}/setup`, setupRoutes); // Public (for initial setup)
@@ -387,6 +398,8 @@ app.route(API_BASE_PATH, indexerRoutes); // Protected
 app.route(API_BASE_PATH, filesystemRoutes); // Admin only
 app.route(API_BASE_PATH, permissionsRoutes); // Protected
 app.route(API_BASE_PATH, emailRoutes); // Protected
+app.route(API_BASE_PATH, calibreRoutes); // Protected
+app.route(`${API_BASE_PATH}/tolino`, tolinoRoutes); // Protected by canConfigureTolino
 app.route(`${API_BASE_PATH}/users`, usersRoutes); // Admin only
 app.route(`${API_BASE_PATH}/oidc-providers`, oidcProvidersRoutes); // Admin only
 app.route(API_BASE_PATH, apiKeysRoutes); // Protected by canManageApiKeys
@@ -454,6 +467,15 @@ app.doc(`${API_BASE_PATH}/openapi.json`, {
       name: "Proxy Auth",
       description:
         "Proxy authentication settings for reverse proxy header auth (Authelia, Authentik, etc.)",
+    },
+    {
+      name: "Calibre",
+      description: "Calibre ebook-convert integration for format conversion",
+    },
+    {
+      name: "Tolino",
+      description:
+        "Tolino Cloud integration for uploading books to Tolino e-readers",
     },
   ],
 });
@@ -667,6 +689,7 @@ const shutdown = async (signal: string) => {
   try {
     // Stop background services
     bookloreTokenRefresher.stop();
+    tolinoTokenRefresher.stop();
 
     server.close(() => {
       logger.info("Server closed");

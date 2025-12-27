@@ -27,7 +27,7 @@ echo "Setting up user with PUID=$PUID and PGID=$PGID"
 GROUP_NAME="appgroup"
 if ! getent group "$PGID" >/dev/null 2>&1; then
   echo "Creating group with GID=$PGID"
-  addgroup -g "$PGID" "$GROUP_NAME"
+  groupadd -g "$PGID" "$GROUP_NAME"
 else
   # Get existing group name for this GID
   GROUP_NAME=$(getent group "$PGID" | cut -d: -f1)
@@ -38,7 +38,7 @@ fi
 USER_NAME="appuser"
 if ! getent passwd "$PUID" >/dev/null 2>&1; then
   echo "Creating user with UID=$PUID"
-  adduser -u "$PUID" -G "$GROUP_NAME" -h /app -s /sbin/nologin -D "$USER_NAME"
+  useradd -u "$PUID" -g "$GROUP_NAME" -d /app -s /sbin/nologin "$USER_NAME"
 else
   # Get existing username for this UID
   USER_NAME=$(getent passwd "$PUID" | cut -d: -f1)
@@ -65,7 +65,7 @@ chown -R "$PUID:$PGID" /app/.crawlee
 # Run database migrations as the application user
 echo "Running database migrations..."
 cd /app/packages/api
-su-exec "$USER_NAME" node dist/db/migrate.js || echo "Warning: Migrations may have failed, continuing anyway..."
+gosu "$USER_NAME" node dist/db/migrate.js || echo "Warning: Migrations may have failed, continuing anyway..."
 
 # Start the application
 cd /app/packages/api
@@ -75,4 +75,4 @@ echo "==================================="
 
 # Run Node.js server as the application user
 # The server handles graceful shutdown via SIGTERM/SIGINT handlers
-exec su-exec "$USER_NAME" node dist/index.js
+exec gosu "$USER_NAME" node dist/index.js

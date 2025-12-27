@@ -25,6 +25,7 @@ import {
   IconServer,
   IconApi,
   IconMail,
+  IconCloudUpload,
 } from "@tabler/icons-react";
 import type { QueueItem } from "@ephemera/shared";
 import { formatDate, formatTime as formatTimeOfDay } from "@ephemera/shared";
@@ -42,7 +43,12 @@ import {
   useEmailRecipients,
   useSendBookEmail,
 } from "../hooks/useEmail";
+import { useTolinoSettings, useTolinoUpload } from "../hooks/useTolino";
+import { useCalibreStatus } from "../hooks/useCalibre";
 import { useState, useEffect, memo } from "react";
+
+// Tolino Cloud accepts EPUB and PDF directly
+const TOLINO_NATIVE_FORMATS = ["epub", "pdf"];
 
 interface DownloadItemProps {
   item: QueueItem;
@@ -185,6 +191,16 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const { data: emailSettings } = useEmailSettings();
   const { data: emailRecipients } = useEmailRecipients();
   const sendEmail = useSendBookEmail();
+  const { data: tolinoSettings } = useTolinoSettings();
+  const { data: calibreStatus } = useCalibreStatus();
+  const tolinoUpload = useTolinoUpload();
+
+  // Determine if book can be uploaded to Tolino (client-side check)
+  const itemFormat = (item.format || "").toLowerCase();
+  const isNativeFormat = TOLINO_NATIVE_FORMATS.includes(itemFormat);
+  const canConvertToEpub = !isNativeFormat && calibreStatus?.available;
+  const canUploadToTolino = isNativeFormat || canConvertToEpub;
+  const needsConversion = !isNativeFormat && canConvertToEpub;
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
 
   const handleCancel = () => {
@@ -209,6 +225,10 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
       year: item.year,
       language: item.language,
     });
+  };
+
+  const handleTolinoUpload = () => {
+    tolinoUpload.mutate({ md5: item.md5 });
   };
 
   const canCancel = ["queued", "downloading", "delayed"].includes(item.status);
@@ -404,6 +424,32 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                     </Menu.Dropdown>
                   </Menu>
                 ))}
+              {/* Tolino Cloud upload button - only show if configured and file can be uploaded */}
+              {canDownload &&
+                permissions?.canConfigureTolino &&
+                tolinoSettings?.configured &&
+                canUploadToTolino && (
+                  <Tooltip
+                    label={
+                      fileAccessDisabled
+                        ? fileAccessTooltip
+                        : needsConversion
+                          ? "Upload to Tolino Cloud (will convert to EPUB)"
+                          : "Upload to Tolino Cloud"
+                    }
+                    color={fileAccessDisabled ? "orange" : undefined}
+                  >
+                    <ActionIcon
+                      color={fileAccessDisabled ? "gray" : "cyan"}
+                      variant="subtle"
+                      onClick={handleTolinoUpload}
+                      loading={tolinoUpload.isPending}
+                      disabled={fileAccessDisabled}
+                    >
+                      <IconCloudUpload size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
               {canDelete && hasDeletePermission && (
                 <Tooltip label="Delete download">
                   <ActionIcon

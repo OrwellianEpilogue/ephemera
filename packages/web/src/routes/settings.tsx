@@ -39,6 +39,7 @@ import {
   IconUserShare,
   IconShieldCheck,
   IconAlertTriangle,
+  IconCloud,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -93,6 +94,7 @@ const UsersManagement = lazy(() => import("../components/UsersManagement"));
 const OIDCManagement = lazy(() => import("../components/OIDCManagement"));
 const AccountSettings = lazy(() => import("../components/AccountSettings"));
 const ProxyAuthSettings = lazy(() => import("../components/ProxyAuthSettings"));
+const TolinoSettings = lazy(() => import("../components/TolinoSettings"));
 
 const settingsSearchSchema = z.object({
   tab: z
@@ -105,6 +107,7 @@ const settingsSearchSchema = z.object({
       "users",
       "oidc",
       "email",
+      "tolino",
       "proxy-auth",
     ])
     .optional()
@@ -124,6 +127,7 @@ function SettingsComponent() {
   const canConfigureNotifications =
     isAdmin || permissions?.canConfigureNotifications;
   const canConfigureEmail = isAdmin || permissions?.canConfigureEmail;
+  const canConfigureTolino = isAdmin || permissions?.canConfigureTolino;
 
   // Define which tabs require which permissions
   const adminOnlyTabs = ["users", "oidc", "proxy-auth"];
@@ -140,6 +144,8 @@ function SettingsComponent() {
         return !!canConfigureIntegrations;
       case "email":
         return true; // All users can access email tab to manage their own recipients
+      case "tolino":
+        return !!canConfigureTolino;
       default:
         return false;
     }
@@ -642,6 +648,8 @@ function SettingsComponent() {
                   | "indexer"
                   | "users"
                   | "oidc"
+                  | "email"
+                  | "tolino"
                   | "proxy-auth",
               },
             })
@@ -687,6 +695,12 @@ function SettingsComponent() {
             <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
               Email
             </Tabs.Tab>
+            {/* Tolino tab for users with canConfigureTolino permission */}
+            {canConfigureTolino && (
+              <Tabs.Tab value="tolino" leftSection={<IconCloud size={16} />}>
+                Tolino
+              </Tabs.Tab>
+            )}
             {isAdmin && (
               <>
                 <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
@@ -1841,6 +1855,25 @@ function SettingsComponent() {
               </Paper>
             </Stack>
           </Tabs.Panel>
+
+          {/* Tolino Tab */}
+          {canConfigureTolino && (
+            <Tabs.Panel value="tolino" pt="md">
+              <Suspense
+                fallback={
+                  <Center p="xl">
+                    <Loader size="lg" />
+                  </Center>
+                }
+              >
+                <TolinoSettings
+                  keepInDownloads={
+                    settings?.postDownloadKeepInDownloads ?? false
+                  }
+                />
+              </Suspense>
+            </Tabs.Panel>
+          )}
 
           {isAdmin && (
             <>

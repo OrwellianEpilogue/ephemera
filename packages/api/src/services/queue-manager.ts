@@ -12,6 +12,8 @@ import { bookService } from "./book-service.js";
 import { indexerSettingsService } from "./indexer-settings.js";
 import { emailSettingsService } from "./email-settings.js";
 import { emailService } from "./email.js";
+import { tolinoSettingsService } from "./tolino-settings.js";
+import { tolinoUploadService } from "./tolino/uploader.js";
 import type {
   QueueResponse,
   QueueItem,
@@ -567,6 +569,33 @@ export class QueueManager extends EventEmitter {
           "[Auto-Email] Error checking auto-send recipients:",
           emailError,
         );
+      }
+
+      // Auto-upload to Tolino Cloud if user has auto-upload enabled
+      try {
+        if (download.userId) {
+          const tolinoSettings = await tolinoSettingsService.getSettings(
+            download.userId,
+          );
+          if (tolinoSettings?.autoUpload) {
+            logger.info(`[Auto-Tolino] Uploading "${title}" to Tolino Cloud`);
+            const uploadResult = await tolinoUploadService.uploadBook(
+              download.userId,
+              md5,
+            );
+            if (uploadResult.success) {
+              logger.success(
+                `[Auto-Tolino] Uploaded "${title}" to Tolino Cloud`,
+              );
+            } else {
+              logger.error(
+                `[Auto-Tolino] Failed to upload "${title}": ${uploadResult.message}`,
+              );
+            }
+          }
+        }
+      } catch (tolinoError) {
+        logger.error("[Auto-Tolino] Error during auto-upload:", tolinoError);
       }
     } catch (error: unknown) {
       const errorMsg = getErrorMessage(error);

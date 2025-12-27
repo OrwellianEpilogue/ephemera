@@ -52,7 +52,7 @@ export async function requireAuth() {
         to: "/login",
         search: {
           // Preserve the redirect path for after login
-          /* eslint-disable-next-line no-undef */
+
           redirect: window.location.pathname,
         },
       });
