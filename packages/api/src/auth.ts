@@ -11,6 +11,7 @@ import { db } from "./db/index.js";
 import { ssoProvider, user, account } from "./db/schema.js";
 import { booklorePlugin } from "./auth/plugins/booklore-plugin.js";
 import { calibrePlugin } from "./auth/plugins/calibre-plugin.js";
+import { proxyAuthPlugin } from "./auth/plugins/proxy-auth-plugin.js";
 
 // Get or generate persistent auth secret
 // Priority: BETTER_AUTH_SECRET env var > persisted secret file > generate new
@@ -295,6 +296,9 @@ export const auth = betterAuth({
     // Custom credential plugins
     booklorePlugin,
     calibrePlugin,
+
+    // Proxy authentication plugin (for reverse proxy header auth)
+    proxyAuthPlugin(),
 
     // SSO plugin for database-stored OIDC providers
     sso({
