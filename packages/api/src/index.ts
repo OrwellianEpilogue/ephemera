@@ -8,6 +8,7 @@ import { logger as honoLogger } from "hono/logger";
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { performance } from "perf_hooks";
 import { initializeDatabase } from "./db/index.js";
 import { logger } from "./utils/logger.js";
 import { auth } from "./auth.js";
@@ -142,6 +143,25 @@ const versionInfo = await versionService.getVersionInfo();
 const app = new OpenAPIHono();
 
 // Middleware
+// Performance timing middleware - logs slow requests (>100ms)
+app.use("*", async (c, next) => {
+  const start = performance.now();
+  await next();
+  const duration = performance.now() - start;
+
+  // Log slow requests (excluding static files and SSE streams)
+  const path = c.req.path;
+  const isStaticOrStream =
+    path.includes("/proxy/image") ||
+    path.includes("/queue/stream") ||
+    path.includes("/requests/stream") ||
+    !path.startsWith(API_BASE_PATH);
+
+  if (duration > 100 && !isStaticOrStream) {
+    logger.warn(`[PERF] ${c.req.method} ${path} - ${duration.toFixed(0)}ms`);
+  }
+});
+
 // Custom logger that skips certain requests to reduce log spam
 app.use("*", async (c, next) => {
   // Skip logging for image proxy and queue requests

@@ -7,6 +7,11 @@ import {
   type User,
 } from "../db/schema.js";
 
+interface UserCacheEntry {
+  user: User | null;
+  expiresAt: number;
+}
+
 /**
  * Proxy Auth Settings Service
  * Manages reverse proxy authentication settings (trusted header auth)
@@ -20,6 +25,10 @@ class ProxyAuthSettingsService {
   private settingsCache: ProxyAuthSettings | null = null;
   private cacheExpiry: number = 0;
   private readonly CACHE_TTL = 60000; // 1 minute cache
+
+  // User lookup cache (keyed by "identifier:value")
+  private userCache = new Map<string, UserCacheEntry>();
+  private readonly USER_CACHE_TTL = 60000; // 1 minute cache
 
   /**
    * Get current proxy auth settings
@@ -149,6 +158,21 @@ class ProxyAuthSettingsService {
   clearCache(): void {
     this.settingsCache = null;
     this.cacheExpiry = 0;
+  }
+
+  /**
+   * Clear user lookup cache
+   */
+  clearUserCache(): void {
+    this.userCache.clear();
+  }
+
+  /**
+   * Invalidate a specific user from cache
+   */
+  invalidateUserCache(identifier: "email" | "username", value: string): void {
+    const cacheKey = `${identifier}:${value.trim().toLowerCase()}`;
+    this.userCache.delete(cacheKey);
   }
 
   /**
@@ -347,6 +371,7 @@ class ProxyAuthSettingsService {
   /**
    * Look up user by header value (email or username)
    * Returns null if user doesn't exist (no auto-provisioning)
+   * Results are cached for 1 minute
    */
   async findUserByHeader(
     headerValue: string,
@@ -355,6 +380,16 @@ class ProxyAuthSettingsService {
     const normalizedValue = headerValue.trim().toLowerCase();
 
     if (!normalizedValue) return null;
+
+    // Check cache first
+    const cacheKey = `${identifier}:${normalizedValue}`;
+    const cached = this.userCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      console.debug(`[PERF] Proxy auth user cache HIT for: ${cacheKey}`);
+      return cached.user;
+    }
+
+    console.debug(`[PERF] Proxy auth user cache MISS for: ${cacheKey}`);
 
     try {
       // Look up by email or name depending on configuration
@@ -369,6 +404,11 @@ class ProxyAuthSettingsService {
         console.warn(
           `[Proxy Auth] User not found: ${identifier}=${headerValue}`,
         );
+        // Cache the null result to avoid repeated DB lookups
+        this.userCache.set(cacheKey, {
+          user: null,
+          expiresAt: Date.now() + this.USER_CACHE_TTL,
+        });
         return null;
       }
 
@@ -377,8 +417,19 @@ class ProxyAuthSettingsService {
       // Check if user is banned
       if (foundUser.banned) {
         console.warn(`[Proxy Auth] User is banned: ${foundUser.email}`);
+        // Cache as null since banned users can't auth
+        this.userCache.set(cacheKey, {
+          user: null,
+          expiresAt: Date.now() + this.USER_CACHE_TTL,
+        });
         return null;
       }
+
+      // Cache the found user
+      this.userCache.set(cacheKey, {
+        user: foundUser,
+        expiresAt: Date.now() + this.USER_CACHE_TTL,
+      });
 
       return foundUser;
     } catch (error) {

@@ -16,11 +16,13 @@ import type {
 import { notifications } from "@mantine/notifications";
 
 // Fetch app settings
+// Settings rarely change, so use a longer stale time
 export const useAppSettings = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["appSettings"],
     queryFn: () => apiFetch<AppSettings>("/settings"),
     enabled: options?.enabled ?? true,
+    staleTime: 5 * 60 * 1000, // 5 minutes - settings rarely change
   });
 };
 
@@ -61,6 +63,7 @@ export const useBookloreSettings = (options?: { enabled?: boolean }) => {
     queryFn: () =>
       apiFetch<BookloreSettingsResponse | null>("/booklore/settings"),
     enabled: options?.enabled ?? true,
+    staleTime: 5 * 60 * 1000, // 5 minutes - settings rarely change
   });
 };
 
@@ -146,6 +149,7 @@ export const useAppriseSettings = (options?: { enabled?: boolean }) => {
     queryKey: ["appriseSettings"],
     queryFn: () => apiFetch<AppriseSettings>("/apprise/settings"),
     enabled: options?.enabled ?? true,
+    staleTime: 5 * 60 * 1000, // 5 minutes - settings rarely change
   });
 };
 
@@ -218,6 +222,7 @@ export const useSystemConfig = (options?: { enabled?: boolean }) => {
     queryKey: ["systemConfig"],
     queryFn: () => apiFetch<SystemConfig>("/system-config"),
     enabled: options?.enabled ?? true,
+    staleTime: 5 * 60 * 1000, // 5 minutes - settings rarely change
   });
 };
 

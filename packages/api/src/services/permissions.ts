@@ -7,16 +7,51 @@ import {
 } from "../db/schema.js";
 import { logger } from "../utils/logger.js";
 
+interface CacheEntry {
+  permissions: UserPermissions;
+  expiresAt: number;
+}
+
 /**
  * Permissions Service
  * Manages user permissions and access control
+ * Includes in-memory caching to reduce DB queries
  */
 class PermissionsService {
+  // In-memory cache with TTL (1 minute)
+  private cache = new Map<string, CacheEntry>();
+  private readonly CACHE_TTL = 60 * 1000; // 1 minute
+
   /**
-   * Get permissions for a user
+   * Invalidate cache for a specific user
+   */
+  invalidateCache(userId: string): void {
+    this.cache.delete(userId);
+    logger.debug(`[PERF] Permission cache invalidated for user: ${userId}`);
+  }
+
+  /**
+   * Clear entire permission cache
+   */
+  clearCache(): void {
+    this.cache.clear();
+    logger.debug(`[PERF] Permission cache cleared`);
+  }
+
+  /**
+   * Get permissions for a user (with caching)
    * Creates default permissions if they don't exist
    */
   async getPermissions(userId: string): Promise<UserPermissions> {
+    // Check cache first
+    const cached = this.cache.get(userId);
+    if (cached && cached.expiresAt > Date.now()) {
+      logger.debug(`[PERF] Permission cache HIT for user: ${userId}`);
+      return cached.permissions;
+    }
+
+    logger.debug(`[PERF] Permission cache MISS for user: ${userId}`);
+
     try {
       const result = await db
         .select()
@@ -25,6 +60,11 @@ class PermissionsService {
         .limit(1);
 
       if (result.length > 0) {
+        // Cache the result
+        this.cache.set(userId, {
+          permissions: result[0],
+          expiresAt: Date.now() + this.CACHE_TTL,
+        });
         return result[0];
       }
 
@@ -48,6 +88,13 @@ class PermissionsService {
         .returning();
 
       logger.info(`Created default permissions for user: ${userId}`);
+
+      // Cache the newly created permissions
+      this.cache.set(userId, {
+        permissions: created[0],
+        expiresAt: Date.now() + this.CACHE_TTL,
+      });
+
       return created[0];
     } catch (error) {
       logger.error(`Failed to get permissions for user ${userId}:`, error);
@@ -71,6 +118,9 @@ class PermissionsService {
         .set(updates)
         .where(eq(userPermissions.userId, userId))
         .returning();
+
+      // Invalidate cache after update
+      this.invalidateCache(userId);
 
       logger.info(`Updated permissions for user: ${userId}`);
       return result[0];
@@ -163,6 +213,9 @@ class PermissionsService {
         .delete(userPermissions)
         .where(eq(userPermissions.userId, userId))
         .returning();
+
+      // Invalidate cache after delete
+      this.invalidateCache(userId);
 
       if (result.length > 0) {
         logger.info(`Deleted permissions for user: ${userId}`);

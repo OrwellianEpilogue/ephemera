@@ -249,83 +249,91 @@ export const calibreConfig = sqliteTable("calibre_config", {
   baseUrl: text("base_url"),
 });
 
-export const downloads = sqliteTable("downloads", {
-  md5: text("md5").primaryKey(),
-  title: text("title").notNull(),
-  filename: text("filename"),
-  author: text("author"),
-  publisher: text("publisher"),
-  language: text("language"),
-  format: text("format"),
-  year: integer("year"),
+export const downloads = sqliteTable(
+  "downloads",
+  {
+    md5: text("md5").primaryKey(),
+    title: text("title").notNull(),
+    filename: text("filename"),
+    author: text("author"),
+    publisher: text("publisher"),
+    language: text("language"),
+    format: text("format"),
+    year: integer("year"),
 
-  // User ownership (nullable for migration from pre-auth versions)
-  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    // User ownership (nullable for migration from pre-auth versions)
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
 
-  // Download source tracking
-  downloadSource: text("download_source", {
-    enum: ["web", "indexer", "api"],
-  })
-    .notNull()
-    .default("web"),
+    // Download source tracking
+    downloadSource: text("download_source", {
+      enum: ["web", "indexer", "api"],
+    })
+      .notNull()
+      .default("web"),
 
-  // Status tracking
-  status: text("status", {
-    enum: [
-      "queued",
-      "downloading",
-      "done",
-      "available",
-      "error",
-      "cancelled",
-      "delayed",
-    ],
-  }).notNull(),
+    // Status tracking
+    status: text("status", {
+      enum: [
+        "queued",
+        "downloading",
+        "done",
+        "available",
+        "error",
+        "cancelled",
+        "delayed",
+      ],
+    }).notNull(),
 
-  // Download metadata
-  size: integer("size"), // bytes
-  downloadedBytes: integer("downloaded_bytes").default(0),
-  progress: real("progress").default(0), // 0-100
-  speed: text("speed"), // e.g., "2.5 MB/s"
-  eta: integer("eta"), // seconds remaining
+    // Download metadata
+    size: integer("size"), // bytes
+    downloadedBytes: integer("downloaded_bytes").default(0),
+    progress: real("progress").default(0), // 0-100
+    speed: text("speed"), // e.g., "2.5 MB/s"
+    eta: integer("eta"), // seconds remaining
 
-  // Slow download countdown
-  countdownSeconds: integer("countdown_seconds"), // detected countdown duration
-  countdownStartedAt: integer("countdown_started_at"), // milliseconds timestamp when countdown began
+    // Slow download countdown
+    countdownSeconds: integer("countdown_seconds"), // detected countdown duration
+    countdownStartedAt: integer("countdown_started_at"), // milliseconds timestamp when countdown began
 
-  // File paths
-  tempPath: text("temp_path"),
-  finalPath: text("final_path"),
+    // File paths
+    tempPath: text("temp_path"),
+    finalPath: text("final_path"),
 
-  // Error tracking
-  error: text("error"),
-  retryCount: integer("retry_count").default(0),
+    // Error tracking
+    error: text("error"),
+    retryCount: integer("retry_count").default(0),
 
-  // Delayed retry tracking (for quota exhaustion)
-  delayedRetryCount: integer("delayed_retry_count").default(0),
-  nextRetryAt: integer("next_retry_at"), // milliseconds timestamp for next retry attempt
+    // Delayed retry tracking (for quota exhaustion)
+    delayedRetryCount: integer("delayed_retry_count").default(0),
+    nextRetryAt: integer("next_retry_at"), // milliseconds timestamp for next retry attempt
 
-  // AA quota tracking
-  downloadsLeft: integer("downloads_left"),
-  downloadsPerDay: integer("downloads_per_day"),
-  quotaCheckedAt: integer("quota_checked_at"), // milliseconds timestamp
+    // AA quota tracking
+    downloadsLeft: integer("downloads_left"),
+    downloadsPerDay: integer("downloads_per_day"),
+    quotaCheckedAt: integer("quota_checked_at"), // milliseconds timestamp
 
-  // Timestamps (stored as milliseconds)
-  queuedAt: integer("queued_at").notNull(),
-  startedAt: integer("started_at"),
-  completedAt: integer("completed_at"),
+    // Timestamps (stored as milliseconds)
+    queuedAt: integer("queued_at").notNull(),
+    startedAt: integer("started_at"),
+    completedAt: integer("completed_at"),
 
-  // AA specific
-  pathIndex: integer("path_index"),
-  domainIndex: integer("domain_index"),
+    // AA specific
+    pathIndex: integer("path_index"),
+    domainIndex: integer("domain_index"),
 
-  // Optional Booklore upload tracking (only populated if Booklore enabled)
-  uploadStatus: text("upload_status", {
-    enum: ["pending", "uploading", "completed", "failed"],
+    // Optional Booklore upload tracking (only populated if Booklore enabled)
+    uploadStatus: text("upload_status", {
+      enum: ["pending", "uploading", "completed", "failed"],
+    }),
+    uploadedAt: integer("uploaded_at"),
+    uploadError: text("upload_error"),
+  },
+  (table) => ({
+    // Performance indexes for common queries
+    downloads_userId_idx: index("downloads_userId_idx").on(table.userId),
+    downloads_status_idx: index("downloads_status_idx").on(table.status),
   }),
-  uploadedAt: integer("uploaded_at"),
-  uploadError: text("upload_error"),
-});
+);
 
 export const bookloreSettings = sqliteTable("booklore_settings", {
   id: integer("id").primaryKey().default(1),
@@ -449,43 +457,57 @@ export const books = sqliteTable("books", {
   lastSeenAt: integer("last_seen_at").notNull(),
 });
 
-export const downloadRequests = sqliteTable("download_requests", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const downloadRequests = sqliteTable(
+  "download_requests",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
 
-  // User ownership (nullable for migration from pre-auth versions)
-  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    // User ownership (nullable for migration from pre-auth versions)
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
 
-  // Search parameters (stores the full search query)
-  queryParams: text("query_params", { mode: "json" })
-    .notNull()
-    .$type<RequestQueryParams>(),
+    // Search parameters (stores the full search query)
+    queryParams: text("query_params", { mode: "json" })
+      .notNull()
+      .$type<RequestQueryParams>(),
 
-  // Status tracking
-  status: text("status", {
-    enum: ["pending_approval", "active", "fulfilled", "cancelled", "rejected"],
-  })
-    .notNull()
-    .default("active"),
+    // Status tracking
+    status: text("status", {
+      enum: [
+        "pending_approval",
+        "active",
+        "fulfilled",
+        "cancelled",
+        "rejected",
+      ],
+    })
+      .notNull()
+      .default("active"),
 
-  // Timestamps (stored as milliseconds)
-  createdAt: integer("created_at").notNull(),
-  lastCheckedAt: integer("last_checked_at"),
-  fulfilledAt: integer("fulfilled_at"),
+    // Timestamps (stored as milliseconds)
+    createdAt: integer("created_at").notNull(),
+    lastCheckedAt: integer("last_checked_at"),
+    fulfilledAt: integer("fulfilled_at"),
 
-  // Reference to fulfilled book (if found)
-  fulfilledBookMd5: text("fulfilled_book_md5"),
+    // Reference to fulfilled book (if found)
+    fulfilledBookMd5: text("fulfilled_book_md5"),
 
-  // Target book MD5 (if user requested a specific book from search results)
-  targetBookMd5: text("target_book_md5"),
+    // Target book MD5 (if user requested a specific book from search results)
+    targetBookMd5: text("target_book_md5"),
 
-  // Approval tracking
-  approverId: text("approver_id").references(() => user.id, {
-    onDelete: "set null",
+    // Approval tracking
+    approverId: text("approver_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    approvedAt: integer("approved_at"),
+    rejectedAt: integer("rejected_at"),
+    rejectionReason: text("rejection_reason"),
+  },
+  (table) => ({
+    // Performance indexes for common queries
+    requests_userId_idx: index("requests_userId_idx").on(table.userId),
+    requests_status_idx: index("requests_status_idx").on(table.status),
   }),
-  approvedAt: integer("approved_at"),
-  rejectedAt: integer("rejected_at"),
-  rejectionReason: text("rejection_reason"),
-});
+);
 
 export const appriseSettings = sqliteTable("apprise_settings", {
   id: integer("id").primaryKey().default(1),
