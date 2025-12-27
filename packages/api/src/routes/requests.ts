@@ -8,11 +8,12 @@ import {
 } from "../services/requests-manager.js";
 import {
   errorResponseSchema,
-  requestQueryParamsSchema,
+  createRequestInputSchema,
   savedRequestWithBookSchema,
 } from "@ephemera/shared";
 import { logger, getErrorMessage } from "../utils/logger.js";
 import { permissionsService } from "../services/permissions.js";
+import { appriseService } from "../services/apprise.js";
 
 const app = new OpenAPIHono();
 
@@ -22,12 +23,13 @@ const createRequestRoute = createRoute({
   path: "/requests",
   tags: ["Requests"],
   summary: "Create a new download request",
-  description: "Save a book search to be checked periodically for new results",
+  description:
+    "Save a book search to be checked periodically for new results. If targetBookMd5 is provided, that specific book will be downloaded when approved (skips search).",
   request: {
     body: {
       content: {
         "application/json": {
-          schema: requestQueryParamsSchema,
+          schema: createRequestInputSchema,
         },
       },
     },
@@ -73,13 +75,35 @@ app.openapi(createRequestRoute, async (c) => {
   try {
     const user = c.get("user"); // Set by requireAuth middleware
 
-    const queryParams = await c.req.json();
+    const body = await c.req.json();
+    const { targetBookMd5, ...queryParams } = body;
+
+    // Check if user has permission to start downloads directly
+    const isAdmin = user.role === "admin";
+    const canStartDownloads =
+      isAdmin ||
+      (await permissionsService.canPerform(user.id, "canStartDownloads"));
 
     logger.info(
-      `Creating download request for query: ${queryParams.q} by user ${user.id}`,
+      `Creating download request for query: ${queryParams.q} by user ${user.id} (canStartDownloads: ${canStartDownloads})${targetBookMd5 ? `, targetMd5: ${targetBookMd5}` : ""}`,
     );
 
-    const request = await requestsManager.createRequest(queryParams, user.id);
+    const request = await requestsManager.createRequest(
+      queryParams,
+      user.id,
+      canStartDownloads,
+      targetBookMd5,
+    );
+
+    // If request needs approval, send notification to managers
+    if (!canStartDownloads) {
+      await appriseService.send("request_pending_approval", {
+        requesterName: user.name || user.email,
+        query: queryParams.q,
+        title: queryParams.title,
+        author: queryParams.author,
+      });
+    }
 
     return c.json(request, 200);
   } catch (error: unknown) {
@@ -120,7 +144,13 @@ const listRequestsRoute = createRoute({
   request: {
     query: z.object({
       status: z
-        .enum(["active", "fulfilled", "cancelled"])
+        .enum([
+          "pending_approval",
+          "active",
+          "fulfilled",
+          "cancelled",
+          "rejected",
+        ])
         .optional()
         .describe("Filter by status"),
     }),
@@ -152,7 +182,13 @@ app.openapi(listRequestsRoute, async (c) => {
     logger.info(`Listing requests${status ? ` (status: ${status})` : ""}`);
 
     const requests = await downloadRequestsService.getAllRequests(
-      status as "active" | "fulfilled" | "cancelled" | undefined,
+      status as
+        | "pending_approval"
+        | "active"
+        | "fulfilled"
+        | "cancelled"
+        | "rejected"
+        | undefined,
     );
 
     return c.json(requests, 200);
@@ -287,9 +323,13 @@ const getStatsRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
+            pending_approval: z
+              .number()
+              .describe("Number of requests pending approval"),
             active: z.number().describe("Number of active requests"),
             fulfilled: z.number().describe("Number of fulfilled requests"),
             cancelled: z.number().describe("Number of cancelled requests"),
+            rejected: z.number().describe("Number of rejected requests"),
             total: z.number().describe("Total number of requests"),
           }),
         },
@@ -426,6 +466,288 @@ app.openapi(deleteRequestRoute, async (c) => {
     return c.json(
       {
         error: "Failed to delete request",
+        details: getErrorMessage(error),
+      },
+      500,
+    );
+  }
+});
+
+// Approve request route
+const approveRequestRoute = createRoute({
+  method: "post",
+  path: "/requests/{id}/approve",
+  tags: ["Requests"],
+  summary: "Approve a pending request",
+  description:
+    "Approve a request that is pending approval. Requires canManageRequests permission.",
+  request: {
+    params: z.object({
+      id: z.string().transform(Number).describe("Request ID"),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Request approved",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: "Request not pending approval",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    403: {
+      description: "Forbidden - lacks canManageRequests permission",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Request not found",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(approveRequestRoute, async (c) => {
+  try {
+    const { id } = c.req.valid("param");
+    const user = c.get("user");
+
+    // Check permission
+    const isAdmin = user.role === "admin";
+    const hasPermission =
+      isAdmin ||
+      (await permissionsService.canPerform(user.id, "canManageRequests"));
+
+    if (!hasPermission) {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "You do not have permission to approve requests",
+        },
+        403,
+      );
+    }
+
+    // Get the request
+    const request = await downloadRequestsService.getRequestById(id);
+
+    if (!request) {
+      return c.json(
+        {
+          error: "Request not found",
+          details: `No request found with ID: ${id}`,
+        },
+        404,
+      );
+    }
+
+    if (request.status !== "pending_approval") {
+      return c.json(
+        {
+          error: "Invalid status",
+          details: "Only pending_approval requests can be approved",
+        },
+        400,
+      );
+    }
+
+    logger.info(`Approving request: ${id} by user ${user.id}`);
+
+    await requestsManager.approveRequest(id, user.id);
+
+    // Notify the requester
+    await appriseService.send("request_approved", {
+      query: request.queryParams.q,
+      title: request.queryParams.title,
+      author: request.queryParams.author,
+    });
+
+    return c.json(
+      {
+        success: true,
+        message: "Request approved successfully",
+      },
+      200,
+    );
+  } catch (error: unknown) {
+    logger.error("Approve request error:", error);
+
+    return c.json(
+      {
+        error: "Failed to approve request",
+        details: getErrorMessage(error),
+      },
+      500,
+    );
+  }
+});
+
+// Reject request route
+const rejectRequestRoute = createRoute({
+  method: "post",
+  path: "/requests/{id}/reject",
+  tags: ["Requests"],
+  summary: "Reject a pending request",
+  description:
+    "Reject a request that is pending approval. Requires canManageRequests permission.",
+  request: {
+    params: z.object({
+      id: z.string().transform(Number).describe("Request ID"),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            reason: z.string().optional().describe("Reason for rejection"),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Request rejected",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: "Request not pending approval",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    403: {
+      description: "Forbidden - lacks canManageRequests permission",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Request not found",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(rejectRequestRoute, async (c) => {
+  try {
+    const { id } = c.req.valid("param");
+    const user = c.get("user");
+    const body = await c.req.json().catch(() => ({}));
+    const reason = body.reason as string | undefined;
+
+    // Check permission
+    const isAdmin = user.role === "admin";
+    const hasPermission =
+      isAdmin ||
+      (await permissionsService.canPerform(user.id, "canManageRequests"));
+
+    if (!hasPermission) {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "You do not have permission to reject requests",
+        },
+        403,
+      );
+    }
+
+    // Get the request
+    const request = await downloadRequestsService.getRequestById(id);
+
+    if (!request) {
+      return c.json(
+        {
+          error: "Request not found",
+          details: `No request found with ID: ${id}`,
+        },
+        404,
+      );
+    }
+
+    if (request.status !== "pending_approval") {
+      return c.json(
+        {
+          error: "Invalid status",
+          details: "Only pending_approval requests can be rejected",
+        },
+        400,
+      );
+    }
+
+    logger.info(`Rejecting request: ${id} by user ${user.id}`);
+
+    await requestsManager.rejectRequest(id, user.id, reason);
+
+    // Notify the requester
+    await appriseService.send("request_rejected", {
+      query: request.queryParams.q,
+      title: request.queryParams.title,
+      author: request.queryParams.author,
+      reason,
+    });
+
+    return c.json(
+      {
+        success: true,
+        message: "Request rejected successfully",
+      },
+      200,
+    );
+  } catch (error: unknown) {
+    logger.error("Reject request error:", error);
+
+    return c.json(
+      {
+        error: "Failed to reject request",
         details: getErrorMessage(error),
       },
       500,

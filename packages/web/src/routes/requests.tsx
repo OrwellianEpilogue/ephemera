@@ -14,6 +14,9 @@ import {
   ActionIcon,
   Tooltip,
   Anchor,
+  Button,
+  Modal,
+  Textarea,
 } from "@mantine/core";
 import {
   IconBookmark,
@@ -21,13 +24,18 @@ import {
   IconCheck,
   IconTrash,
   IconRefresh,
+  IconX,
+  IconHourglass,
 } from "@tabler/icons-react";
 import { useState } from "react";
+import { useDisclosure } from "@mantine/hooks";
 import { formatDistanceToNow } from "date-fns";
 import {
   useRequests,
   useRequestStats,
   useDeleteRequest,
+  useApproveRequest,
+  useRejectRequest,
 } from "../hooks/useRequests";
 import { useAppSettings } from "../hooks/useSettings";
 import { useAuth, usePermissions } from "../hooks/useAuth";
@@ -52,13 +60,33 @@ function formatCheckInterval(interval: string): string {
 // Request card component
 function RequestCard({ request }: { request: SavedRequestWithBook }) {
   const deleteRequest = useDeleteRequest();
+  const approveRequest = useApproveRequest();
+  const rejectRequest = useRejectRequest();
   const { isAdmin } = useAuth();
   const { data: permissions } = usePermissions();
+  const [
+    rejectModalOpened,
+    { open: openRejectModal, close: closeRejectModal },
+  ] = useDisclosure(false);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const handleDelete = () => {
     if (confirm("Are you sure you want to delete this request?")) {
       deleteRequest.mutate(request.id);
     }
+  };
+
+  const handleApprove = () => {
+    approveRequest.mutate(request.id);
+  };
+
+  const handleReject = () => {
+    rejectRequest.mutate({
+      id: request.id,
+      reason: rejectionReason || undefined,
+    });
+    setRejectionReason("");
+    closeRejectModal();
   };
 
   // Parse query params for display
@@ -100,10 +128,21 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
 
   const statusColor =
     {
+      pending_approval: "orange",
       active: "blue",
       fulfilled: "green",
       cancelled: "gray",
+      rejected: "red",
     }[request.status as string] || "gray";
+
+  const statusLabel =
+    {
+      pending_approval: "pending approval",
+      active: "active",
+      fulfilled: "fulfilled",
+      cancelled: "cancelled",
+      rejected: "rejected",
+    }[request.status as string] || request.status;
 
   // Check if user has permission to manage requests
   const hasManagePermission = isAdmin || permissions?.canManageRequests;
@@ -132,7 +171,7 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
           </Group>
           <Group gap="xs">
             <Badge color={statusColor} size="sm">
-              {request.status}
+              {statusLabel}
             </Badge>
             {hasManagePermission && (
               <Tooltip label="Delete request">
@@ -242,7 +281,91 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
             </Stack>
           </Card>
         )}
+
+        {/* Show rejection reason for rejected requests */}
+        {request.status === "rejected" && (
+          <Card withBorder bg="var(--mantine-color-red-light)">
+            <Stack gap={4}>
+              <Text size="sm" fw={500} c="red">
+                Request rejected
+              </Text>
+              {request.rejectionReason && (
+                <Text size="xs">Reason: {request.rejectionReason}</Text>
+              )}
+              {request.approverName && (
+                <Text size="xs" c="dimmed">
+                  Rejected by {request.approverName}
+                  {request.rejectedAt &&
+                    ` ${formatDistanceToNow(new Date(request.rejectedAt), { addSuffix: true })}`}
+                </Text>
+              )}
+            </Stack>
+          </Card>
+        )}
+
+        {/* Show approver info for approved requests */}
+        {request.status === "active" && request.approverName && (
+          <Text size="xs" c="dimmed">
+            Approved by {request.approverName}
+            {request.approvedAt &&
+              ` ${formatDistanceToNow(new Date(request.approvedAt), { addSuffix: true })}`}
+          </Text>
+        )}
+
+        {/* Approve/Reject buttons for pending requests */}
+        {request.status === "pending_approval" && hasManagePermission && (
+          <Group gap="xs">
+            <Button
+              size="xs"
+              color="green"
+              leftSection={<IconCheck size={14} />}
+              onClick={handleApprove}
+              loading={approveRequest.isPending}
+            >
+              Approve
+            </Button>
+            <Button
+              size="xs"
+              color="red"
+              variant="light"
+              leftSection={<IconX size={14} />}
+              onClick={openRejectModal}
+            >
+              Reject
+            </Button>
+          </Group>
+        )}
       </Stack>
+
+      {/* Rejection modal */}
+      <Modal
+        opened={rejectModalOpened}
+        onClose={closeRejectModal}
+        title="Reject Request"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">Are you sure you want to reject this request?</Text>
+          <Textarea
+            label="Reason (optional)"
+            placeholder="Enter a reason for rejection..."
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.currentTarget.value)}
+          />
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={closeRejectModal}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleReject}
+              loading={rejectRequest.isPending}
+            >
+              Reject
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Card>
   );
 }
@@ -250,12 +373,20 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
 // Main Requests page
 function RequestsPage() {
   const [activeTab, setActiveTab] = useState<string>("all");
+  const { isAdmin } = useAuth();
+  const { data: permissions } = usePermissions();
+  const canManageRequests = isAdmin || permissions?.canManageRequests;
 
   // Fetch requests based on active tab
   const statusFilter =
     activeTab === "all"
       ? undefined
-      : (activeTab as "active" | "fulfilled" | "cancelled");
+      : (activeTab as
+          | "pending_approval"
+          | "active"
+          | "fulfilled"
+          | "cancelled"
+          | "rejected");
   const { data: requests, isLoading, isError } = useRequests(statusFilter);
   const { data: stats } = useRequestStats();
   const { data: settings } = useAppSettings();
@@ -282,9 +413,11 @@ function RequestsPage() {
 
   const tabColors: Record<string, string> = {
     all: "grape",
+    pending_approval: "orange",
     active: "blue",
     fulfilled: "green",
     cancelled: "gray",
+    rejected: "red",
   };
 
   return (
@@ -294,6 +427,11 @@ function RequestsPage() {
           <Title order={1}>Book Requests</Title>
           {stats && (
             <Group gap="xs">
+              {canManageRequests && stats.pending_approval > 0 && (
+                <Badge color="orange" variant="light">
+                  {stats.pending_approval} pending
+                </Badge>
+              )}
               <Badge color="blue" variant="light">
                 {stats.active} active
               </Badge>
@@ -370,6 +508,42 @@ function RequestsPage() {
             >
               Fulfilled
             </Tabs.Tab>
+            {canManageRequests && (
+              <Tabs.Tab
+                value="pending_approval"
+                leftSection={<IconHourglass size={16} />}
+                rightSection={
+                  stats?.pending_approval ? (
+                    <Badge
+                      size="sm"
+                      circle={stats.pending_approval < 10}
+                      color={tabColors.pending_approval}
+                    >
+                      {stats.pending_approval}
+                    </Badge>
+                  ) : null
+                }
+              >
+                To Approve
+              </Tabs.Tab>
+            )}
+            <Tabs.Tab
+              value="rejected"
+              leftSection={<IconX size={16} />}
+              rightSection={
+                stats?.rejected ? (
+                  <Badge
+                    size="sm"
+                    circle={stats.rejected < 10}
+                    color={tabColors.rejected}
+                  >
+                    {stats.rejected}
+                  </Badge>
+                ) : null
+              }
+            >
+              Rejected
+            </Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value={activeTab} pt="md">
@@ -387,7 +561,9 @@ function RequestsPage() {
                   <Text size="sm" c="dimmed">
                     {activeTab === "all"
                       ? "Search for a book and save it as a request when no results are found"
-                      : `No ${activeTab} requests`}
+                      : activeTab === "pending_approval"
+                        ? "No requests pending approval"
+                        : `No ${activeTab} requests`}
                   </Text>
                 </Stack>
               </Center>

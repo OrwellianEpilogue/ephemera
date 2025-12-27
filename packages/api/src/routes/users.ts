@@ -28,6 +28,7 @@ const UserWithPermissionsSchema = UserSchema.extend({
       canDeleteDownloads: z.boolean(),
       canConfigureNotifications: z.boolean(),
       canManageRequests: z.boolean(),
+      canStartDownloads: z.boolean(),
       canConfigureApp: z.boolean(),
       canConfigureIntegrations: z.boolean(),
       canConfigureEmail: z.boolean(),
@@ -49,6 +50,7 @@ const CreateUserSchema = z.object({
       canDeleteDownloads: z.boolean().default(false),
       canConfigureNotifications: z.boolean().default(false),
       canManageRequests: z.boolean().default(false),
+      canStartDownloads: z.boolean().default(true),
       canConfigureApp: z.boolean().default(false),
       canConfigureIntegrations: z.boolean().default(false),
       canConfigureEmail: z.boolean().default(false),
@@ -70,6 +72,7 @@ const UpdateUserSchema = z.object({
       canDeleteDownloads: z.boolean().optional(),
       canConfigureNotifications: z.boolean().optional(),
       canManageRequests: z.boolean().optional(),
+      canStartDownloads: z.boolean().optional(),
       canConfigureApp: z.boolean().optional(),
       canConfigureIntegrations: z.boolean().optional(),
       canConfigureEmail: z.boolean().optional(),
@@ -163,6 +166,7 @@ app.openapi(getUsersRoute, async (c) => {
               canConfigureNotifications:
                 u.permissions.canConfigureNotifications,
               canManageRequests: u.permissions.canManageRequests,
+              canStartDownloads: u.permissions.canStartDownloads,
               canConfigureApp: u.permissions.canConfigureApp,
               canConfigureIntegrations: u.permissions.canConfigureIntegrations,
               canConfigureEmail: u.permissions.canConfigureEmail,
@@ -265,6 +269,7 @@ app.openapi(createUserRoute, async (c) => {
       canDeleteDownloads: false,
       canConfigureNotifications: false,
       canManageRequests: false,
+      canStartDownloads: true,
       canConfigureApp: false,
       canConfigureIntegrations: false,
       canConfigureEmail: false,
@@ -277,6 +282,7 @@ app.openapi(createUserRoute, async (c) => {
       canDeleteDownloads: permissionsData.canDeleteDownloads,
       canConfigureNotifications: permissionsData.canConfigureNotifications,
       canManageRequests: permissionsData.canManageRequests,
+      canStartDownloads: permissionsData.canStartDownloads ?? true,
       canConfigureApp: permissionsData.canConfigureApp,
       canConfigureIntegrations: permissionsData.canConfigureIntegrations,
       canConfigureEmail: permissionsData.canConfigureEmail,
@@ -316,6 +322,7 @@ app.openapi(createUserRoute, async (c) => {
               canConfigureNotifications:
                 createdUser.permissions.canConfigureNotifications,
               canManageRequests: createdUser.permissions.canManageRequests,
+              canStartDownloads: createdUser.permissions.canStartDownloads,
               canConfigureApp: createdUser.permissions.canConfigureApp,
               canConfigureIntegrations:
                 createdUser.permissions.canConfigureIntegrations,
@@ -430,6 +437,9 @@ app.openapi(updateUserRoute, async (c) => {
       if (body.permissions.canManageRequests !== undefined)
         permissionsUpdate.canManageRequests =
           body.permissions.canManageRequests;
+      if (body.permissions.canStartDownloads !== undefined)
+        permissionsUpdate.canStartDownloads =
+          body.permissions.canStartDownloads;
       if (body.permissions.canConfigureApp !== undefined)
         permissionsUpdate.canConfigureApp = body.permissions.canConfigureApp;
       if (body.permissions.canConfigureIntegrations !== undefined)
@@ -456,6 +466,7 @@ app.openapi(updateUserRoute, async (c) => {
           canConfigureNotifications:
             permissionsUpdate.canConfigureNotifications || false,
           canManageRequests: permissionsUpdate.canManageRequests || false,
+          canStartDownloads: permissionsUpdate.canStartDownloads ?? true,
           canConfigureApp: permissionsUpdate.canConfigureApp || false,
           canConfigureIntegrations:
             permissionsUpdate.canConfigureIntegrations || false,
@@ -498,6 +509,7 @@ app.openapi(updateUserRoute, async (c) => {
               canConfigureNotifications:
                 updatedUser.permissions.canConfigureNotifications,
               canManageRequests: updatedUser.permissions.canManageRequests,
+              canStartDownloads: updatedUser.permissions.canStartDownloads,
               canConfigureApp: updatedUser.permissions.canConfigureApp,
               canConfigureIntegrations:
                 updatedUser.permissions.canConfigureIntegrations,

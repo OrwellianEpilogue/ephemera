@@ -86,6 +86,7 @@ export const requirePermission = (
     | "canDeleteDownloads"
     | "canConfigureNotifications"
     | "canManageRequests"
+    | "canStartDownloads"
     | "canConfigureApp"
     | "canConfigureIntegrations"
     | "canConfigureEmail"

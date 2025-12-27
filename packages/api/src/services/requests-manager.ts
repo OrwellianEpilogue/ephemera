@@ -36,11 +36,22 @@ export class RequestsManager extends EventEmitter {
 
   /**
    * Create a new download request
+   * @param queryParams - The search parameters for the request
+   * @param userId - The user creating the request
+   * @param canStartDownloads - Whether the user can start downloads directly
+   * @param targetBookMd5 - Optional MD5 of specific book to download when approved
    */
-  async createRequest(queryParams: RequestQueryParams, userId: string) {
+  async createRequest(
+    queryParams: RequestQueryParams,
+    userId: string,
+    canStartDownloads: boolean = true,
+    targetBookMd5?: string,
+  ) {
     const request = await downloadRequestsService.createRequest(
       queryParams,
       userId,
+      canStartDownloads,
+      targetBookMd5,
     );
     await this.emitRequestsUpdate();
     return request;
@@ -49,7 +60,14 @@ export class RequestsManager extends EventEmitter {
   /**
    * Get all requests with optional status filter
    */
-  async getAllRequests(statusFilter?: "active" | "fulfilled" | "cancelled") {
+  async getAllRequests(
+    statusFilter?:
+      | "pending_approval"
+      | "active"
+      | "fulfilled"
+      | "cancelled"
+      | "rejected",
+  ) {
     return downloadRequestsService.getAllRequests(statusFilter);
   }
 
@@ -81,6 +99,22 @@ export class RequestsManager extends EventEmitter {
    */
   async reactivateRequest(id: number) {
     await downloadRequestsService.reactivateRequest(id);
+    await this.emitRequestsUpdate();
+  }
+
+  /**
+   * Approve a pending request
+   */
+  async approveRequest(id: number, approverId: string) {
+    await downloadRequestsService.approveRequest(id, approverId);
+    await this.emitRequestsUpdate();
+  }
+
+  /**
+   * Reject a pending request
+   */
+  async rejectRequest(id: number, approverId: string, reason?: string) {
+    await downloadRequestsService.rejectRequest(id, approverId, reason);
     await this.emitRequestsUpdate();
   }
 

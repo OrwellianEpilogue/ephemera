@@ -31,6 +31,7 @@ import {
 import { useQueue } from "../hooks/useQueue";
 import { useRequests, useRequestStats } from "../hooks/useRequests";
 import { useAppSettings } from "../hooks/useSettings";
+import { useAuth, usePermissions } from "../hooks/useAuth";
 import { VersionFooter } from "../components/VersionFooter";
 import { UserMenu } from "../components/UserMenu";
 
@@ -71,6 +72,14 @@ function RootComponent() {
 
   // Get active requests count for badge
   const activeCount = requestStats?.active || 0;
+
+  // Get pending approval count for managers
+  const pendingApprovalCount = requestStats?.pending_approval || 0;
+
+  // Check if user can manage requests (for pending approval badge)
+  const { isAdmin } = useAuth();
+  const { data: permissions } = usePermissions();
+  const canManageRequests = isAdmin || permissions?.canManageRequests;
 
   // If on auth pages (login/setup), render without app shell
   if (isAuthPage) {
@@ -168,15 +177,30 @@ function RootComponent() {
             label="Requests"
             leftSection={<IconBookmark size={20} />}
             rightSection={
-              activeCount > 0 ? (
-                <Badge
-                  size="sm"
-                  variant="filled"
-                  color="blue"
-                  circle={activeCount < 10}
-                >
-                  {activeCount}
-                </Badge>
+              activeCount > 0 ||
+              (canManageRequests && pendingApprovalCount > 0) ? (
+                <Group gap={4}>
+                  {canManageRequests && pendingApprovalCount > 0 && (
+                    <Badge
+                      size="sm"
+                      variant="filled"
+                      color="orange"
+                      circle={pendingApprovalCount < 10}
+                    >
+                      {pendingApprovalCount}
+                    </Badge>
+                  )}
+                  {activeCount > 0 && (
+                    <Badge
+                      size="sm"
+                      variant="filled"
+                      color="blue"
+                      circle={activeCount < 10}
+                    >
+                      {activeCount}
+                    </Badge>
+                  )}
+                </Group>
               ) : null
             }
             onClick={() => toggle()}

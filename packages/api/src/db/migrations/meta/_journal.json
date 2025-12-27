@@ -120,6 +120,20 @@
       "when": 1766808977319,
       "tag": "0016_proxy_auth_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1766809000000,
+      "tag": "0017_rich_talon",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1766810000000,
+      "tag": "0018_gigantic_firestar",
+      "breakpoints": true
     }
   ]
 }

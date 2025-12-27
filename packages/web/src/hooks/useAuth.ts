@@ -25,6 +25,7 @@ export interface UserPermissions {
   canDeleteDownloads: boolean;
   canConfigureNotifications: boolean;
   canManageRequests: boolean;
+  canStartDownloads: boolean;
   canConfigureApp: boolean;
   canConfigureIntegrations: boolean;
   canConfigureEmail: boolean;
@@ -54,6 +55,7 @@ export function usePermissions() {
           canDeleteDownloads: false,
           canConfigureNotifications: false,
           canManageRequests: false,
+          canStartDownloads: true,
           canConfigureApp: false,
           canConfigureIntegrations: false,
           canConfigureEmail: false,
@@ -70,6 +72,7 @@ export function usePermissions() {
           canDeleteDownloads: true,
           canConfigureNotifications: true,
           canManageRequests: true,
+          canStartDownloads: true,
           canConfigureApp: true,
           canConfigureIntegrations: true,
           canConfigureEmail: true,

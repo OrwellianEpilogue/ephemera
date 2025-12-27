@@ -10,7 +10,10 @@ export type NotificationEvent =
   | "delayed"
   | "update_available"
   | "request_fulfilled"
-  | "book_queued";
+  | "book_queued"
+  | "request_pending_approval"
+  | "request_approved"
+  | "request_rejected";
 
 interface NotificationData {
   title: string;
@@ -78,6 +81,9 @@ class AppriseService {
       notifyOnUpdateAvailable: true,
       notifyOnRequestFulfilled: true,
       notifyOnBookQueued: false,
+      notifyOnRequestPendingApproval: true,
+      notifyOnRequestApproved: true,
+      notifyOnRequestRejected: true,
       updatedAt: Date.now(),
     };
   }
@@ -181,6 +187,9 @@ class AppriseService {
           notifyOnUpdateAvailable: true,
           notifyOnRequestFulfilled: true,
           notifyOnBookQueued: false,
+          notifyOnRequestPendingApproval: true,
+          notifyOnRequestApproved: true,
+          notifyOnRequestRejected: true,
           updatedAt: Date.now(),
         });
       }
@@ -244,6 +253,12 @@ class AppriseService {
         return settings.notifyOnRequestFulfilled;
       case "book_queued":
         return settings.notifyOnBookQueued;
+      case "request_pending_approval":
+        return settings.notifyOnRequestPendingApproval;
+      case "request_approved":
+        return settings.notifyOnRequestApproved;
+      case "request_rejected":
+        return settings.notifyOnRequestRejected;
       default:
         return false;
     }
@@ -370,6 +385,37 @@ class AppriseService {
           body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} added to download queue`,
           type: "info",
         };
+
+      case "request_pending_approval": {
+        const queryDesc =
+          (data.query as string) || (data.title as string) || "unknown query";
+        return {
+          title: "Ephemera: Request Needs Approval",
+          body: `New request from ${(data.requesterName as string) || "a user"}: ${queryDesc}`,
+          type: "info",
+        };
+      }
+
+      case "request_approved": {
+        const queryDesc =
+          (data.query as string) || (data.title as string) || "unknown query";
+        return {
+          title: "Ephemera: Request Approved",
+          body: `Your request for "${queryDesc}" has been approved and will be processed`,
+          type: "success",
+        };
+      }
+
+      case "request_rejected": {
+        const queryDesc =
+          (data.query as string) || (data.title as string) || "unknown query";
+        const reason = data.reason ? `: ${data.reason}` : "";
+        return {
+          title: "Ephemera: Request Rejected",
+          body: `Your request for "${queryDesc}" was rejected${reason}`,
+          type: "warning",
+        };
+      }
 
       default:
         return {
