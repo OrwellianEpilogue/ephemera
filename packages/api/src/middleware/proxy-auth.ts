@@ -96,18 +96,12 @@ export const proxyAuthMiddleware = createMiddleware(
     );
 
     if (!foundUser) {
-      // User doesn't exist or is banned - return 401
-      // Important: Don't leak whether user exists vs auth failed
-      console.warn(
-        `[Proxy Auth] Authentication failed for header value: ${headerValue} (user not found or banned)`,
+      // User not provisioned yet - fall through to normal auth flow
+      // This lets them see the login page and OIDC login to get auto-provisioned
+      console.log(
+        `[Proxy Auth] User not found for header value: ${headerValue}, falling through to normal auth`,
       );
-      return c.json(
-        {
-          error: "Unauthorized",
-          message: "Authentication required",
-        },
-        401,
-      );
+      return next();
     }
 
     // User found - create session using better-auth's plugin endpoint
