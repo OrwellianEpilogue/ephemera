@@ -106,7 +106,7 @@ const queryClient = new QueryClient({
           console.warn(
             "[Query Client] 401 Unauthorized - redirecting to login",
           );
-          /* eslint-disable-next-line no-undef */
+
           window.location.href = "/login";
         }
       },

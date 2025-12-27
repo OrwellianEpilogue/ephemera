@@ -32,6 +32,7 @@ app.get("/permissions", async (c) => {
         canConfigureEmail: true,
         canSeeDownloadOwner: true,
         canManageApiKeys: true,
+        canConfigureTolino: true,
       });
     }
 
@@ -48,6 +49,7 @@ app.get("/permissions", async (c) => {
       canConfigureEmail: permissions.canConfigureEmail,
       canSeeDownloadOwner: permissions.canSeeDownloadOwner,
       canManageApiKeys: permissions.canManageApiKeys,
+      canConfigureTolino: permissions.canConfigureTolino,
     });
   } catch (error) {
     console.error("[Permissions] Error fetching permissions:", error);

@@ -1,11 +1,14 @@
 # Multi-stage Dockerfile for ephemera
 # Simplified single-process architecture: Node.js serves both API and static files
+# Uses Debian slim instead of Alpine for Calibre compatibility (glibc required)
 
 # Stage 1: Dependencies and Build Environment
-FROM node:22-alpine AS build-env
+FROM node:22-slim AS build-env
 
 # Install build dependencies for native modules (better-sqlite3)
-RUN apk add --no-cache python3 make g++ gcc musl-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ gcc && \
+    rm -rf /var/lib/apt/lists/*
 
 # Enable corepack for pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -28,10 +31,12 @@ RUN cd packages/shared && npx tsc --build --force && cd ../.. && \
     cd packages/web && npx tsc && npx vite build
 
 # Stage 2: Production Dependencies
-FROM node:22-alpine AS prod-deps
+FROM node:22-slim AS prod-deps
 
 # Install build dependencies for native modules
-RUN apk add --no-cache python3 make g++ gcc musl-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ gcc && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -55,14 +60,25 @@ RUN SQLITE_PATH=$(find /app/node_modules/.pnpm -type d -path "*/better-sqlite3@*
     fi
 
 # Stage 3: Production Runtime
-FROM node:22-alpine AS runtime
+FROM node:22-slim AS runtime
 
-# Install packages needed for PUID/PGID support
-RUN apk add --no-cache shadow su-exec
+# Install runtime dependencies:
+# - gosu: for PUID/PGID support (replaces su-exec on Alpine)
+# - wget + ca-certificates: for healthcheck and Calibre installer
+# - Calibre dependencies: required libraries for ebook-convert
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu wget ca-certificates xz-utils python3 \
+    libegl1 libopengl0 libxcb-cursor0 libfreetype6 \
+    libfontconfig1 libgl1 libxkbcommon0 libdbus-1-3 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Calibre CLI tools (works on both amd64 and arm64)
+# The official installer auto-detects architecture
+RUN wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin install_dir=/opt
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN groupadd -g 1001 nodejs && \
+    useradd -u 1001 -g nodejs -s /bin/sh nodejs
 
 WORKDIR /app
 
@@ -87,8 +103,11 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 
+# Set Calibre path for ebook-convert
+ENV CALIBRE_PATH=/opt/calibre
+
 # Note: Container starts as root to allow PUID/PGID modification
-# Entrypoint script will drop privileges to nodejs user via su-exec
+# Entrypoint script will drop privileges to nodejs user via gosu
 
 # Expose application port (default 8286)
 EXPOSE 8286

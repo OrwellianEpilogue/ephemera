@@ -80,6 +80,7 @@ class PermissionsService {
         canConfigureEmail: false,
         canSeeDownloadOwner: false,
         canManageApiKeys: false,
+        canConfigureTolino: true,
       };
 
       const created = await db
@@ -185,6 +186,7 @@ class PermissionsService {
       canConfigureEmail: true,
       canSeeDownloadOwner: true,
       canManageApiKeys: true,
+      canConfigureTolino: true,
     };
 
     try {

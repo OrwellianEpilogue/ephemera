@@ -214,6 +214,9 @@ export const userPermissions = sqliteTable("user_permissions", {
   canStartDownloads: integer("can_start_downloads", { mode: "boolean" })
     .notNull()
     .default(true),
+  canConfigureTolino: integer("can_configure_tolino", { mode: "boolean" })
+    .notNull()
+    .default(true),
 });
 
 export const appConfig = sqliteTable("app_config", {
@@ -645,6 +648,39 @@ export const proxyAuthSettings = sqliteTable("proxy_auth_settings", {
     .notNull(),
 });
 
+// Tolino Cloud Settings (per-user e-reader sync)
+export const tolinoSettings = sqliteTable("tolino_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+  resellerId: text("reseller_id", {
+    enum: ["buchhandlung", "hugendubel"],
+  }).notNull(),
+  email: text("email").notNull(),
+  // Password is encrypted with AUTH_SECRET
+  encryptedPassword: text("encrypted_password").notNull(),
+  // OAuth tokens
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: integer("token_expires_at"),
+  // Device identification
+  hardwareId: text("hardware_id"),
+  // User preferences
+  autoUpload: integer("auto_upload", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  // Timestamps
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 // Relations
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
@@ -655,6 +691,17 @@ export const userRelations = relations(user, ({ many, one }) => ({
   permissions: one(userPermissions, {
     fields: [user.id],
     references: [userPermissions.userId],
+  }),
+  tolinoSettings: one(tolinoSettings, {
+    fields: [user.id],
+    references: [tolinoSettings.userId],
+  }),
+}));
+
+export const tolinoSettingsRelations = relations(tolinoSettings, ({ one }) => ({
+  user: one(user, {
+    fields: [tolinoSettings.userId],
+    references: [user.id],
   }),
 }));
 
@@ -756,3 +803,5 @@ export type EmailRecipient = typeof emailRecipients.$inferSelect;
 export type NewEmailRecipient = typeof emailRecipients.$inferInsert;
 export type ProxyAuthSettings = typeof proxyAuthSettings.$inferSelect;
 export type NewProxyAuthSettings = typeof proxyAuthSettings.$inferInsert;
+export type TolinoSettings = typeof tolinoSettings.$inferSelect;
+export type NewTolinoSettings = typeof tolinoSettings.$inferInsert;
