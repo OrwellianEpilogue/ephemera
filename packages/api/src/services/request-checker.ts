@@ -75,9 +75,61 @@ class RequestCheckerService {
         try {
           console.log(`[Request Checker] Checking request #${request.id}...`);
 
+          // Skip requests without userId (legacy data from before auth)
+          if (!request.userId) {
+            console.warn(
+              `[Request Checker] Request #${request.id} has no userId (legacy data). Skipping auto-download. Please re-create this request.`,
+            );
+            continue;
+          }
+
           // Update last checked timestamp
           await downloadRequestsService.updateLastChecked(request.id);
 
+          // If targetBookMd5 is set, queue that book directly without searching
+          if (request.targetBookMd5) {
+            console.log(
+              `[Request Checker] Request #${request.id} has target MD5: ${request.targetBookMd5}. Queueing directly...`,
+            );
+
+            try {
+              // Add to download queue using the request owner's user ID
+              const queueResult = await queueManager.addToQueue(
+                request.targetBookMd5,
+                request.userId,
+              );
+
+              // Mark request as fulfilled (emits event)
+              await requestsManager.markFulfilled(
+                request.id,
+                request.targetBookMd5,
+              );
+
+              console.log(
+                `[Request Checker] Request #${request.id} fulfilled with target book ${request.targetBookMd5} (${queueResult.status})`,
+              );
+
+              // Send Apprise notification
+              await appriseService.send("request_fulfilled", {
+                query: request.queryParams.q,
+                author: request.queryParams.author,
+                title: request.queryParams.title,
+                bookTitle: request.queryParams.title || "Requested Book",
+                bookMd5: request.targetBookMd5,
+              });
+
+              foundCount++;
+            } catch (queueError: unknown) {
+              console.error(
+                `[Request Checker] Error queuing target download for request #${request.id}:`,
+                getErrorMessage(queueError),
+              );
+              errorCount++;
+            }
+            continue;
+          }
+
+          // No target MD5, perform search
           // Prepare search query
           const searchQuery = convertToSearchQuery(request.queryParams);
 
@@ -90,14 +142,6 @@ class RequestCheckerService {
             console.log(
               `[Request Checker] Request #${request.id} found results! Queuing: ${firstBook.title}`,
             );
-
-            // Skip requests without userId (legacy data from before auth)
-            if (!request.userId) {
-              console.warn(
-                `[Request Checker] Request #${request.id} has no userId (legacy data). Skipping auto-download. Please re-create this request.`,
-              );
-              continue;
-            }
 
             try {
               // Add to download queue using the request owner's user ID
@@ -180,9 +224,38 @@ class RequestCheckerService {
         return { found: false, error: "Request is not active" };
       }
 
+      // Skip requests without userId (legacy data from before auth)
+      if (!request.userId) {
+        return {
+          found: false,
+          error:
+            "Request has no userId (legacy data). Please re-create this request.",
+        };
+      }
+
       // Update last checked timestamp
       await downloadRequestsService.updateLastChecked(requestId);
 
+      // If targetBookMd5 is set, queue that book directly without searching
+      if (request.targetBookMd5) {
+        console.log(
+          `[Request Checker] Single check: Request #${requestId} has target MD5: ${request.targetBookMd5}. Queueing directly...`,
+        );
+
+        // Add to download queue using the request owner's user ID
+        await queueManager.addToQueue(request.targetBookMd5, request.userId);
+
+        // Mark request as fulfilled (emits event)
+        await requestsManager.markFulfilled(requestId, request.targetBookMd5);
+
+        console.log(
+          `[Request Checker] Single check: Request #${requestId} fulfilled with target book ${request.targetBookMd5}`,
+        );
+
+        return { found: true, bookMd5: request.targetBookMd5 };
+      }
+
+      // No target MD5, perform search
       // Prepare search query
       const searchQuery = convertToSearchQuery(request.queryParams);
 
@@ -191,15 +264,6 @@ class RequestCheckerService {
 
       if (searchResult.results.length > 0) {
         const firstBook = searchResult.results[0];
-
-        // Skip requests without userId (legacy data from before auth)
-        if (!request.userId) {
-          return {
-            found: false,
-            error:
-              "Request has no userId (legacy data). Please re-create this request.",
-          };
-        }
 
         // Add to download queue using the request owner's user ID
         await queueManager.addToQueue(firstBook.md5, request.userId);

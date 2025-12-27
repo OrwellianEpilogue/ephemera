@@ -40,6 +40,7 @@ interface Permissions {
   canDeleteDownloads: boolean;
   canConfigureNotifications: boolean;
   canManageRequests: boolean;
+  canStartDownloads: boolean;
   canConfigureApp: boolean;
   canConfigureIntegrations: boolean;
   canConfigureEmail: boolean;
@@ -51,6 +52,7 @@ const DEFAULT_PERMISSIONS: Permissions = {
   canDeleteDownloads: false,
   canConfigureNotifications: false,
   canManageRequests: false,
+  canStartDownloads: true,
   canConfigureApp: false,
   canConfigureIntegrations: false,
   canConfigureEmail: false,
@@ -102,6 +104,19 @@ function PermissionsForm({ permissions, onChange }: PermissionsFormProps) {
           handleChange("canManageRequests", e.currentTarget.checked)
         }
       />
+      <Stack gap={4}>
+        <Switch
+          label="Can start downloads without approval"
+          checked={permissions.canStartDownloads}
+          onChange={(e) =>
+            handleChange("canStartDownloads", e.currentTarget.checked)
+          }
+        />
+        <Text size="xs" c="dimmed" ml="xl">
+          When disabled, requests require approval from a user with "Can manage
+          requests" permission
+        </Text>
+      </Stack>
       <Switch
         label="Can configure app settings (General)"
         checked={permissions.canConfigureApp}

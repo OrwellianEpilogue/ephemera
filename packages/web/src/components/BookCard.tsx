@@ -7,16 +7,20 @@ import {
   Group,
   Stack,
   AspectRatio,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconDownload,
   IconCheck,
   IconClock,
   IconAlertCircle,
+  IconBookmark,
 } from "@tabler/icons-react";
 import type { Book } from "@ephemera/shared";
 import { useQueueDownload } from "../hooks/useDownload";
+import { useCreateRequest, usePendingRequestMd5s } from "../hooks/useRequests";
 import { useBookStatus } from "../hooks/useBookStatus";
+import { useAuth, usePermissions } from "../hooks/useAuth";
 import { memo } from "react";
 
 interface BookCardProps {
@@ -137,6 +141,16 @@ const getDownloadStatusBadge = (
 
 export const BookCard = ({ book }: BookCardProps) => {
   const queueDownload = useQueueDownload();
+  const createRequest = useCreateRequest();
+  const { isAdmin } = useAuth();
+  const { data: permissions } = usePermissions();
+  const pendingRequestMd5s = usePendingRequestMd5s();
+
+  // Check if user can start downloads directly
+  const canStartDownloads = isAdmin || permissions?.canStartDownloads !== false;
+
+  // Check if this book is already requested (pending approval or active)
+  const isAlreadyRequested = pendingRequestMd5s.has(book.md5);
 
   // Get live status from queue (reactive to SSE updates)
   const {
@@ -154,6 +168,17 @@ export const BookCard = ({ book }: BookCardProps) => {
     queueDownload.mutate({
       md5: book.md5,
       title: book.title,
+    });
+  };
+
+  const handleRequest = () => {
+    // Create a request with the book's title, author, and MD5 for direct download when approved
+    createRequest.mutate({
+      title: book.title,
+      author: book.authors?.[0],
+      ext: book.format ? [book.format] : undefined,
+      lang: book.language ? [book.language] : undefined,
+      targetBookMd5: book.md5,
     });
   };
 
@@ -234,28 +259,66 @@ export const BookCard = ({ book }: BookCardProps) => {
           )}
         </Group>
 
-        <Button
-          fullWidth
-          mt="auto"
-          leftSection={<IconDownload size={16} />}
-          onClick={handleDownload}
-          loading={queueDownload.isPending}
-          disabled={queueDownload.isPending || isAvailable || isInQueue}
-          variant={isAvailable ? "light" : isError ? "outline" : "filled"}
-          color={isAvailable ? "green" : isError ? "red" : undefined}
-        >
-          {isAvailable
-            ? "Already Downloaded"
-            : isDownloading
-              ? `Downloading ${progress !== undefined ? `${Math.round(progress)}%` : "..."}`
-              : isQueued
-                ? "In Queue"
-                : isDelayed
-                  ? "Delayed"
-                  : isError
-                    ? "Retry Download"
-                    : "Download"}
-        </Button>
+        {canStartDownloads ? (
+          <Button
+            fullWidth
+            mt="auto"
+            leftSection={<IconDownload size={16} />}
+            onClick={handleDownload}
+            loading={queueDownload.isPending}
+            disabled={queueDownload.isPending || isAvailable || isInQueue}
+            variant={isAvailable ? "light" : isError ? "outline" : "filled"}
+            color={isAvailable ? "green" : isError ? "red" : undefined}
+          >
+            {isAvailable
+              ? "Already Downloaded"
+              : isDownloading
+                ? `Downloading ${progress !== undefined ? `${Math.round(progress)}%` : "..."}`
+                : isQueued
+                  ? "In Queue"
+                  : isDelayed
+                    ? "Delayed"
+                    : isError
+                      ? "Retry Download"
+                      : "Download"}
+          </Button>
+        ) : (
+          <Tooltip
+            label={
+              isAlreadyRequested
+                ? "You have already requested this book"
+                : "Your request will be reviewed by an administrator"
+            }
+            multiline
+            w={200}
+          >
+            <Button
+              fullWidth
+              mt="auto"
+              leftSection={<IconBookmark size={16} />}
+              onClick={handleRequest}
+              loading={createRequest.isPending}
+              disabled={
+                createRequest.isPending ||
+                isAvailable ||
+                isInQueue ||
+                isAlreadyRequested
+              }
+              variant={isAvailable || isAlreadyRequested ? "light" : "filled"}
+              color={
+                isAvailable ? "green" : isAlreadyRequested ? "yellow" : "orange"
+              }
+            >
+              {isAvailable
+                ? "Already Downloaded"
+                : isInQueue
+                  ? "In Queue"
+                  : isAlreadyRequested
+                    ? "Already Requested"
+                    : "Request"}
+            </Button>
+          </Tooltip>
+        )}
       </Stack>
     </Card>
   );

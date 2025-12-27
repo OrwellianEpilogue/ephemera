@@ -69,11 +69,25 @@ export const requestQueryParamsSchema = z.object({
 
 export type RequestQueryParams = z.infer<typeof requestQueryParamsSchema>;
 
+// Create request input schema (includes optional target MD5 for direct downloads)
+export const createRequestInputSchema = requestQueryParamsSchema.extend({
+  targetBookMd5: z
+    .string()
+    .optional()
+    .describe(
+      "MD5 of specific book to download when approved (skips search if provided)",
+    ),
+});
+
+export type CreateRequestInput = z.infer<typeof createRequestInputSchema>;
+
 // Saved request status (for periodic checking)
 export const savedRequestStatusSchema = z.enum([
+  "pending_approval",
   "active",
   "fulfilled",
   "cancelled",
+  "rejected",
 ]);
 export type SavedRequestStatus = z.infer<typeof savedRequestStatusSchema>;
 
@@ -86,6 +100,11 @@ export const savedRequestSchema = z.object({
   lastCheckedAt: z.number().nullable().describe("Last check timestamp"),
   fulfilledAt: z.number().nullable().describe("Fulfillment timestamp"),
   fulfilledBookMd5: z.string().nullable().describe("MD5 of fulfilled book"),
+  targetBookMd5: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("MD5 of specific book to download when approved (skips search)"),
 });
 
 export type SavedRequest = z.infer<typeof savedRequestSchema>;
@@ -144,15 +163,31 @@ export const savedRequestWithBookSchema = savedRequestSchema.extend({
     .string()
     .optional()
     .describe("Name of user who created this request"),
+  // Approval tracking
+  approverId: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("ID of user who approved/rejected"),
+  approverName: z.string().optional().describe("Name of approver"),
+  approvedAt: z.number().nullable().optional().describe("Approval timestamp"),
+  rejectedAt: z.number().nullable().optional().describe("Rejection timestamp"),
+  rejectionReason: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Reason for rejection"),
 });
 
 export type SavedRequestWithBook = z.infer<typeof savedRequestWithBookSchema>;
 
 // Request stats schema
 export const requestStatsSchema = z.object({
+  pending_approval: z.number().describe("Number of requests pending approval"),
   active: z.number().describe("Number of active requests"),
   fulfilled: z.number().describe("Number of fulfilled requests"),
   cancelled: z.number().describe("Number of cancelled requests"),
+  rejected: z.number().describe("Number of rejected requests"),
   total: z.number().describe("Total number of requests"),
 });
 

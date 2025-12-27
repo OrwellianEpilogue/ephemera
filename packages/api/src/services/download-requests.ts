@@ -1,8 +1,10 @@
 import { eq, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { db } from "../db/index.js";
 import {
   downloadRequests,
   books,
+  user,
   type DownloadRequest,
   type NewDownloadRequest,
   type Book,
@@ -52,13 +54,20 @@ class DownloadRequestsService {
   /**
    * Create a new download request
    * Checks for duplicate active requests with same query params
+   * @param queryParams - The search parameters for the request
+   * @param userId - The user creating the request
+   * @param canStartDownloads - Whether the user has permission to start downloads
+   *                            If false, request will be created as pending_approval
+   * @param targetBookMd5 - Optional MD5 of specific book to download when approved
    */
   async createRequest(
     queryParams: RequestQueryParams,
     userId: string,
+    canStartDownloads: boolean = true,
+    targetBookMd5?: string,
   ): Promise<DownloadRequest> {
     try {
-      // Check for duplicate active request
+      // Check for duplicate active/pending request
       const existing = await this.findDuplicateActiveRequest(
         queryParams,
         userId,
@@ -70,14 +79,20 @@ class DownloadRequestsService {
       }
 
       const now = Date.now();
+      const initialStatus = canStartDownloads ? "active" : "pending_approval";
       const newRequest: NewDownloadRequest = {
         queryParams,
         userId,
-        status: "active",
+        status: initialStatus,
         createdAt: now,
         lastCheckedAt: null,
         fulfilledAt: null,
         fulfilledBookMd5: null,
+        targetBookMd5: targetBookMd5 || null,
+        approverId: null,
+        approvedAt: null,
+        rejectedAt: null,
+        rejectionReason: null,
       };
 
       const result = await db
@@ -85,7 +100,13 @@ class DownloadRequestsService {
         .values(newRequest)
         .returning();
 
-      console.log("[Download Requests] Created new request:", result[0].id);
+      console.log(
+        "[Download Requests] Created new request:",
+        result[0].id,
+        "status:",
+        initialStatus,
+        targetBookMd5 ? `targetMd5: ${targetBookMd5}` : "",
+      );
       return result[0];
     } catch (error) {
       console.error("[Download Requests] Error creating request:", error);
@@ -95,14 +116,19 @@ class DownloadRequestsService {
 
   /**
    * Get all download requests with optional status filter
-   * Returns requests with fulfilled book info if available
+   * Returns requests with fulfilled book info and approver info if available
    */
   async getAllRequests(
-    statusFilter?: "active" | "fulfilled" | "cancelled",
+    statusFilter?:
+      | "pending_approval"
+      | "active"
+      | "fulfilled"
+      | "cancelled"
+      | "rejected",
     userId?: string,
   ): Promise<DownloadRequestWithBook[]> {
     try {
-      const { user } = await import("../db/schema.js");
+      const approverAlias = alias(user, "approver");
 
       let query = db
         .select({
@@ -112,10 +138,18 @@ class DownloadRequestsService {
             id: user.id,
             name: user.name,
           },
+          approver: {
+            id: approverAlias.id,
+            name: approverAlias.name,
+          },
         })
         .from(downloadRequests)
         .leftJoin(books, eq(downloadRequests.fulfilledBookMd5, books.md5))
         .leftJoin(user, eq(downloadRequests.userId, user.id))
+        .leftJoin(
+          approverAlias,
+          eq(downloadRequests.approverId, approverAlias.id),
+        )
         .orderBy(desc(downloadRequests.createdAt));
 
       // Build where clause
@@ -135,11 +169,16 @@ class DownloadRequestsService {
         results = await query;
       }
 
-      return results.map(({ request, book, user: requestUser }) => ({
+      return results.map(({ request, book, user: requestUser, approver }) => ({
         ...request,
         fulfilledBook: convertDbBookToSharedBook(book),
         userId: request.userId,
         userName: requestUser?.name || undefined,
+        approverId: request.approverId,
+        approverName: approver?.name || undefined,
+        approvedAt: request.approvedAt,
+        rejectedAt: request.rejectedAt,
+        rejectionReason: request.rejectionReason,
       }));
     } catch (error) {
       console.error("[Download Requests] Error fetching requests:", error);
@@ -300,40 +339,107 @@ class DownloadRequestsService {
    * Get count of requests by status
    */
   async getStats(): Promise<{
+    pending_approval: number;
     active: number;
     fulfilled: number;
     cancelled: number;
+    rejected: number;
     total: number;
   }> {
     try {
       const allRequests = await db.select().from(downloadRequests);
 
       const stats = {
+        pending_approval: allRequests.filter(
+          (r) => r.status === "pending_approval",
+        ).length,
         active: allRequests.filter((r) => r.status === "active").length,
         fulfilled: allRequests.filter((r) => r.status === "fulfilled").length,
         cancelled: allRequests.filter((r) => r.status === "cancelled").length,
+        rejected: allRequests.filter((r) => r.status === "rejected").length,
         total: allRequests.length,
       };
 
       return stats;
     } catch (error) {
       console.error("[Download Requests] Error getting stats:", error);
-      return { active: 0, fulfilled: 0, cancelled: 0, total: 0 };
+      return {
+        pending_approval: 0,
+        active: 0,
+        fulfilled: 0,
+        cancelled: 0,
+        rejected: 0,
+        total: 0,
+      };
     }
   }
 
   /**
-   * Check if a duplicate active request exists with the same query params for a user
+   * Approve a pending request
+   * Changes status to "active" so it will be checked by the background checker
+   */
+  async approveRequest(id: number, approverId: string): Promise<void> {
+    try {
+      const now = Date.now();
+      await db
+        .update(downloadRequests)
+        .set({
+          status: "active",
+          approverId,
+          approvedAt: now,
+        })
+        .where(eq(downloadRequests.id, id));
+
+      console.log("[Download Requests] Approved request:", id);
+    } catch (error) {
+      console.error("[Download Requests] Error approving request:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reject a pending request
+   */
+  async rejectRequest(
+    id: number,
+    approverId: string,
+    reason?: string,
+  ): Promise<void> {
+    try {
+      const now = Date.now();
+      await db
+        .update(downloadRequests)
+        .set({
+          status: "rejected",
+          approverId,
+          rejectedAt: now,
+          rejectionReason: reason || null,
+        })
+        .where(eq(downloadRequests.id, id));
+
+      console.log("[Download Requests] Rejected request:", id);
+    } catch (error) {
+      console.error("[Download Requests] Error rejecting request:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a duplicate active or pending request exists with the same query params for a user
    */
   private async findDuplicateActiveRequest(
     queryParams: RequestQueryParams,
     userId: string,
   ): Promise<DownloadRequest | null> {
     try {
+      const { inArray } = await import("drizzle-orm");
+      // Check both active and pending_approval requests
       const activeRequests = await db
         .select()
         .from(downloadRequests)
-        .where(eq(downloadRequests.status, "active"));
+        .where(
+          inArray(downloadRequests.status, ["active", "pending_approval"]),
+        );
 
       // Find matching query params for this user
       const duplicate = activeRequests.find((request) => {

@@ -1,0 +1,1 @@
+ALTER TABLE `download_requests` ADD `target_book_md5` text;

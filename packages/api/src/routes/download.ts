@@ -48,6 +48,14 @@ const downloadRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "User lacks permission to start downloads directly",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
     500: {
       description: "Internal server error",
       content: {
@@ -63,6 +71,23 @@ app.openapi(downloadRoute, async (c) => {
   try {
     const { md5 } = c.req.valid("param");
     const user = c.get("user"); // Set by requireAuth middleware
+
+    // Check if user has permission to start downloads directly
+    const isAdmin = user.role === "admin";
+    const canStartDownloads =
+      isAdmin ||
+      (await permissionsService.canPerform(user.id, "canStartDownloads"));
+
+    if (!canStartDownloads) {
+      return c.json(
+        {
+          error: "Permission denied",
+          details:
+            "You don't have permission to start downloads directly. Please create a request instead, which will be reviewed by an administrator.",
+        },
+        403,
+      );
+    }
 
     logger.info(`Download request for: ${md5} by user ${user.id}`);
 

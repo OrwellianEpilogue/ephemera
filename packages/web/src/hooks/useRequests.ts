@@ -3,8 +3,8 @@ import { useRef, useEffect, useState } from "react";
 import { apiFetch, getErrorMessage } from "@ephemera/shared";
 import type {
   SavedRequestWithBook,
-  RequestQueryParams,
   RequestStats,
+  CreateRequestInput,
 } from "@ephemera/shared";
 import { notifications } from "@mantine/notifications";
 
@@ -19,7 +19,12 @@ interface RequestsUpdate {
 
 // Fetch requests with optional status filter and SSE support
 export const useRequests = (
-  status?: "active" | "fulfilled" | "cancelled",
+  status?:
+    | "pending_approval"
+    | "active"
+    | "fulfilled"
+    | "cancelled"
+    | "rejected",
   options: UseRequestsOptions = {},
 ) => {
   const { enableSSE = false } = options;
@@ -59,6 +64,9 @@ export const useRequests = (
         queryClient.setQueryData(["requests", undefined], data.requests);
 
         // Also update filtered queries
+        const pendingRequests = data.requests.filter(
+          (r) => r.status === "pending_approval",
+        );
         const activeRequests = data.requests.filter(
           (r) => r.status === "active",
         );
@@ -68,10 +76,18 @@ export const useRequests = (
         const cancelledRequests = data.requests.filter(
           (r) => r.status === "cancelled",
         );
+        const rejectedRequests = data.requests.filter(
+          (r) => r.status === "rejected",
+        );
 
+        queryClient.setQueryData(
+          ["requests", "pending_approval"],
+          pendingRequests,
+        );
         queryClient.setQueryData(["requests", "active"], activeRequests);
         queryClient.setQueryData(["requests", "fulfilled"], fulfilledRequests);
         queryClient.setQueryData(["requests", "cancelled"], cancelledRequests);
+        queryClient.setQueryData(["requests", "rejected"], rejectedRequests);
 
         // Update stats cache
         queryClient.setQueryData(["request-stats"], data.stats);
@@ -122,22 +138,24 @@ export const useRequestStats = () => {
   });
 };
 
-// Create a new request
+// Create a new request (with optional targetBookMd5 for direct downloads)
 export const useCreateRequest = () => {
   return useMutation({
-    mutationFn: async (queryParams: RequestQueryParams) => {
-      return apiFetch("/requests", {
+    mutationFn: async (input: CreateRequestInput) => {
+      return apiFetch<SavedRequestWithBook>("/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(queryParams),
+        body: JSON.stringify(input),
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // No need to invalidate queries - SSE will update automatically
+      const needsApproval = data.status === "pending_approval";
       notifications.show({
         title: "Request saved!",
-        message:
-          "Ephemera will automatically search for this book and download it when available",
+        message: needsApproval
+          ? "Your request has been submitted and will be reviewed by an administrator"
+          : "Ephemera will automatically search for this book and download it when available",
         color: "green",
       });
     },
@@ -183,4 +201,104 @@ export const useDeleteRequest = () => {
       });
     },
   });
+};
+
+// Approve a pending request
+export const useApproveRequest = () => {
+  return useMutation({
+    mutationFn: async (id: number) => {
+      return apiFetch(`/requests/${id}/approve`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      // No need to invalidate queries - SSE will update automatically
+      notifications.show({
+        title: "Request approved",
+        message: "The request has been approved and will be processed",
+        color: "green",
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: "Error",
+        message: "Failed to approve request",
+        color: "red",
+      });
+    },
+  });
+};
+
+// Reject a pending request
+export const useRejectRequest = () => {
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason?: string }) => {
+      return apiFetch(`/requests/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+    },
+    onSuccess: () => {
+      // No need to invalidate queries - SSE will update automatically
+      notifications.show({
+        title: "Request rejected",
+        message: "The request has been rejected",
+        color: "orange",
+      });
+    },
+    onError: () => {
+      notifications.show({
+        title: "Error",
+        message: "Failed to reject request",
+        color: "red",
+      });
+    },
+  });
+};
+
+/**
+ * Hook to get a set of MD5 hashes that have pending or active requests
+ * Used to show "Already Requested" state on book cards
+ */
+export const usePendingRequestMd5s = (): Set<string> => {
+  const queryClient = useQueryClient();
+  const [md5Set, setMd5Set] = useState<Set<string>>(new Set());
+
+  // Subscribe to requests cache updates
+  useEffect(() => {
+    const updateMd5Set = () => {
+      // Get all requests from cache
+      const allRequests =
+        queryClient.getQueryData<SavedRequestWithBook[]>([
+          "requests",
+          undefined,
+        ]) || [];
+
+      // Filter for pending_approval and active requests with targetBookMd5
+      const pendingMd5s = new Set<string>();
+      for (const request of allRequests) {
+        if (
+          (request.status === "pending_approval" ||
+            request.status === "active") &&
+          request.targetBookMd5
+        ) {
+          pendingMd5s.add(request.targetBookMd5);
+        }
+      }
+      setMd5Set(pendingMd5s);
+    };
+
+    // Initial update
+    updateMd5Set();
+
+    // Subscribe to cache updates
+    const unsubscribe = queryClient.getQueryCache().subscribe(() => {
+      updateMd5Set();
+    });
+
+    return () => unsubscribe();
+  }, [queryClient]);
+
+  return md5Set;
 };

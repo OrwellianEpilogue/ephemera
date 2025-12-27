@@ -211,6 +211,9 @@ export const userPermissions = sqliteTable("user_permissions", {
   canManageApiKeys: integer("can_manage_api_keys", { mode: "boolean" })
     .notNull()
     .default(false),
+  canStartDownloads: integer("can_start_downloads", { mode: "boolean" })
+    .notNull()
+    .default(true),
 });
 
 export const appConfig = sqliteTable("app_config", {
@@ -459,7 +462,7 @@ export const downloadRequests = sqliteTable("download_requests", {
 
   // Status tracking
   status: text("status", {
-    enum: ["active", "fulfilled", "cancelled"],
+    enum: ["pending_approval", "active", "fulfilled", "cancelled", "rejected"],
   })
     .notNull()
     .default("active"),
@@ -471,6 +474,17 @@ export const downloadRequests = sqliteTable("download_requests", {
 
   // Reference to fulfilled book (if found)
   fulfilledBookMd5: text("fulfilled_book_md5"),
+
+  // Target book MD5 (if user requested a specific book from search results)
+  targetBookMd5: text("target_book_md5"),
+
+  // Approval tracking
+  approverId: text("approver_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  approvedAt: integer("approved_at"),
+  rejectedAt: integer("rejected_at"),
+  rejectionReason: text("rejection_reason"),
 });
 
 export const appriseSettings = sqliteTable("apprise_settings", {
@@ -509,6 +523,22 @@ export const appriseSettings = sqliteTable("apprise_settings", {
   notifyOnBookQueued: integer("notify_on_book_queued", { mode: "boolean" })
     .notNull()
     .default(false),
+  notifyOnRequestPendingApproval: integer(
+    "notify_on_request_pending_approval",
+    { mode: "boolean" },
+  )
+    .notNull()
+    .default(true),
+  notifyOnRequestApproved: integer("notify_on_request_approved", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+  notifyOnRequestRejected: integer("notify_on_request_rejected", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
 
   updatedAt: integer("updated_at").notNull(),
 });
