@@ -12,6 +12,7 @@ import {
   savedRequestWithBookSchema,
 } from "@ephemera/shared";
 import { logger, getErrorMessage } from "../utils/logger.js";
+import { permissionsService } from "../services/permissions.js";
 
 const app = new OpenAPIHono();
 
@@ -346,6 +347,22 @@ const deleteRequestRoute = createRoute({
         },
       },
     },
+    403: {
+      description: "Forbidden - not owner and lacks permission",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Request not found",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
     500: {
       description: "Internal server error",
       content: {
@@ -360,8 +377,39 @@ const deleteRequestRoute = createRoute({
 app.openapi(deleteRequestRoute, async (c) => {
   try {
     const { id } = c.req.valid("param");
+    const user = c.get("user");
 
-    logger.info(`Deleting request: ${id}`);
+    // Get the request to check ownership
+    const request = await downloadRequestsService.getRequestById(id);
+
+    if (!request) {
+      return c.json(
+        {
+          error: "Request not found",
+          details: `No request found with ID: ${id}`,
+        },
+        404,
+      );
+    }
+
+    // Check ownership OR permission
+    const isOwner = request.userId === user.id;
+    const isAdmin = user.role === "admin";
+    const hasPermission =
+      isAdmin ||
+      (await permissionsService.canPerform(user.id, "canManageRequests"));
+
+    if (!isOwner && !hasPermission) {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "You can only delete your own requests",
+        },
+        403,
+      );
+    }
+
+    logger.info(`Deleting request: ${id} by user ${user.id}`);
 
     await requestsManager.deleteRequest(id);
 
