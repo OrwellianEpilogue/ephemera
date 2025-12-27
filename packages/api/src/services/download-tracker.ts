@@ -1,4 +1,4 @@
-import { eq, like, or, sql, desc } from "drizzle-orm";
+import { eq, like, or, sql, desc, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { downloads, type Download, type NewDownload } from "../db/schema.js";
 import type { DownloadStatus, QueueItem } from "@ephemera/shared";
@@ -321,18 +321,16 @@ export class DownloadTracker {
     try {
       if (md5s.length === 0) return [];
 
-      // Get all downloads that match the md5s
+      // Use SQL inArray filter instead of fetching all and filtering in JS
       const results = await db
         .select({ md5: downloads.md5, status: downloads.status })
-        .from(downloads);
+        .from(downloads)
+        .where(inArray(downloads.md5, md5s));
 
-      // Filter by md5s
-      return results
-        .filter((result) => md5s.includes(result.md5))
-        .map((result) => ({
-          md5: result.md5,
-          status: result.status as DownloadStatus,
-        }));
+      return results.map((result) => ({
+        md5: result.md5,
+        status: result.status as DownloadStatus,
+      }));
     } catch (error) {
       logger.error("Failed to get statuses by md5s:", error);
       throw error;

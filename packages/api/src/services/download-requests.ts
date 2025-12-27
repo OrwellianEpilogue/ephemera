@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { db } from "../db/index.js";
 import {
@@ -337,6 +337,7 @@ class DownloadRequestsService {
 
   /**
    * Get count of requests by status
+   * Uses SQL GROUP BY for efficient aggregation (no full table scan)
    */
   async getStats(): Promise<{
     pending_approval: number;
@@ -347,18 +348,34 @@ class DownloadRequestsService {
     total: number;
   }> {
     try {
-      const allRequests = await db.select().from(downloadRequests);
+      // Use SQL GROUP BY for efficient counting instead of loading all rows
+      const statusCounts = await db
+        .select({
+          status: downloadRequests.status,
+          count: count(),
+        })
+        .from(downloadRequests)
+        .groupBy(downloadRequests.status);
 
+      // Convert array of {status, count} to object
       const stats = {
-        pending_approval: allRequests.filter(
-          (r) => r.status === "pending_approval",
-        ).length,
-        active: allRequests.filter((r) => r.status === "active").length,
-        fulfilled: allRequests.filter((r) => r.status === "fulfilled").length,
-        cancelled: allRequests.filter((r) => r.status === "cancelled").length,
-        rejected: allRequests.filter((r) => r.status === "rejected").length,
-        total: allRequests.length,
+        pending_approval: 0,
+        active: 0,
+        fulfilled: 0,
+        cancelled: 0,
+        rejected: 0,
+        total: 0,
       };
+
+      for (const row of statusCounts) {
+        if (row.status === "pending_approval")
+          stats.pending_approval = row.count;
+        else if (row.status === "active") stats.active = row.count;
+        else if (row.status === "fulfilled") stats.fulfilled = row.count;
+        else if (row.status === "cancelled") stats.cancelled = row.count;
+        else if (row.status === "rejected") stats.rejected = row.count;
+        stats.total += row.count;
+      }
 
       return stats;
     } catch (error) {

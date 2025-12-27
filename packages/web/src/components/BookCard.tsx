@@ -139,7 +139,8 @@ const getDownloadStatusBadge = (
   }
 };
 
-export const BookCard = ({ book }: BookCardProps) => {
+// Memoize BookCard to prevent re-renders when parent changes but book prop is stable
+export const BookCard = memo(function BookCard({ book }: BookCardProps) {
   const queueDownload = useQueueDownload();
   const createRequest = useCreateRequest();
   const { isAdmin } = useAuth();
@@ -322,4 +323,4 @@ export const BookCard = ({ book }: BookCardProps) => {
       </Stack>
     </Card>
   );
-};
+});

@@ -134,6 +134,13 @@
       "when": 1766810000000,
       "tag": "0018_gigantic_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1766826411721,
+      "tag": "0019_clean_landau",
+      "breakpoints": true
     }
   ]
 }
