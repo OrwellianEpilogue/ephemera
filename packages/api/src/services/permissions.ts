@@ -81,6 +81,7 @@ class PermissionsService {
         canSeeDownloadOwner: false,
         canManageApiKeys: false,
         canConfigureTolino: true,
+        canManageLists: true,
       };
 
       const created = await db
@@ -187,6 +188,7 @@ class PermissionsService {
       canSeeDownloadOwner: true,
       canManageApiKeys: true,
       canConfigureTolino: true,
+      canManageLists: true,
     };
 
     try {

@@ -6,6 +6,7 @@ import { requestsManager } from "./requests-manager.js";
 import { aaScraper } from "./scraper.js";
 import { queueManager } from "./queue-manager.js";
 import { appriseService } from "./apprise.js";
+import { bookService } from "./book-service.js";
 import { getErrorMessage } from "../utils/logger.js";
 import type { SearchQuery } from "@ephemera/shared";
 
@@ -99,6 +100,19 @@ class RequestCheckerService {
                 request.userId,
               );
 
+              const successStatuses = [
+                "queued",
+                "already_downloaded",
+                "already_in_queue",
+              ];
+              if (!successStatuses.includes(queueResult.status)) {
+                console.error(
+                  `[Request Checker] Failed to queue target book for request #${request.id}: ${queueResult.status}`,
+                );
+                errorCount++;
+                continue;
+              }
+
               // Mark request as fulfilled (emits event)
               await requestsManager.markFulfilled(
                 request.id,
@@ -137,10 +151,35 @@ class RequestCheckerService {
           const searchResult = await aaScraper.search(searchQuery);
 
           if (searchResult.results.length > 0) {
-            // Found results! Queue the first one for download
-            const firstBook = searchResult.results[0];
+            // Cache search results so queue has book metadata
+            await bookService.upsertBooks(searchResult.results);
+
+            // Filter results by requested formats if specified
+            let filteredResults = searchResult.results;
+            const requestedFormats = searchQuery.ext;
+            if (requestedFormats && requestedFormats.length > 0) {
+              const formatsUpper = requestedFormats.map((f) => f.toUpperCase());
+              filteredResults = searchResult.results.filter(
+                (book) =>
+                  book.format &&
+                  formatsUpper.includes(book.format.toUpperCase()),
+              );
+              console.log(
+                `[Request Checker] Request #${request.id}: Filtered ${searchResult.results.length} results to ${filteredResults.length} matching formats: ${formatsUpper.join(", ")}`,
+              );
+            }
+
+            if (filteredResults.length === 0) {
+              console.log(
+                `[Request Checker] Request #${request.id} - no results matching requested format`,
+              );
+              continue;
+            }
+
+            // Found results! Queue the first matching one for download
+            const firstBook = filteredResults[0];
             console.log(
-              `[Request Checker] Request #${request.id} found results! Queuing: ${firstBook.title}`,
+              `[Request Checker] Request #${request.id} found match: "${firstBook.title}" (${firstBook.format || "unknown"})`,
             );
 
             try {
@@ -149,6 +188,19 @@ class RequestCheckerService {
                 firstBook.md5,
                 request.userId,
               );
+
+              const successStatuses = [
+                "queued",
+                "already_downloaded",
+                "already_in_queue",
+              ];
+              if (!successStatuses.includes(queueResult.status)) {
+                console.error(
+                  `[Request Checker] Failed to queue book for request #${request.id}: ${queueResult.status}`,
+                );
+                errorCount++;
+                continue;
+              }
 
               // Mark request as fulfilled (emits event)
               await requestsManager.markFulfilled(request.id, firstBook.md5);
@@ -243,16 +295,31 @@ class RequestCheckerService {
         );
 
         // Add to download queue using the request owner's user ID
-        await queueManager.addToQueue(request.targetBookMd5, request.userId);
-
-        // Mark request as fulfilled (emits event)
-        await requestsManager.markFulfilled(requestId, request.targetBookMd5);
-
-        console.log(
-          `[Request Checker] Single check: Request #${requestId} fulfilled with target book ${request.targetBookMd5}`,
+        const queueResult = await queueManager.addToQueue(
+          request.targetBookMd5,
+          request.userId,
         );
 
-        return { found: true, bookMd5: request.targetBookMd5 };
+        const successStatuses = [
+          "queued",
+          "already_downloaded",
+          "already_in_queue",
+        ];
+        if (successStatuses.includes(queueResult.status)) {
+          // Mark request as fulfilled (emits event)
+          await requestsManager.markFulfilled(requestId, request.targetBookMd5);
+
+          console.log(
+            `[Request Checker] Single check: Request #${requestId} fulfilled with target book ${request.targetBookMd5} (queue status: ${queueResult.status})`,
+          );
+
+          return { found: true, bookMd5: request.targetBookMd5 };
+        } else {
+          console.error(
+            `[Request Checker] Failed to queue target book for request #${requestId}: ${queueResult.status}`,
+          );
+          return { found: false, error: `Queue failed: ${queueResult.status}` };
+        }
       }
 
       // No target MD5, perform search
@@ -263,19 +330,56 @@ class RequestCheckerService {
       const searchResult = await aaScraper.search(searchQuery);
 
       if (searchResult.results.length > 0) {
-        const firstBook = searchResult.results[0];
+        // Cache search results so queue has book metadata
+        await bookService.upsertBooks(searchResult.results);
+
+        // Filter results by requested formats if specified
+        let filteredResults = searchResult.results;
+        const requestedFormats = searchQuery.ext;
+        if (requestedFormats && requestedFormats.length > 0) {
+          const formatsUpper = requestedFormats.map((f) => f.toUpperCase());
+          filteredResults = searchResult.results.filter(
+            (book) =>
+              book.format && formatsUpper.includes(book.format.toUpperCase()),
+          );
+        }
+
+        if (filteredResults.length === 0) {
+          return {
+            found: false,
+            error: "No results matching requested format",
+          };
+        }
+
+        const firstBook = filteredResults[0];
 
         // Add to download queue using the request owner's user ID
-        await queueManager.addToQueue(firstBook.md5, request.userId);
-
-        // Mark request as fulfilled (emits event)
-        await requestsManager.markFulfilled(requestId, firstBook.md5);
-
-        console.log(
-          `[Request Checker] Single check: Request #${requestId} fulfilled with book ${firstBook.md5}`,
+        const queueResult = await queueManager.addToQueue(
+          firstBook.md5,
+          request.userId,
         );
 
-        return { found: true, bookMd5: firstBook.md5 };
+        // Only mark as fulfilled if the book was actually queued or already downloaded
+        const successStatuses = [
+          "queued",
+          "already_downloaded",
+          "already_in_queue",
+        ];
+        if (successStatuses.includes(queueResult.status)) {
+          // Mark request as fulfilled (emits event)
+          await requestsManager.markFulfilled(requestId, firstBook.md5);
+
+          console.log(
+            `[Request Checker] Single check: Request #${requestId} fulfilled with book ${firstBook.md5} (format: ${firstBook.format}, queue status: ${queueResult.status})`,
+          );
+
+          return { found: true, bookMd5: firstBook.md5 };
+        } else {
+          console.error(
+            `[Request Checker] Failed to queue book for request #${requestId}: ${queueResult.status}`,
+          );
+          return { found: false, error: `Queue failed: ${queueResult.status}` };
+        }
       }
 
       return { found: false };

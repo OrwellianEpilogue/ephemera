@@ -38,6 +38,7 @@ import { tolinoTokenRefresher } from "./services/tolino-token-refresher.js";
 import { flareSolverrHealthService } from "./services/flaresolverr-health.js";
 import { bookCleanupService } from "./services/book-cleanup.js";
 import { requestCheckerService } from "./services/request-checker.js";
+import { startListChecker } from "./services/list-checker.js";
 import { versionService } from "./services/version.js";
 import { indexerSettingsService } from "./services/indexer-settings.js";
 import { emailSettingsService } from "./services/email-settings.js";
@@ -66,6 +67,8 @@ import proxyAuthRoutes from "./routes/proxy-auth.js";
 import calibreRoutes from "./routes/calibre.js";
 import tolinoRoutes from "./routes/tolino.js";
 import configRoutes from "./routes/config.js";
+import listsRoutes from "./routes/lists.js";
+import listsAdminRoutes from "./routes/lists-admin.js";
 import { setupSecurityService } from "./services/setup-security.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -389,6 +392,25 @@ app.use(
 app.use("/api/tolino/*", requireAuth);
 app.use("/api/tolino", requireAuth);
 
+// Lists routes: require auth + canManageLists permission
+app.use(
+  "/api/lists/*",
+  withAuth((c, next) => requirePermission("canManageLists")(c, next)),
+);
+app.use(
+  "/api/lists",
+  withAuth((c, next) => requirePermission("canManageLists")(c, next)),
+);
+// Admin lists routes: admin only
+app.use(
+  "/api/admin/lists/*",
+  withAuth((c, next) => requireAdmin(c, next)),
+);
+app.use(
+  "/api/admin/lists",
+  withAuth((c, next) => requireAdmin(c, next)),
+);
+
 // Config route: requires auth (returns safe config for all authenticated users)
 app.use("/api/config", requireAuth);
 
@@ -417,6 +439,8 @@ app.route(`${API_BASE_PATH}/users`, usersRoutes); // Admin only
 app.route(`${API_BASE_PATH}/oidc-providers`, oidcProvidersRoutes); // Admin only
 app.route(API_BASE_PATH, apiKeysRoutes); // Protected by canManageApiKeys
 app.route(`${API_BASE_PATH}/settings/proxy-auth`, proxyAuthRoutes); // Admin only
+app.route(API_BASE_PATH, listsRoutes); // Protected by canManageLists
+app.route(`${API_BASE_PATH}/admin/lists`, listsAdminRoutes); // Admin only
 app.route("/newznab", newznabRoutes); // Public (has API key auth)
 app.route("/sabnzbd", sabnzbdRoutes); // Public (has API key auth)
 
@@ -649,6 +673,9 @@ export async function startRequestChecker() {
 
 // Start request checker
 startRequestChecker();
+
+// Start list checker (for import lists)
+startListChecker();
 
 // Start server
 const port = parseInt(process.env.PORT || "3000");

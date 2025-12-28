@@ -1,8 +1,12 @@
-import { CheerioCrawler, type CheerioRoot } from "crawlee";
+import { CheerioCrawler, type CheerioRoot, Configuration } from "crawlee";
 import type { SearchQuery, Book, SearchResponse } from "@ephemera/shared";
 import { getErrorMessage } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
 import { searchCacheManager } from "./search-cache.js";
+
+// Configure Crawlee to use in-memory storage globally
+// This avoids file conflicts when multiple crawlers run concurrently
+Configuration.getGlobalConfig().set("persistStorage", false);
 
 const BASE_URL = process.env.AA_BASE_URL;
 
@@ -30,11 +34,12 @@ function transformImageUrlToProxy(
   // return `/api/proxy/image?url=${encodedUrl}`;
 }
 export class AAScraper {
-  private lastResult: SearchResponse | null = null;
-
   async scrapeUrl(url: string): Promise<SearchResponse> {
     const crawlId = Math.random().toString(36).substring(7);
     logger.info(`[${crawlId}] Crawler starting for: ${url}`);
+
+    // Use local variable instead of shared instance state to avoid race conditions
+    let result: SearchResponse | null = null;
 
     const crawler = new CheerioCrawler({
       maxRequestRetries: 3,
@@ -73,8 +78,8 @@ export class AAScraper {
           `[${crawlId}] Parsed ${books.length} books in ${parseDuration}ms`,
         );
 
-        // Store result for retrieval
-        this.lastResult = {
+        // Store result in local variable (not shared state)
+        result = {
           results: books,
           pagination,
         };
@@ -99,7 +104,7 @@ export class AAScraper {
         }
 
         // Don't throw - return empty result instead
-        this.lastResult = {
+        result = {
           results: [],
           pagination: {
             page: 1,
@@ -111,9 +116,6 @@ export class AAScraper {
         };
       },
     });
-
-    // Clear previous result
-    this.lastResult = null;
 
     try {
       // Run crawler - add unique ID to bypass Crawlee's deduplication
@@ -144,7 +146,7 @@ export class AAScraper {
       }
 
       // Return empty result if crawler completely fails
-      if (!this.lastResult) {
+      if (!result) {
         logger.warn(`[${crawlId}] No results available, returning empty`);
         return {
           results: [],
@@ -161,7 +163,7 @@ export class AAScraper {
 
     // Return result
     return (
-      this.lastResult || {
+      result || {
         results: [],
         pagination: {
           page: 1,
