@@ -18,6 +18,7 @@ import {
   requirePermission,
 } from "./middleware/auth.js";
 import { proxyAuthMiddleware } from "./middleware/proxy-auth.js";
+import { maintenanceGuard } from "./middleware/maintenance.js";
 import type { Context, Next } from "hono";
 
 // Helper to compose auth middleware with permission/admin checks
@@ -34,6 +35,7 @@ import { bookloreSettingsService } from "./services/booklore-settings.js";
 import { appriseService } from "./services/apprise.js";
 import { bookloreTokenRefresher } from "./services/booklore-token-refresher.js";
 import { tolinoTokenRefresher } from "./services/tolino-token-refresher.js";
+import { flareSolverrHealthService } from "./services/flaresolverr-health.js";
 import { bookCleanupService } from "./services/book-cleanup.js";
 import { requestCheckerService } from "./services/request-checker.js";
 import { versionService } from "./services/version.js";
@@ -136,6 +138,9 @@ bookloreTokenRefresher.start();
 
 // Start Tolino token refresher service
 tolinoTokenRefresher.start();
+
+// Start FlareSolverr health check service
+flareSolverrHealthService.start();
 
 // Cleanup expired cache on startup
 const cleanedUp = await searchCacheManager.cleanup();
@@ -290,6 +295,9 @@ app.on(["POST", "GET"], "/api/auth/*", (c) => {
 
 // Apply authentication middleware to protected routes
 app.use("/api/download/*", requireAuth);
+// Block new downloads during maintenance mode (POST only - don't block file downloads or deletes)
+app.post("/api/download/:md5", maintenanceGuard);
+app.post("/api/download/:md5/retry", maintenanceGuard);
 app.use("/api/queue/*", requireAuth);
 app.use("/api/requests/*", requireAuth);
 app.use("/api/permissions", requireAuth);
@@ -387,7 +395,7 @@ app.use("/api/config", requireAuth);
 // Mount API routes
 app.route(`${API_BASE_PATH}/setup`, setupRoutes); // Public (for initial setup)
 // Note: authRoutes already mounted above before Better Auth handler
-app.use(`${API_BASE_PATH}/search`, requireAuth); // Protect search endpoint
+app.use(`${API_BASE_PATH}/search`, requireAuth, maintenanceGuard); // Protect search endpoint + maintenance guard
 app.route(API_BASE_PATH, searchRoutes);
 app.route(API_BASE_PATH, downloadRoutes); // Protected (middleware applied above)
 app.route(API_BASE_PATH, queueRoutes); // Protected
@@ -704,6 +712,7 @@ const shutdown = async (signal: string) => {
     // Stop background services
     bookloreTokenRefresher.stop();
     tolinoTokenRefresher.stop();
+    flareSolverrHealthService.stop();
 
     server.close(() => {
       logger.info("Server closed");

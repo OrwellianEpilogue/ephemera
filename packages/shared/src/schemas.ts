@@ -1416,6 +1416,17 @@ export const frontendConfigSchema = z.object({
   emailEnabled: z
     .boolean()
     .describe("Whether email sending is configured and enabled"),
+
+  // Maintenance mode status
+  maintenanceMode: z
+    .boolean()
+    .describe(
+      "Whether the app is in maintenance mode (FlareSolverr unavailable)",
+    ),
+  maintenanceReason: z
+    .string()
+    .nullable()
+    .describe("Reason for maintenance mode, if active"),
 });
 
 export type FrontendConfig = z.infer<typeof frontendConfigSchema>;

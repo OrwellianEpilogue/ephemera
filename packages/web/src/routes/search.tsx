@@ -26,7 +26,9 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useSearch } from "../hooks/useSearch";
+import { useFrontendConfig } from "../hooks/useConfig";
 import { BookCard } from "../components/BookCard";
+import { MaintenanceBanner } from "../components/MaintenanceBanner";
 import type { SearchQuery, SavedRequestWithBook } from "@ephemera/shared";
 import {
   SORT_OPTIONS,
@@ -53,6 +55,7 @@ function SearchPage() {
   usePageTitle("Search");
   const navigate = useNavigate();
   const urlParams = Route.useSearch();
+  const { data: config } = useFrontendConfig();
 
   // Local input state for typing (before submitting)
   const [searchInput, setSearchInput] = useState(urlParams.q || "");
@@ -377,6 +380,18 @@ function SearchPage() {
     // Create observer when query changes OR when results first load (allBooks becomes non-empty)
     // Use urlParams.q as key to force recreation on new search
   }, [urlParams.q, urlParams.author, urlParams.title, allBooks.length]);
+
+  // Show maintenance banner when FlareSolverr is unavailable and no API key is configured
+  if (config?.maintenanceMode) {
+    return (
+      <Container size="xl">
+        <Stack gap="lg">
+          <Title order={1}>Search Books</Title>
+          <MaintenanceBanner reason={config.maintenanceReason} />
+        </Stack>
+      </Container>
+    );
+  }
 
   return (
     <Container size="xl">

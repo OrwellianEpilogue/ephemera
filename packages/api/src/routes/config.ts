@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { appSettingsService } from "../services/app-settings.js";
 import { emailSettingsService } from "../services/email-settings.js";
+import { flareSolverrHealthService } from "../services/flaresolverr-health.js";
 import { frontendConfigSchema, errorResponseSchema } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
 
@@ -39,6 +40,7 @@ app.openapi(getConfigRoute, async (c) => {
   try {
     const appSettings = await appSettingsService.getSettings();
     const emailSettings = await emailSettingsService.getSettings();
+    const maintenanceStatus = flareSolverrHealthService.getStatus();
 
     return c.json(
       {
@@ -51,6 +53,10 @@ app.openapi(getConfigRoute, async (c) => {
 
         // From email settings (just enabled status, no credentials)
         emailEnabled: emailSettings?.enabled ?? false,
+
+        // Maintenance mode status
+        maintenanceMode: maintenanceStatus.inMaintenanceMode,
+        maintenanceReason: maintenanceStatus.reason,
       },
       200,
     );
