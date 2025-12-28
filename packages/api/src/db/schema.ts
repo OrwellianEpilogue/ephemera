@@ -384,6 +384,14 @@ export const appSettings = sqliteTable("app_settings", {
   })
     .notNull()
     .default(false),
+  postDownloadNormalizeEpub: integer("post_download_normalize_epub", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true), // ON by default for Kindle compatibility
+  postDownloadConvertFormat: text("post_download_convert_format", {
+    enum: ["epub", "pdf", "mobi", "azw3"],
+  }), // null = disabled (default)
 
   // Legacy field - will be removed after migration
   postDownloadAction: text("post_download_action", {

@@ -148,6 +148,20 @@
       "when": 1766849130275,
       "tag": "0020_tolino_cloud",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1766921875660,
+      "tag": "0021_dark_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1766923376136,
+      "tag": "0022_steady_rachel_grey",
+      "breakpoints": true
     }
   ]
 }

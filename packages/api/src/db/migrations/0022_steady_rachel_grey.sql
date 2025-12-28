@@ -1,0 +1,1 @@
+ALTER TABLE `app_settings` ADD `post_download_convert_format` text;
