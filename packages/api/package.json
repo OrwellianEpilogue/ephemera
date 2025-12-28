@@ -41,6 +41,7 @@
     "crawlee": "^3.12.4",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.36.4",
+    "fast-xml-parser": "^5.3.3",
     "hono": "^4.6.14",
     "nodemailer": "^7.0.12",
     "tough-cookie": "^6.0.0",

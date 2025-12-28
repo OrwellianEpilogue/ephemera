@@ -15,6 +15,7 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ListsRouteImport } from './routes/lists'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsOidcRouteImport } from './routes/settings.oidc'
 import { Route as LoginErrorRouteImport } from './routes/login_.error'
@@ -49,6 +50,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ListsRoute = ListsRouteImport.update({
+  id: '/lists',
+  path: '/lists',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -67,6 +73,7 @@ const LoginErrorRoute = LoginErrorRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lists': typeof ListsRoute
   '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/lists': typeof ListsRoute
   '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lists': typeof ListsRoute
   '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/lists'
     | '/login'
     | '/queue'
     | '/requests'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/lists'
     | '/login'
     | '/queue'
     | '/requests'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/lists'
     | '/login'
     | '/queue'
     | '/requests'
@@ -137,6 +149,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ListsRoute: typeof ListsRoute
   LoginRoute: typeof LoginRoute
   QueueRoute: typeof QueueRoute
   RequestsRoute: typeof RequestsRoute
@@ -190,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lists': {
+      id: '/lists'
+      path: '/lists'
+      fullPath: '/lists'
+      preLoaderRoute: typeof ListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -228,6 +248,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ListsRoute: ListsRoute,
   LoginRoute: LoginRoute,
   QueueRoute: QueueRoute,
   RequestsRoute: RequestsRoute,

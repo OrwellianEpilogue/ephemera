@@ -1,0 +1,1 @@
+ALTER TABLE `import_lists` ADD `use_book_language` integer DEFAULT true NOT NULL;

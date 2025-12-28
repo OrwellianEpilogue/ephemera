@@ -217,6 +217,9 @@ export const userPermissions = sqliteTable("user_permissions", {
   canConfigureTolino: integer("can_configure_tolino", { mode: "boolean" })
     .notNull()
     .default(true),
+  canManageLists: integer("can_manage_lists", { mode: "boolean" })
+    .notNull()
+    .default(true),
 });
 
 export const appConfig = sqliteTable("app_config", {
@@ -689,6 +692,87 @@ export const tolinoSettings = sqliteTable("tolino_settings", {
     .notNull(),
 });
 
+// List Import Settings (Admin-configured)
+export const listSettings = sqliteTable("list_settings", {
+  id: integer("id").primaryKey().default(1),
+  listFetchInterval: text("list_fetch_interval", {
+    enum: ["15min", "30min", "1h", "6h", "12h", "24h"],
+  })
+    .notNull()
+    .default("6h"),
+  hardcoverApiToken: text("hardcover_api_token"),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// Import Lists (Per-user reading list imports)
+export const importLists = sqliteTable(
+  "import_lists",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    source: text("source", {
+      enum: ["goodreads", "storygraph", "hardcover"],
+    }).notNull(),
+    name: text("name").notNull(),
+
+    // Source-specific config (JSON)
+    // Goodreads: { userId: string, shelfName: string }
+    // StoryGraph: { username: string }
+    // Hardcover: { username: string, listId: string, listSlug: string }
+    sourceConfig: text("source_config", { mode: "json" }).notNull().$type<{
+      userId?: string;
+      username?: string;
+      shelfName?: string;
+      listId?: string;
+      listSlug?: string;
+    }>(),
+
+    // Per-list search defaults
+    searchDefaults: text("search_defaults", { mode: "json" }).$type<{
+      lang?: string[];
+      ext?: string[];
+      content?: string[];
+      sort?: string;
+    }>(),
+
+    importMode: text("import_mode", { enum: ["all", "future"] })
+      .notNull()
+      .default("future"),
+    // If true, use the book's language (from source API) for search filter
+    // Falls back to searchDefaults.lang if book has no language
+    useBookLanguage: integer("use_book_language", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+
+    // Tracking
+    lastFetchedAt: integer("last_fetched_at", { mode: "timestamp_ms" }),
+    lastFetchedBookHashes: text("last_fetched_book_hashes", {
+      mode: "json",
+    }).$type<string[]>(),
+    fetchError: text("fetch_error"),
+    totalBooksImported: integer("total_books_imported").notNull().default(0),
+
+    // Timestamps
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    importLists_userId_idx: index("importLists_userId_idx").on(table.userId),
+    importLists_source_idx: index("importLists_source_idx").on(table.source),
+  }),
+);
+
 // Relations
 export const userRelations = relations(user, ({ many, one }) => ({
   sessions: many(session),
@@ -696,6 +780,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
   downloads: many(downloads),
   downloadRequests: many(downloadRequests),
   emailRecipients: many(emailRecipients),
+  importLists: many(importLists),
   permissions: one(userPermissions, {
     fields: [user.id],
     references: [userPermissions.userId],
@@ -709,6 +794,13 @@ export const userRelations = relations(user, ({ many, one }) => ({
 export const tolinoSettingsRelations = relations(tolinoSettings, ({ one }) => ({
   user: one(user, {
     fields: [tolinoSettings.userId],
+    references: [user.id],
+  }),
+}));
+
+export const importListsRelations = relations(importLists, ({ one }) => ({
+  user: one(user, {
+    fields: [importLists.userId],
     references: [user.id],
   }),
 }));
@@ -813,3 +905,7 @@ export type ProxyAuthSettings = typeof proxyAuthSettings.$inferSelect;
 export type NewProxyAuthSettings = typeof proxyAuthSettings.$inferInsert;
 export type TolinoSettings = typeof tolinoSettings.$inferSelect;
 export type NewTolinoSettings = typeof tolinoSettings.$inferInsert;
+export type ListSettings = typeof listSettings.$inferSelect;
+export type NewListSettings = typeof listSettings.$inferInsert;
+export type ImportList = typeof importLists.$inferSelect;
+export type NewImportList = typeof importLists.$inferInsert;

@@ -162,6 +162,20 @@
       "when": 1766923376136,
       "tag": "0022_steady_rachel_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1766934715300,
+      "tag": "0023_sharp_the_liberteens",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1766961332708,
+      "tag": "0024_burly_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

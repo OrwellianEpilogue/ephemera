@@ -27,6 +27,7 @@ import {
   IconBookmark,
   IconBook,
   IconExternalLink,
+  IconList,
 } from "@tabler/icons-react";
 import { useQueue } from "../hooks/useQueue";
 import { useRequests, useRequestStats } from "../hooks/useRequests";
@@ -205,6 +206,13 @@ function RootComponent() {
                 </Group>
               ) : null
             }
+            onClick={() => toggle()}
+          />
+          <NavLink
+            component={Link}
+            to="/lists"
+            label="Lists"
+            leftSection={<IconList size={20} />}
             onClick={() => toggle()}
           />
           {config?.libraryUrl &&

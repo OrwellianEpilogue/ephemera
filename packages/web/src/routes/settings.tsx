@@ -41,6 +41,7 @@ import {
   IconShieldCheck,
   IconAlertTriangle,
   IconCloud,
+  IconList,
 } from "@tabler/icons-react";
 import {
   useAppSettings,
@@ -97,6 +98,7 @@ const OIDCManagement = lazy(() => import("../components/OIDCManagement"));
 const AccountSettings = lazy(() => import("../components/AccountSettings"));
 const ProxyAuthSettings = lazy(() => import("../components/ProxyAuthSettings"));
 const TolinoSettings = lazy(() => import("../components/TolinoSettings"));
+const ListsSettings = lazy(() => import("../components/ListsSettings"));
 
 const settingsSearchSchema = z.object({
   tab: z
@@ -111,6 +113,7 @@ const settingsSearchSchema = z.object({
       "email",
       "tolino",
       "proxy-auth",
+      "lists",
     ])
     .optional()
     .default("account"),
@@ -133,7 +136,7 @@ function SettingsComponent() {
   const canConfigureTolino = isAdmin || permissions?.canConfigureTolino;
 
   // Define which tabs require which permissions
-  const adminOnlyTabs = ["users", "oidc", "proxy-auth"];
+  const adminOnlyTabs = ["users", "oidc", "proxy-auth", "lists"];
 
   // Get permission for a specific tab
   const getTabPermission = (tabName: string): boolean => {
@@ -666,7 +669,8 @@ function SettingsComponent() {
                   | "oidc"
                   | "email"
                   | "tolino"
-                  | "proxy-auth",
+                  | "proxy-auth"
+                  | "lists",
               },
             })
           }
@@ -733,6 +737,9 @@ function SettingsComponent() {
                   leftSection={<IconShieldCheck size={16} />}
                 >
                   Proxy Auth
+                </Tabs.Tab>
+                <Tabs.Tab value="lists" leftSection={<IconList size={16} />}>
+                  Lists
                 </Tabs.Tab>
               </>
             )}
@@ -1954,6 +1961,17 @@ function SettingsComponent() {
                   }
                 >
                   <ProxyAuthSettings />
+                </Suspense>
+              </Tabs.Panel>
+              <Tabs.Panel value="lists" pt="md">
+                <Suspense
+                  fallback={
+                    <Center p="xl">
+                      <Loader size="lg" />
+                    </Center>
+                  }
+                >
+                  <ListsSettings />
                 </Suspense>
               </Tabs.Panel>
             </>

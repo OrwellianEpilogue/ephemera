@@ -84,6 +84,9 @@ importers:
       drizzle-orm:
         specifier: ^0.36.4
         version: 0.36.4(@types/better-sqlite3@7.6.13)(@types/react@18.3.26)(better-sqlite3@11.10.0)(kysely@0.28.9)(react@18.3.1)
+      fast-xml-parser:
+        specifier: ^5.3.3
+        version: 5.3.3
       hono:
         specifier: ^4.6.14
         version: 4.10.4
@@ -2882,6 +2885,10 @@ packages:
     resolution: {integrity: sha512-pfX9uG9Ki0yekDHx2SiuRIyFdyAr1kMIMitPvb0YBo8SUfKvia7w7FIyd/l6av85pFYRhZscS75MwMnbvY+hcQ==}
     hasBin: true
 
+  fast-xml-parser@5.3.3:
+    resolution: {integrity: sha512-2O3dkPAAC6JavuMm8+4+pgTk+5hoAs+CjZ+sWcQLkX9+/tHRuTkQh/Oaifr8qDmZ8iEHb771Ea6G8CdwkrgvYA==}
+    hasBin: true
+
   fastq@1.19.1:
     resolution: {integrity: sha512-GwLTyxkCXjXbxqIhTsMI2Nui8huMPtnxg7krajPJAjnEG/iiOS7i+zCtWGZR9G0NBKbXKh6X9m9UIsYX/N6vvQ==}
 
@@ -5113,7 +5120,7 @@ snapshots:
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21
       better-auth: 1.4.9(better-sqlite3@11.10.0)(drizzle-kit@0.28.1)(drizzle-orm@0.36.4(@types/better-sqlite3@7.6.13)(@types/react@18.3.26)(better-sqlite3@11.10.0)(kysely@0.28.9)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(solid-js@1.9.10)
-      fast-xml-parser: 5.2.5
+      fast-xml-parser: 5.3.3
       jose: 6.1.3
       samlify: 2.10.2
       zod: 4.2.1
@@ -5123,7 +5130,7 @@ snapshots:
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21
       better-auth: 1.4.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(solid-js@1.9.10)
-      fast-xml-parser: 5.2.5
+      fast-xml-parser: 5.3.3
       jose: 6.1.3
       samlify: 2.10.2
       zod: 4.2.1
@@ -7601,6 +7608,10 @@ snapshots:
   fast-levenshtein@2.0.6: {}
 
   fast-xml-parser@5.2.5:
+    dependencies:
+      strnum: 2.1.2
+
+  fast-xml-parser@5.3.3:
     dependencies:
       strnum: 2.1.2
 
