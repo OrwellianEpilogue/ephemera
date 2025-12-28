@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import { existsSync } from "fs";
+import { unlink, rename } from "fs/promises";
 import { basename, dirname, extname, join } from "path";
 import { randomUUID } from "crypto";
 import { logger } from "../utils/logger.js";
@@ -240,6 +241,86 @@ class CalibreService {
           }
         } else {
           reject(new Error(`Conversion failed with code ${code}: ${stderr}`));
+        }
+      });
+
+      proc.on("error", (error) => {
+        reject(new Error(`Failed to start ebook-convert: ${error.message}`));
+      });
+    });
+  }
+
+  /**
+   * Normalize an EPUB file for Kindle compatibility
+   * Performs epub->epub conversion which cleans up encoding issues and malformed EPUBs
+   * The file is normalized in-place (original replaced with normalized version)
+   * @param inputPath Path to the EPUB file to normalize
+   * @returns The same path (file is normalized in-place)
+   */
+  async normalizeEpub(inputPath: string): Promise<string> {
+    // Validate input exists
+    if (!existsSync(inputPath)) {
+      throw new Error(`Input file does not exist: ${inputPath}`);
+    }
+
+    // Validate it's an EPUB
+    const ext = extname(inputPath).toLowerCase();
+    if (ext !== ".epub") {
+      throw new Error(`Not an EPUB file: ${inputPath}`);
+    }
+
+    // Generate temp output path
+    const inputBasename = basename(inputPath, ext);
+    const inputDir = dirname(inputPath);
+    const tempOutput = join(
+      inputDir,
+      `${inputBasename}_normalized_${randomUUID().slice(0, 8)}.epub`,
+    );
+
+    logger.info(`Normalizing EPUB: ${inputPath}`);
+
+    return new Promise((resolve, reject) => {
+      const proc = spawn(
+        getCalibreBinary("ebook-convert"),
+        [inputPath, tempOutput],
+        {
+          timeout: 5 * 60 * 1000, // 5 minute timeout
+        },
+      );
+
+      let stderr = "";
+
+      proc.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", async (code) => {
+        if (code === 0 && existsSync(tempOutput)) {
+          try {
+            // Replace original with normalized version
+            await unlink(inputPath);
+            await rename(tempOutput, inputPath);
+            logger.info(`EPUB normalized successfully: ${inputPath}`);
+            resolve(inputPath);
+          } catch (err) {
+            // Clean up temp file on error
+            if (existsSync(tempOutput)) {
+              await unlink(tempOutput).catch(() => {});
+            }
+            reject(
+              new Error(
+                `Failed to replace original file: ${err instanceof Error ? err.message : String(err)}`,
+              ),
+            );
+          }
+        } else {
+          // Clean up temp file on failure
+          if (existsSync(tempOutput)) {
+            await unlink(tempOutput).catch(() => {});
+          }
+          reject(
+            new Error(`EPUB normalization failed with code ${code}: ${stderr}`),
+          );
         }
       });
 

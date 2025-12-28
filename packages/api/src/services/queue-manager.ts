@@ -14,6 +14,9 @@ import { emailSettingsService } from "./email-settings.js";
 import { emailService } from "./email.js";
 import { tolinoSettingsService } from "./tolino-settings.js";
 import { tolinoUploadService } from "./tolino/uploader.js";
+import { calibreService } from "./calibre.js";
+import type { CalibreOutputFormat } from "./calibre.js";
+import { unlink } from "fs/promises";
 import type {
   QueueResponse,
   QueueItem,
@@ -422,6 +425,32 @@ export class QueueManager extends EventEmitter {
       return;
     }
 
+    // Normalize EPUB for Kindle compatibility if enabled
+    const format = download.format?.toLowerCase() || "";
+    if (format === "epub") {
+      const epubSettings = await appSettingsService.getSettings();
+      if (epubSettings.postDownloadNormalizeEpub) {
+        try {
+          if (await calibreService.isAvailable()) {
+            logger.info(
+              `[Post-Download] Normalizing EPUB for Kindle: ${title}`,
+            );
+            await calibreService.normalizeEpub(result.filePath);
+            logger.success(`[Post-Download] EPUB normalized: ${title}`);
+          } else {
+            logger.warn(
+              `[Post-Download] Calibre unavailable, skipping EPUB normalization`,
+            );
+          }
+        } catch (err) {
+          // Non-blocking: continue with original file
+          logger.warn(
+            `[Post-Download] EPUB normalization failed: ${getErrorMessage(err)}`,
+          );
+        }
+      }
+    }
+
     // Get post-download settings
     const appSettings = await appSettingsService.getSettings();
     const {
@@ -430,6 +459,56 @@ export class QueueManager extends EventEmitter {
       postDownloadMoveToIndexer,
       postDownloadKeepInDownloads,
     } = appSettings;
+
+    // Post-download format conversion (if enabled)
+    const targetFormat = appSettings.postDownloadConvertFormat;
+    if (targetFormat) {
+      const currentFormat = download.format?.toLowerCase() || "";
+      // Skip if already in target format (EPUB normalization handles epub→epub)
+      if (currentFormat !== targetFormat) {
+        if (calibreService.canConvert(currentFormat, targetFormat)) {
+          try {
+            if (await calibreService.isAvailable()) {
+              logger.info(
+                `[Post-Download] Converting ${title} from ${currentFormat.toUpperCase()} to ${targetFormat.toUpperCase()}`,
+              );
+              const convertedPath = await calibreService.convert(
+                result.filePath,
+                targetFormat as CalibreOutputFormat,
+              );
+
+              // Delete original file
+              await unlink(result.filePath);
+
+              // Update result to point to converted file
+              result.filePath = convertedPath;
+
+              // Update download record with new format
+              await downloadTracker.update(md5, {
+                format: targetFormat.toUpperCase(),
+              });
+
+              logger.success(
+                `[Post-Download] Converted ${title} to ${targetFormat.toUpperCase()}`,
+              );
+            } else {
+              logger.warn(
+                `[Post-Download] Calibre unavailable, skipping format conversion`,
+              );
+            }
+          } catch (err) {
+            // Non-blocking: continue with original file
+            logger.warn(
+              `[Post-Download] Format conversion failed: ${getErrorMessage(err)}`,
+            );
+          }
+        } else {
+          logger.debug(
+            `[Post-Download] Cannot convert ${currentFormat} to ${targetFormat}`,
+          );
+        }
+      }
+    }
 
     logger.info(
       `[Post-Download] Settings: moveToIngest=${postDownloadMoveToIngest}, keepInDownloads=${postDownloadKeepInDownloads}, uploadToBooklore=${postDownloadUploadToBooklore}, moveToIndexer=${postDownloadMoveToIndexer}`,
@@ -825,12 +904,13 @@ export class QueueManager extends EventEmitter {
         }
 
         // Add book metadata and user info
+        // Prefer download's format (may be updated after conversion) over book's format
         return {
           ...queueItem,
           authors,
           publisher: book.publisher || undefined,
           coverUrl: book.coverUrl || undefined,
-          format: book.format || undefined,
+          format: d.format || book.format || undefined,
           language: book.language || undefined,
           year: book.year || undefined,
           size: book.size || undefined,
@@ -927,12 +1007,13 @@ export class QueueManager extends EventEmitter {
         }
       }
 
+      // Prefer download's format (may be updated after conversion) over book's format
       return {
         ...queueItem,
         authors,
         publisher: book.publisher || undefined,
         coverUrl: book.coverUrl || undefined,
-        format: book.format || undefined,
+        format: download.format || book.format || undefined,
         language: book.language || undefined,
         year: book.year || undefined,
         userId: download.userId,

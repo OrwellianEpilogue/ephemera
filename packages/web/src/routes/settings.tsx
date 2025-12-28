@@ -238,6 +238,11 @@ function SettingsComponent() {
     useState<boolean>(false);
   const [postDownloadKeepInDownloads, setPostDownloadKeepInDownloads] =
     useState<boolean>(false);
+  const [postDownloadNormalizeEpub, setPostDownloadNormalizeEpub] =
+    useState<boolean>(true);
+  const [postDownloadConvertFormat, setPostDownloadConvertFormat] = useState<
+    "epub" | "pdf" | "mobi" | "azw3" | null
+  >(null);
 
   const [bookRetentionDays, setBookRetentionDays] = useState<number>(30);
   const [bookSearchCacheDays, setUndownloadedBookRetentionDays] =
@@ -313,6 +318,8 @@ function SettingsComponent() {
       setPostDownloadKeepInDownloads(
         settings.postDownloadKeepInDownloads ?? false,
       );
+      setPostDownloadNormalizeEpub(settings.postDownloadNormalizeEpub ?? true);
+      setPostDownloadConvertFormat(settings.postDownloadConvertFormat ?? null);
       setBookRetentionDays(settings.bookRetentionDays);
       setUndownloadedBookRetentionDays(settings.bookSearchCacheDays);
       setRequestCheckInterval(settings.requestCheckInterval);
@@ -414,6 +421,8 @@ function SettingsComponent() {
       postDownloadUploadToBooklore,
       postDownloadMoveToIndexer,
       postDownloadKeepInDownloads,
+      postDownloadNormalizeEpub,
+      postDownloadConvertFormat: postDownloadConvertFormat || null,
       bookRetentionDays,
       bookSearchCacheDays,
       requestCheckInterval,
@@ -540,6 +549,8 @@ function SettingsComponent() {
       settings.postDownloadUploadToBooklore !== postDownloadUploadToBooklore ||
       settings.postDownloadMoveToIndexer !== postDownloadMoveToIndexer ||
       settings.postDownloadKeepInDownloads !== postDownloadKeepInDownloads ||
+      settings.postDownloadNormalizeEpub !== postDownloadNormalizeEpub ||
+      settings.postDownloadConvertFormat !== postDownloadConvertFormat ||
       settings.bookRetentionDays !== bookRetentionDays ||
       settings.bookSearchCacheDays !== bookSearchCacheDays ||
       settings.requestCheckInterval !== requestCheckInterval ||
@@ -801,6 +812,36 @@ function SettingsComponent() {
                         !indexerSettings?.newznabEnabled &&
                         !indexerSettings?.sabnzbdEnabled
                       }
+                    />
+
+                    <Checkbox
+                      checked={postDownloadNormalizeEpub}
+                      onChange={(event) =>
+                        setPostDownloadNormalizeEpub(
+                          event.currentTarget.checked,
+                        )
+                      }
+                      label="Normalize EPUBs for Kindle"
+                      description="Run EPUBs through Calibre to fix encoding issues (requires Calibre)"
+                    />
+
+                    <Select
+                      label="Convert to Format"
+                      description="Automatically convert all downloads to this format (requires Calibre)"
+                      placeholder="No conversion"
+                      value={postDownloadConvertFormat}
+                      onChange={(value) =>
+                        setPostDownloadConvertFormat(
+                          value as "epub" | "pdf" | "mobi" | "azw3" | null,
+                        )
+                      }
+                      data={[
+                        { value: "epub", label: "EPUB" },
+                        { value: "pdf", label: "PDF" },
+                        { value: "mobi", label: "MOBI" },
+                        { value: "azw3", label: "AZW3" },
+                      ]}
+                      clearable
                     />
                   </Stack>
 

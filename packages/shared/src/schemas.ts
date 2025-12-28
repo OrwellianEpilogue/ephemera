@@ -676,6 +676,13 @@ export const appSettingsSchema = z.object({
     .describe(
       "Keep a copy of downloaded files in the downloads folder for email/browser downloads",
     ),
+  postDownloadNormalizeEpub: z
+    .boolean()
+    .describe("Normalize EPUBs for Kindle compatibility using Calibre"),
+  postDownloadConvertFormat: z
+    .enum(["epub", "pdf", "mobi", "azw3"])
+    .nullable()
+    .describe("Target format for automatic conversion (null = disabled)"),
 
   // Legacy field (kept for migration)
   postDownloadAction: postDownloadActionSchema
@@ -744,6 +751,15 @@ export const updateAppSettingsSchema = z.object({
     .describe(
       "Keep a copy of downloaded files in the downloads folder for email/browser downloads",
     ),
+  postDownloadNormalizeEpub: z
+    .boolean()
+    .optional()
+    .describe("Normalize EPUBs for Kindle compatibility using Calibre"),
+  postDownloadConvertFormat: z
+    .enum(["epub", "pdf", "mobi", "azw3"])
+    .nullable()
+    .optional()
+    .describe("Target format for automatic conversion (null = disabled)"),
 
   bookRetentionDays: z
     .number()
