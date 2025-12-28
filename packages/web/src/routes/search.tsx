@@ -19,7 +19,12 @@ import {
   Checkbox,
   Accordion,
 } from "@mantine/core";
-import { IconSearch, IconFilter, IconBookmark } from "@tabler/icons-react";
+import {
+  IconSearch,
+  IconFilter,
+  IconBookmark,
+  IconX,
+} from "@tabler/icons-react";
 import { useSearch } from "../hooks/useSearch";
 import { BookCard } from "../components/BookCard";
 import type { SearchQuery, SavedRequestWithBook } from "@ephemera/shared";
@@ -416,6 +421,18 @@ function SearchPage() {
                           value={authorInput}
                           onChange={(e) => setAuthorInput(e.target.value)}
                           onKeyDown={handleKeyPress}
+                          rightSection={
+                            authorInput && (
+                              <IconX
+                                size={16}
+                                style={{ cursor: "pointer" }}
+                                onClick={() => {
+                                  setAuthorInput("");
+                                  updateSearchParams({ author: undefined });
+                                }}
+                              />
+                            )
+                          }
                         />
                       </Grid.Col>
                       <Grid.Col span={6}>
@@ -425,6 +442,18 @@ function SearchPage() {
                           value={titleInput}
                           onChange={(e) => setTitleInput(e.target.value)}
                           onKeyDown={handleKeyPress}
+                          rightSection={
+                            titleInput && (
+                              <IconX
+                                size={16}
+                                style={{ cursor: "pointer" }}
+                                onClick={() => {
+                                  setTitleInput("");
+                                  updateSearchParams({ title: undefined });
+                                }}
+                              />
+                            )
+                          }
                         />
                       </Grid.Col>
                       <Grid.Col span={6}>
