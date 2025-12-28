@@ -15,6 +15,7 @@ import { notifications } from "@mantine/notifications";
 export const tolinoKeys = {
   settings: ["tolinoSettings"] as const,
   resellers: ["tolinoResellers"] as const,
+  collections: ["tolinoCollections"] as const,
   canUpload: (md5: string) => ["tolinoCanUpload", md5] as const,
 };
 
@@ -24,10 +25,16 @@ interface TolinoSettingsApiResponse {
   resellerId?: string;
   email?: string;
   autoUpload?: boolean;
+  askCollectionOnUpload?: boolean;
+  autoUploadCollection?: string | null;
   isConnected?: boolean;
   tokenExpiresAt?: number | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+interface TolinoCollectionsResponse {
+  collections: string[];
 }
 
 interface SaveSettingsResponse {
@@ -56,6 +63,19 @@ export const useTolinoResellers = () => {
     queryFn: () => apiFetch<TolinoResellerInfo[]>("/tolino/resellers"),
     staleTime: 60 * 60 * 1000, // 1 hour
     gcTime: 2 * 60 * 60 * 1000, // 2 hours
+  });
+};
+
+/**
+ * Get collections from Tolino Cloud
+ */
+export const useTolinoCollections = (enabled = true) => {
+  return useQuery({
+    queryKey: tolinoKeys.collections,
+    queryFn: () => apiFetch<TolinoCollectionsResponse>("/tolino/collections"),
+    enabled,
+    staleTime: 60 * 1000, // 1 minute
+    retry: false, // Don't retry if unauthorized
   });
 };
 
@@ -131,6 +151,41 @@ export const useUpdateTolinoAutoUpload = () => {
         title: "Failed to Update",
         message:
           getErrorMessage(error) || "Failed to update auto-upload setting",
+        color: "red",
+      });
+    },
+  });
+};
+
+/**
+ * Update collection settings only
+ */
+export const useUpdateTolinoCollectionSettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (settings: {
+      askCollectionOnUpload: boolean;
+      autoUploadCollection: string | null;
+    }) => {
+      return apiFetch<{
+        success: boolean;
+        askCollectionOnUpload: boolean;
+        autoUploadCollection: string | null;
+      }>("/tolino/settings/collections", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tolinoKeys.settings });
+    },
+    onError: (error: unknown) => {
+      notifications.show({
+        title: "Failed to Update",
+        message:
+          getErrorMessage(error) || "Failed to update collection settings",
         color: "red",
       });
     },

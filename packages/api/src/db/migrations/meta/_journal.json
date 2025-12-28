@@ -176,6 +176,13 @@
       "when": 1766961332708,
       "tag": "0024_burly_lady_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1766964558489,
+      "tag": "0025_huge_strong_guy",
+      "breakpoints": true
     }
   ]
 }

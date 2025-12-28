@@ -22,15 +22,18 @@ import {
   IconX,
   IconAlertTriangle,
   IconTrash,
+  IconFolders,
 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
 import {
   useTolinoSettings,
   useTolinoResellers,
+  useTolinoCollections,
   useSaveTolinoSettings,
   useDeleteTolinoSettings,
   useTestTolinoConnection,
   useUpdateTolinoAutoUpload,
+  useUpdateTolinoCollectionSettings,
 } from "../hooks/useTolino";
 import { useCalibreStatus } from "../hooks/useCalibre";
 import type { TolinoReseller } from "@ephemera/shared";
@@ -42,17 +45,25 @@ interface TolinoSettingsProps {
 export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
   const { data: settings, isLoading: loadingSettings } = useTolinoSettings();
   const { data: resellers } = useTolinoResellers();
+  const { data: collectionsData, isLoading: loadingCollections } =
+    useTolinoCollections(!!settings?.configured && !!settings?.isConnected);
   const { data: calibreStatus } = useCalibreStatus();
   const saveSettings = useSaveTolinoSettings();
   const deleteSettings = useDeleteTolinoSettings();
   const testConnection = useTestTolinoConnection();
   const updateAutoUpload = useUpdateTolinoAutoUpload();
+  const updateCollectionSettings = useUpdateTolinoCollectionSettings();
 
   // Form state
   const [resellerId, setResellerId] = useState<TolinoReseller>("buchhandlung");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [autoUpload, setAutoUpload] = useState(false);
+  const [askCollectionOnUpload, setAskCollectionOnUpload] = useState(false);
+  const [autoUploadCollection, setAutoUploadCollection] = useState<
+    string | null
+  >(null);
+  const [newCollectionName, setNewCollectionName] = useState("");
 
   // Initialize form with existing settings
   useEffect(() => {
@@ -60,6 +71,8 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
       setResellerId((settings.resellerId as TolinoReseller) || "buchhandlung");
       setEmail(settings.email || "");
       setAutoUpload(settings.autoUpload || false);
+      setAskCollectionOnUpload(settings.askCollectionOnUpload || false);
+      setAutoUploadCollection(settings.autoUploadCollection || null);
     }
   }, [settings]);
 
@@ -71,6 +84,8 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
       email,
       password,
       autoUpload,
+      askCollectionOnUpload,
+      autoUploadCollection,
     });
 
     setPassword(""); // Clear password after save
@@ -91,6 +106,44 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
     setAutoUpload(checked);
     if (settings?.configured) {
       await updateAutoUpload.mutateAsync(checked);
+    }
+  };
+
+  const handleAskCollectionToggle = async (checked: boolean) => {
+    setAskCollectionOnUpload(checked);
+    if (settings?.configured) {
+      await updateCollectionSettings.mutateAsync({
+        askCollectionOnUpload: checked,
+        autoUploadCollection,
+      });
+    }
+  };
+
+  const handleAutoUploadCollectionChange = async (value: string | null) => {
+    // Handle "new" option - don't save yet
+    if (value === "__new__") {
+      return;
+    }
+
+    setAutoUploadCollection(value);
+    if (settings?.configured) {
+      await updateCollectionSettings.mutateAsync({
+        askCollectionOnUpload,
+        autoUploadCollection: value,
+      });
+    }
+  };
+
+  const handleCreateNewCollection = async () => {
+    if (!newCollectionName.trim()) return;
+    const collectionName = newCollectionName.trim();
+    setAutoUploadCollection(collectionName);
+    setNewCollectionName("");
+    if (settings?.configured) {
+      await updateCollectionSettings.mutateAsync({
+        askCollectionOnUpload,
+        autoUploadCollection: collectionName,
+      });
     }
   };
 
@@ -240,6 +293,85 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
           onChange={(e) => handleAutoUploadToggle(e.currentTarget.checked)}
           disabled={!keepInDownloads}
         />
+
+        {settings?.configured && isConnected && autoUpload && (
+          <Stack
+            gap="xs"
+            ml="md"
+            style={{
+              borderLeft: "2px solid var(--mantine-color-default-border)",
+              paddingLeft: "var(--mantine-spacing-md)",
+            }}
+          >
+            <Select
+              label="Default collection for auto-uploads"
+              description="Automatically add auto-uploaded books to this collection"
+              placeholder={
+                loadingCollections ? "Loading..." : "None (no collection)"
+              }
+              data={[
+                { value: "", label: "None (no collection)" },
+                ...(collectionsData?.collections?.map((c) => ({
+                  value: c,
+                  label: c,
+                })) || []),
+                { value: "__new__", label: "+ Create new collection..." },
+              ]}
+              value={
+                autoUploadCollection === "__new__"
+                  ? "__new__"
+                  : autoUploadCollection || ""
+              }
+              onChange={(value) =>
+                handleAutoUploadCollectionChange(value || null)
+              }
+              disabled={
+                loadingCollections || updateCollectionSettings.isPending
+              }
+              clearable
+              searchable
+            />
+
+            {autoUploadCollection === "__new__" && (
+              <Group gap="xs">
+                <TextInput
+                  placeholder="New collection name"
+                  value={newCollectionName}
+                  onChange={(e) => setNewCollectionName(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleCreateNewCollection}
+                  disabled={!newCollectionName.trim()}
+                >
+                  Create
+                </Button>
+              </Group>
+            )}
+          </Stack>
+        )}
+
+        {settings?.configured && isConnected && (
+          <>
+            <Divider />
+
+            <Group gap="xs" align="center">
+              <IconFolders size={20} style={{ opacity: 0.7 }} />
+              <Text fw={500}>Collection Options</Text>
+            </Group>
+
+            <Switch
+              label="Ask for collection on manual upload"
+              description="Show a dialog to select or create a collection when manually uploading books"
+              checked={askCollectionOnUpload}
+              onChange={(e) =>
+                handleAskCollectionToggle(e.currentTarget.checked)
+              }
+              disabled={updateCollectionSettings.isPending}
+            />
+          </>
+        )}
 
         <Group justify="space-between" mt="md">
           <Group gap="sm">

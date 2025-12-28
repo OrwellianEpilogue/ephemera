@@ -682,6 +682,13 @@ export const tolinoSettings = sqliteTable("tolino_settings", {
   autoUpload: integer("auto_upload", { mode: "boolean" })
     .notNull()
     .default(false),
+  // Collection settings
+  askCollectionOnUpload: integer("ask_collection_on_upload", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
+  autoUploadCollection: text("auto_upload_collection"), // collection name for auto-uploads
   // Timestamps
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
