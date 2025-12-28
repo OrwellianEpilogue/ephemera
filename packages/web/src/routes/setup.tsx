@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { usePageTitle } from "../hooks/use-page-title";
 import {
   Box,
   Button,
@@ -26,6 +27,7 @@ import {
 } from "@tabler/icons-react";
 
 function SetupWizard() {
+  usePageTitle("Setup");
   const navigate = useNavigate();
 
   // Stepper state

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { usePageTitle } from "../hooks/use-page-title";
 import { requireAuth } from "../lib/route-auth";
 import {
   Container,
@@ -44,6 +45,7 @@ type SearchParams = {
 };
 
 function SearchPage() {
+  usePageTitle("Search");
   const navigate = useNavigate();
   const urlParams = Route.useSearch();
 
