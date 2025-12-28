@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { apiFetch, getErrorMessage } from "@ephemera/shared";
 import type {
   SavedRequestWithBook,
@@ -262,21 +262,13 @@ export const useRejectRequest = () => {
  * Used to show "Already Requested" state on book cards
  */
 export const usePendingRequestMd5s = (): Set<string> => {
-  const queryClient = useQueryClient();
-  const [md5Set, setMd5Set] = useState<Set<string>>(new Set());
+  // Just read from the requests query - no need for separate subscription
+  const { data: allRequests } = useRequests(undefined, { enableSSE: false });
 
-  // Subscribe to requests cache updates
-  useEffect(() => {
-    const updateMd5Set = () => {
-      // Get all requests from cache
-      const allRequests =
-        queryClient.getQueryData<SavedRequestWithBook[]>([
-          "requests",
-          undefined,
-        ]) || [];
-
-      // Filter for pending_approval and active requests with targetBookMd5
-      const pendingMd5s = new Set<string>();
+  // Memoize the Set to avoid recreating on every render
+  const md5Set = useMemo(() => {
+    const pendingMd5s = new Set<string>();
+    if (allRequests) {
       for (const request of allRequests) {
         if (
           (request.status === "pending_approval" ||
@@ -286,19 +278,9 @@ export const usePendingRequestMd5s = (): Set<string> => {
           pendingMd5s.add(request.targetBookMd5);
         }
       }
-      setMd5Set(pendingMd5s);
-    };
-
-    // Initial update
-    updateMd5Set();
-
-    // Subscribe to cache updates
-    const unsubscribe = queryClient.getQueryCache().subscribe(() => {
-      updateMd5Set();
-    });
-
-    return () => unsubscribe();
-  }, [queryClient]);
+    }
+    return pendingMd5s;
+  }, [allRequests]);
 
   return md5Set;
 };

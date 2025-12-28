@@ -35,14 +35,10 @@ import {
   useDeleteDownload,
   useDownloadFile,
 } from "../hooks/useDownload";
-import { useAppSettings } from "../hooks/useSettings";
+import { useFrontendConfig } from "../hooks/useConfig";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { UserBadge } from "./UserBadge";
-import {
-  useEmailSettings,
-  useEmailRecipients,
-  useSendBookEmail,
-} from "../hooks/useEmail";
+import { useEmailRecipients, useSendBookEmail } from "../hooks/useEmail";
 import { useTolinoSettings, useTolinoUpload } from "../hooks/useTolino";
 import { useCalibreStatus } from "../hooks/useCalibre";
 import { useState, useEffect, memo } from "react";
@@ -185,10 +181,9 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const retryDownload = useRetryDownload();
   const deleteDownload = useDeleteDownload();
   const downloadFile = useDownloadFile();
-  const { data: settings } = useAppSettings();
+  const { data: config } = useFrontendConfig();
   const { isAdmin, user } = useAuth();
   const { data: permissions } = usePermissions();
-  const { data: emailSettings } = useEmailSettings();
   const { data: emailRecipients } = useEmailRecipients();
   const sendEmail = useSendBookEmail();
   const { data: tolinoSettings } = useTolinoSettings();
@@ -242,15 +237,15 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const hasDeletePermission = isAdmin || permissions?.canDeleteDownloads;
 
   // Check if file access is available (keepInDownloads must be enabled for browser download/email)
-  const keepInDownloads = settings?.postDownloadKeepInDownloads ?? false;
+  const keepInDownloads = config?.keepInDownloads ?? false;
   const fileAccessDisabled = canDownload && !keepInDownloads;
   const fileAccessTooltip = fileAccessDisabled
     ? 'Enable "Keep copy in downloads folder" in Settings to use browser downloads and email'
     : undefined;
 
-  // Use settings for date/time formatting, fall back to defaults
-  const timeFormat = settings?.timeFormat ?? "24h";
-  const dateFormat = settings?.dateFormat ?? "us";
+  // Use config for date/time formatting, fall back to defaults
+  const timeFormat = config?.timeFormat ?? "24h";
+  const dateFormat = config?.dateFormat ?? "us";
 
   return (
     <Card withBorder padding="md">
@@ -315,7 +310,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               )}
               {/* Email button - only show if user has recipients */}
               {canDownload &&
-                emailSettings?.enabled &&
+                config?.emailEnabled &&
                 emailRecipients &&
                 emailRecipients.length > 0 &&
                 (fileAccessDisabled ? (

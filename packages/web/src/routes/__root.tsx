@@ -30,7 +30,7 @@ import {
 } from "@tabler/icons-react";
 import { useQueue } from "../hooks/useQueue";
 import { useRequests, useRequestStats } from "../hooks/useRequests";
-import { useAppSettings } from "../hooks/useSettings";
+import { useFrontendConfig } from "../hooks/useConfig";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { VersionFooter } from "../components/VersionFooter";
 import { UserMenu } from "../components/UserMenu";
@@ -61,8 +61,8 @@ function RootComponent() {
   // Fetch request stats for badge (will be updated via SSE)
   const { data: requestStats } = useRequestStats();
 
-  // Fetch app settings for library link
-  const { data: settings } = useAppSettings();
+  // Fetch frontend config for library link
+  const { data: config } = useFrontendConfig();
 
   // Calculate queue badge counts
   const queueingCount = queue ? Object.keys(queue.queued).length : 0;
@@ -115,12 +115,12 @@ function RootComponent() {
             <Title order={3}>Ephemera</Title>
           </Group>
           <Group gap="xs">
-            {settings?.libraryUrl &&
-              (settings.libraryLinkLocation === "header" ||
-                settings.libraryLinkLocation === "both") && (
+            {config?.libraryUrl &&
+              (config.libraryLinkLocation === "header" ||
+                config.libraryLinkLocation === "both") && (
                 <ActionIcon
                   component="a"
-                  href={settings.libraryUrl}
+                  href={config.libraryUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   variant="subtle"
@@ -207,12 +207,12 @@ function RootComponent() {
             }
             onClick={() => toggle()}
           />
-          {settings?.libraryUrl &&
-            (settings.libraryLinkLocation === "sidebar" ||
-              settings.libraryLinkLocation === "both") && (
+          {config?.libraryUrl &&
+            (config.libraryLinkLocation === "sidebar" ||
+              config.libraryLinkLocation === "both") && (
               <NavLink
                 component="a"
-                href={settings.libraryUrl}
+                href={config.libraryUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 label="Library"

@@ -1378,3 +1378,28 @@ export const calibreConvertResponseSchema = z.object({
 export type CalibreConvertResponse = z.infer<
   typeof calibreConvertResponseSchema
 >;
+
+// Frontend config schema - safe values for all authenticated users
+export const frontendConfigSchema = z.object({
+  // From app settings (UI preferences)
+  keepInDownloads: z
+    .boolean()
+    .describe("Whether downloaded files are kept in downloads folder"),
+  timeFormat: timeFormatSchema.describe("Time display format"),
+  dateFormat: dateFormatSchema.describe("Date display format"),
+  libraryUrl: z
+    .string()
+    .url()
+    .nullable()
+    .describe("URL to external library (e.g., Calibre-Web, Komga)"),
+  libraryLinkLocation: libraryLinkLocationSchema.describe(
+    "Where to display the library link",
+  ),
+
+  // From email settings (just enabled status, no credentials)
+  emailEnabled: z
+    .boolean()
+    .describe("Whether email sending is configured and enabled"),
+});
+
+export type FrontendConfig = z.infer<typeof frontendConfigSchema>;

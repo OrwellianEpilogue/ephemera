@@ -55,6 +55,7 @@ import {
   useSystemConfig,
   useUpdateSystemConfig,
 } from "../hooks/useSettings";
+import { useFrontendConfig } from "../hooks/useConfig";
 import { useState, useEffect } from "react";
 import type {
   TimeFormat,
@@ -192,6 +193,8 @@ function SettingsComponent() {
     enabled: canConfigureIntegrations,
   });
   const { data: systemConfig } = useSystemConfig({ enabled: canConfigureApp });
+  // Frontend config - safe values for all authenticated users (e.g., keepInDownloads for Tolino)
+  const { data: frontendConfig } = useFrontendConfig();
   // Email settings - all users can read to check if enabled
   const {
     data: emailSettings,
@@ -1598,7 +1601,7 @@ function SettingsComponent() {
                       />
                     </Group>
 
-                    {emailEnabled && !settings?.postDownloadKeepInDownloads && (
+                    {emailEnabled && !frontendConfig?.keepInDownloads && (
                       <Alert
                         icon={<IconAlertTriangle size={16} />}
                         color="orange"
@@ -1869,9 +1872,7 @@ function SettingsComponent() {
                 }
               >
                 <TolinoSettings
-                  keepInDownloads={
-                    settings?.postDownloadKeepInDownloads ?? false
-                  }
+                  keepInDownloads={frontendConfig?.keepInDownloads ?? false}
                 />
               </Suspense>
             </Tabs.Panel>
