@@ -3,7 +3,8 @@
 # Uses Debian slim instead of Alpine for Calibre compatibility (glibc required)
 
 # Stage 1: Dependencies and Build Environment
-FROM node:22-slim AS build-env
+# Pin to 22.16.0 - Node 22.21.x has undici fetch bug (SyntaxError in connect)
+FROM node:22.16.0-slim AS build-env
 
 # Install build dependencies for native modules (better-sqlite3)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -31,7 +32,7 @@ RUN cd packages/shared && npx tsc --build --force && cd ../.. && \
     cd packages/web && npx tsc && npx vite build
 
 # Stage 2: Production Dependencies
-FROM node:22-slim AS prod-deps
+FROM node:22.16.0-slim AS prod-deps
 
 # Install build dependencies for native modules
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -60,7 +61,7 @@ RUN SQLITE_PATH=$(find /app/node_modules/.pnpm -type d -path "*/better-sqlite3@*
     fi
 
 # Stage 3: Production Runtime
-FROM node:22-slim AS runtime
+FROM node:22.16.0-slim AS runtime
 
 # Install runtime dependencies:
 # - gosu: for PUID/PGID support (replaces su-exec on Alpine)
