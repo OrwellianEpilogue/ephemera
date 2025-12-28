@@ -138,6 +138,7 @@ class EmailSettingsService {
 
   /**
    * Get settings for API response (convert timestamp to ISO string)
+   * Note: Password is masked for security - never expose actual credentials
    */
   async getSettingsForResponse(): Promise<{
     id: number;
@@ -162,7 +163,7 @@ class EmailSettingsService {
       smtpHost: settings.smtpHost,
       smtpPort: settings.smtpPort,
       smtpUser: settings.smtpUser,
-      smtpPassword: settings.smtpPassword,
+      smtpPassword: settings.smtpPassword ? "********" : null, // Never expose actual password
       senderEmail: settings.senderEmail,
       senderName: settings.senderName,
       useTls: settings.useTls,

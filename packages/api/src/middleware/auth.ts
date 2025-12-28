@@ -47,7 +47,7 @@ export const requireAuth = createMiddleware(async (c, next) => {
     c.set("user", session.user as User);
     c.set("sessionChecked", true);
 
-    await next();
+    return await next();
   } catch (error) {
     console.error("[Auth Middleware] Authentication error:", error);
     return c.json(
@@ -87,7 +87,7 @@ export const requireAdmin = createMiddleware(async (c, next) => {
     );
   }
 
-  await next();
+  return await next();
 });
 
 /**
@@ -121,8 +121,7 @@ export const requirePermission = (
 
     // Admins bypass permission checks
     if (user.role === "admin") {
-      await next();
-      return;
+      return await next();
     }
 
     // Check specific permission
@@ -141,7 +140,7 @@ export const requirePermission = (
       );
     }
 
-    await next();
+    return await next();
   });
 };
 

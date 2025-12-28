@@ -66,9 +66,10 @@ FROM node:22.16.0-slim AS runtime
 # Install runtime dependencies:
 # - gosu: for PUID/PGID support (replaces su-exec on Alpine)
 # - wget + ca-certificates: for healthcheck and Calibre installer
+# - procps: provides 'ps' command needed by Crawlee for memory monitoring
 # - Calibre dependencies: required libraries for ebook-convert
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gosu wget ca-certificates xz-utils python3 \
+    gosu wget ca-certificates xz-utils python3 procps \
     libegl1 libopengl0 libxcb-cursor0 libfreetype6 \
     libfontconfig1 libgl1 libxkbcommon0 libdbus-1-3 && \
     rm -rf /var/lib/apt/lists/*

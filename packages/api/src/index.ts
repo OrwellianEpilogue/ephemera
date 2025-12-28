@@ -63,6 +63,7 @@ import apiKeysRoutes from "./routes/api-keys.js";
 import proxyAuthRoutes from "./routes/proxy-auth.js";
 import calibreRoutes from "./routes/calibre.js";
 import tolinoRoutes from "./routes/tolino.js";
+import configRoutes from "./routes/config.js";
 import { setupSecurityService } from "./services/setup-security.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -311,16 +312,12 @@ app.use(
 // Email routes: recipients are user-managed, settings require permission
 app.use("/api/email/*", (c, next) => {
   const path = c.req.path;
-  const method = c.req.method;
   // Recipients routes - any authenticated user can manage their own
   if (path.includes("/recipients") || path === "/api/email/send") {
     return requireAuth(c, next);
   }
-  // GET settings is allowed for all (to check if email is enabled)
-  if (path === "/api/email/settings" && method === "GET") {
-    return requireAuth(c, next);
-  }
-  // PUT settings and test require canConfigureEmail permission
+  // All settings operations (GET/PUT/test) require canConfigureEmail permission
+  // Note: emailEnabled is available via /api/config for regular users
   return withAuth((c, next) => requirePermission("canConfigureEmail")(c, next))(
     c,
     next,
@@ -328,6 +325,10 @@ app.use("/api/email/*", (c, next) => {
 });
 
 // General settings require canConfigureApp permission
+app.use(
+  "/api/settings",
+  withAuth((c, next) => requirePermission("canConfigureApp")(c, next)),
+);
 app.use(
   "/api/settings/*",
   withAuth((c, next) => requirePermission("canConfigureApp")(c, next)),
@@ -380,6 +381,9 @@ app.use(
 app.use("/api/tolino/*", requireAuth);
 app.use("/api/tolino", requireAuth);
 
+// Config route: requires auth (returns safe config for all authenticated users)
+app.use("/api/config", requireAuth);
+
 // Mount API routes
 app.route(`${API_BASE_PATH}/setup`, setupRoutes); // Public (for initial setup)
 // Note: authRoutes already mounted above before Better Auth handler
@@ -394,6 +398,7 @@ app.route(API_BASE_PATH, appriseRoutes); // Protected
 app.route(API_BASE_PATH, imageProxyRoutes); // Public
 app.route(API_BASE_PATH, requestsRoutes); // Protected
 app.route(API_BASE_PATH, versionRoutes); // Public
+app.route(API_BASE_PATH, configRoutes); // Protected (all authenticated users)
 app.route(API_BASE_PATH, indexerRoutes); // Protected
 app.route(API_BASE_PATH, filesystemRoutes); // Admin only
 app.route(API_BASE_PATH, permissionsRoutes); // Protected
