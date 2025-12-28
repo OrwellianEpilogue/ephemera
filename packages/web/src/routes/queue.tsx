@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "../lib/route-auth";
+import { usePageTitle } from "../hooks/use-page-title";
 import {
   Container,
   Title,
@@ -88,6 +89,7 @@ function VirtualizedDownloadList({ items }: { items: QueueItem[] }) {
 }
 
 function QueuePage() {
+  usePageTitle("Queue");
   // 1. Call ALL hooks first (before any conditional returns)
   const { data: queue, isLoading, isError } = useQueue({ enableSSE: false });
   const [searchQuery, setSearchQuery] = useState("");

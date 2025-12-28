@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { requireAuth } from "../lib/route-auth";
+import { usePageTitle } from "../hooks/use-page-title";
 import {
   Container,
   Title,
@@ -115,6 +116,7 @@ const settingsSearchSchema = z.object({
 });
 
 function SettingsComponent() {
+  usePageTitle("Settings");
   const navigate = useNavigate({ from: "/settings" });
   const { tab } = Route.useSearch();
   const { isAdmin } = useAuth();

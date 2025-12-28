@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { usePageTitle } from "../hooks/use-page-title";
 import {
   Box,
   Button,
@@ -44,6 +45,7 @@ interface AuthMethods {
 }
 
 function LoginPage() {
+  usePageTitle("Login");
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 

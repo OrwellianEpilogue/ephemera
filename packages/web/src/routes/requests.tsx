@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { requireAuth } from "../lib/route-auth";
+import { usePageTitle } from "../hooks/use-page-title";
 import {
   Container,
   Title,
@@ -372,6 +373,7 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
 
 // Main Requests page
 function RequestsPage() {
+  usePageTitle("Requests");
   const [activeTab, setActiveTab] = useState<string>("all");
   const { isAdmin } = useAuth();
   const { data: permissions } = usePermissions();
