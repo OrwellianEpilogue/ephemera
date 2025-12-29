@@ -14,16 +14,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Core React runtime
-          if (id.includes("node_modules/react-dom")) {
+          // React + Mantine bundled together to prevent initialization race conditions
+          // Separating these causes "useLayoutEffect of undefined" errors when
+          // Mantine tries to access React before the React chunk is evaluated
+          if (
+            id.includes("node_modules/react-dom") ||
+            id.includes("node_modules/react/") ||
+            id.includes("node_modules/@mantine/") ||
+            id.includes("node_modules/@floating-ui/")
+          ) {
             return "vendor-react";
-          }
-          if (id.includes("node_modules/react/")) {
-            return "vendor-react";
-          }
-          // Mantine UI framework
-          if (id.includes("node_modules/@mantine/")) {
-            return "vendor-mantine";
           }
           // TanStack libraries
           if (id.includes("node_modules/@tanstack/")) {
