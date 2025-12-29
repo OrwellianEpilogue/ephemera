@@ -169,6 +169,11 @@ export const ssoProvider = sqliteTable("sso_provider", {
     .default(false)
     .notNull(),
   enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+  // Group claims for auto-admin provisioning
+  groupClaimName: text("group_claim_name"), // e.g., "groups", "roles", "memberOf"
+  adminGroupValue: text("admin_group_value"), // e.g., "ephemera-admins"
+  // Default permissions for users created via this provider (JSON)
+  defaultPermissions: text("default_permissions"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),

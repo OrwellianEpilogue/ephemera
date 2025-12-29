@@ -30,8 +30,24 @@ import {
   IconAlertCircle,
   IconCheck,
   IconX,
+  IconChevronDown,
+  IconChevronUp,
 } from "@tabler/icons-react";
 import { apiFetch } from "@ephemera/shared";
+
+interface DefaultPermissions {
+  canDeleteDownloads?: boolean;
+  canConfigureNotifications?: boolean;
+  canManageRequests?: boolean;
+  canStartDownloads?: boolean;
+  canConfigureApp?: boolean;
+  canConfigureIntegrations?: boolean;
+  canConfigureEmail?: boolean;
+  canSeeDownloadOwner?: boolean;
+  canManageApiKeys?: boolean;
+  canConfigureTolino?: boolean;
+  canManageLists?: boolean;
+}
 
 interface OIDCProvider {
   id: string;
@@ -41,6 +57,9 @@ interface OIDCProvider {
   domain: string | null;
   allowAutoProvision: boolean;
   enabled: boolean;
+  groupClaimName: string | null;
+  adminGroupValue: string | null;
+  defaultPermissions: DefaultPermissions | null;
   oidcConfig: {
     clientId: string;
     clientSecret: string;
@@ -63,6 +82,9 @@ interface CreateProviderForm {
   scopes: string[];
   allowAutoProvision: boolean;
   enabled: boolean;
+  groupClaimName: string;
+  adminGroupValue: string;
+  defaultPermissions: DefaultPermissions;
 }
 
 interface TestResult {
@@ -80,6 +102,8 @@ function OIDCProvidersPage() {
   const [error, setError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showEditAdvanced, setShowEditAdvanced] = useState(false);
 
   // Form state for create
   const [createForm, setCreateForm] = useState<CreateProviderForm>({
@@ -90,9 +114,12 @@ function OIDCProvidersPage() {
     domain: "",
     clientId: "",
     clientSecret: "",
-    scopes: ["openid", "email", "profile"],
+    scopes: ["openid", "email", "profile", "groups"],
     allowAutoProvision: false,
     enabled: true,
+    groupClaimName: "",
+    adminGroupValue: "",
+    defaultPermissions: {},
   });
   const [createProtocol, setCreateProtocol] = useState<"https://" | "http://">(
     "https://",
@@ -126,10 +153,14 @@ function OIDCProvidersPage() {
         domain: "",
         clientId: "",
         clientSecret: "",
-        scopes: ["openid", "email", "profile"],
+        scopes: ["openid", "email", "profile", "groups"],
         allowAutoProvision: false,
         enabled: true,
+        groupClaimName: "",
+        adminGroupValue: "",
+        defaultPermissions: {},
       });
+      setShowAdvanced(false);
       setError(null);
       setTestResult(null);
     },
@@ -142,7 +173,26 @@ function OIDCProvidersPage() {
 
   // Update provider mutation
   const updateProviderMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<OIDCProvider> }) =>
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: {
+        name?: string;
+        issuer?: string;
+        domain?: string | null;
+        enabled?: boolean;
+        allowAutoProvision?: boolean;
+        clientId?: string;
+        clientSecret?: string;
+        scopes?: string[];
+        discoveryUrl?: string;
+        groupClaimName?: string | null;
+        adminGroupValue?: string | null;
+        defaultPermissions?: DefaultPermissions | null;
+      };
+    }) =>
       apiFetch<OIDCProvider>(`/oidc-providers/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -152,6 +202,7 @@ function OIDCProvidersPage() {
       queryClient.invalidateQueries({ queryKey: ["oidc-providers"] });
       setEditModalOpen(false);
       setSelectedProvider(null);
+      setShowEditAdvanced(false);
       setError(null);
       setTestResult(null);
     },
@@ -194,21 +245,27 @@ function OIDCProvidersPage() {
     if (!selectedProvider) return;
     setError(null);
     const fullIssuer = `${editProtocol}${selectedProvider.issuer}`;
+    const updateData = {
+      name: selectedProvider.name,
+      issuer: fullIssuer,
+      domain: selectedProvider.domain,
+      enabled: selectedProvider.enabled,
+      allowAutoProvision: selectedProvider.allowAutoProvision,
+      // API expects these at top level, not nested in oidcConfig
+      clientId: selectedProvider.oidcConfig.clientId,
+      clientSecret: selectedProvider.oidcConfig.clientSecret,
+      scopes: selectedProvider.oidcConfig.scopes,
+      discoveryUrl:
+        selectedProvider.oidcConfig.discoveryUrl ||
+        `${fullIssuer}/.well-known/openid-configuration`,
+      // New fields
+      groupClaimName: selectedProvider.groupClaimName,
+      adminGroupValue: selectedProvider.adminGroupValue,
+      defaultPermissions: selectedProvider.defaultPermissions,
+    };
     updateProviderMutation.mutate({
       id: selectedProvider.id,
-      data: {
-        name: selectedProvider.name,
-        issuer: fullIssuer,
-        domain: selectedProvider.domain,
-        enabled: selectedProvider.enabled,
-        allowAutoProvision: selectedProvider.allowAutoProvision,
-        oidcConfig: {
-          ...selectedProvider.oidcConfig,
-          discoveryUrl:
-            selectedProvider.oidcConfig.discoveryUrl ||
-            `${fullIssuer}/.well-known/openid-configuration`,
-        },
-      },
+      data: updateData,
     });
   };
 
@@ -534,6 +591,7 @@ function OIDCProvidersPage() {
               { value: "openid", label: "openid" },
               { value: "email", label: "email" },
               { value: "profile", label: "profile" },
+              { value: "groups", label: "groups" },
               { value: "offline_access", label: "offline_access" },
             ]}
             value={createForm.scopes}
@@ -563,6 +621,259 @@ function OIDCProvidersPage() {
               setCreateForm({ ...createForm, enabled: e.currentTarget.checked })
             }
           />
+
+          {/* Advanced Options */}
+          <Button
+            variant="subtle"
+            size="sm"
+            leftSection={
+              showAdvanced ? (
+                <IconChevronUp size={16} />
+              ) : (
+                <IconChevronDown size={16} />
+              )
+            }
+            onClick={() => setShowAdvanced(!showAdvanced)}
+          >
+            {showAdvanced ? "Hide" : "Show"} Advanced Options
+          </Button>
+
+          {showAdvanced && (
+            <Card withBorder p="md">
+              <Text size="sm" fw={500}>
+                Auto-Admin from Group Claims
+              </Text>
+              <Text size="xs" c="dimmed" mb="md">
+                Automatically grant admin role to users who have a specific
+                group claim in their OIDC token. The role will sync on each
+                login (users can be promoted or demoted based on IdP groups).
+              </Text>
+
+              <TextInput
+                label="Group Claim Name"
+                description="Name of the claim containing user groups (e.g., groups, roles, memberOf)"
+                placeholder="groups"
+                value={createForm.groupClaimName}
+                onChange={(e) =>
+                  setCreateForm({
+                    ...createForm,
+                    groupClaimName: e.target.value,
+                  })
+                }
+              />
+
+              <TextInput
+                label="Admin Group Value"
+                description="Users with this group will be granted admin role"
+                placeholder="ephemera-admins"
+                mt="sm"
+                value={createForm.adminGroupValue}
+                onChange={(e) =>
+                  setCreateForm({
+                    ...createForm,
+                    adminGroupValue: e.target.value,
+                  })
+                }
+              />
+
+              <Text size="sm" fw={500} mt="lg">
+                Default Permissions for New Users
+              </Text>
+              <Text size="xs" c="dimmed" mb="md">
+                Override the default permissions for users created via this
+                provider. Unset options will use global defaults.
+              </Text>
+
+              <Stack gap="xs">
+                <Group grow>
+                  <Switch
+                    label="Can manage requests"
+                    checked={
+                      createForm.defaultPermissions?.canManageRequests ?? true
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canManageRequests: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                  <Switch
+                    label="Can start downloads"
+                    checked={
+                      createForm.defaultPermissions?.canStartDownloads ?? true
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canStartDownloads: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                </Group>
+
+                <Group grow>
+                  <Switch
+                    label="Can delete downloads"
+                    checked={
+                      createForm.defaultPermissions?.canDeleteDownloads ?? false
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canDeleteDownloads: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                  <Switch
+                    label="Can manage lists"
+                    checked={
+                      createForm.defaultPermissions?.canManageLists ?? true
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canManageLists: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                </Group>
+
+                <Group grow>
+                  <Switch
+                    label="Can configure Tolino"
+                    checked={
+                      createForm.defaultPermissions?.canConfigureTolino ?? true
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canConfigureTolino: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                  <Switch
+                    label="Can see download owner"
+                    checked={
+                      createForm.defaultPermissions?.canSeeDownloadOwner ??
+                      false
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canSeeDownloadOwner: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                </Group>
+
+                <Group grow>
+                  <Switch
+                    label="Can configure notifications"
+                    checked={
+                      createForm.defaultPermissions
+                        ?.canConfigureNotifications ?? false
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canConfigureNotifications: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                  <Switch
+                    label="Can manage API keys"
+                    checked={
+                      createForm.defaultPermissions?.canManageApiKeys ?? false
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canManageApiKeys: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                </Group>
+
+                <Group grow>
+                  <Switch
+                    label="Can configure app"
+                    checked={
+                      createForm.defaultPermissions?.canConfigureApp ?? false
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canConfigureApp: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                  <Switch
+                    label="Can configure integrations"
+                    checked={
+                      createForm.defaultPermissions?.canConfigureIntegrations ??
+                      false
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canConfigureIntegrations: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                </Group>
+
+                <Group grow>
+                  <Switch
+                    label="Can configure email"
+                    checked={
+                      createForm.defaultPermissions?.canConfigureEmail ?? false
+                    }
+                    onChange={(e) =>
+                      setCreateForm({
+                        ...createForm,
+                        defaultPermissions: {
+                          ...createForm.defaultPermissions,
+                          canConfigureEmail: e.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />
+                  <Box />
+                </Group>
+              </Stack>
+            </Card>
+          )}
 
           {testResult && (
             <Alert
@@ -748,6 +1059,7 @@ function OIDCProvidersPage() {
                 { value: "openid", label: "openid" },
                 { value: "email", label: "email" },
                 { value: "profile", label: "profile" },
+                { value: "groups", label: "groups" },
                 { value: "offline_access", label: "offline_access" },
               ]}
               value={selectedProvider.oidcConfig.scopes}
@@ -785,6 +1097,267 @@ function OIDCProvidersPage() {
                 })
               }
             />
+
+            {/* Advanced Options */}
+            <Button
+              variant="subtle"
+              size="sm"
+              leftSection={
+                showEditAdvanced ? (
+                  <IconChevronUp size={16} />
+                ) : (
+                  <IconChevronDown size={16} />
+                )
+              }
+              onClick={() => setShowEditAdvanced(!showEditAdvanced)}
+            >
+              {showEditAdvanced ? "Hide" : "Show"} Advanced Options
+            </Button>
+
+            {showEditAdvanced && (
+              <Card withBorder p="md">
+                <Text size="sm" fw={500}>
+                  Auto-Admin from Group Claims
+                </Text>
+                <Text size="xs" c="dimmed" mb="md">
+                  Automatically grant admin role to users who have a specific
+                  group claim in their OIDC token. The role will sync on each
+                  login (users can be promoted or demoted based on IdP groups).
+                </Text>
+
+                <TextInput
+                  label="Group Claim Name"
+                  description="Name of the claim containing user groups (e.g., groups, roles, memberOf)"
+                  placeholder="groups"
+                  value={selectedProvider.groupClaimName || ""}
+                  onChange={(e) =>
+                    setSelectedProvider({
+                      ...selectedProvider,
+                      groupClaimName: e.target.value || null,
+                    })
+                  }
+                />
+
+                <TextInput
+                  label="Admin Group Value"
+                  description="Users with this group will be granted admin role"
+                  placeholder="ephemera-admins"
+                  mt="sm"
+                  value={selectedProvider.adminGroupValue || ""}
+                  onChange={(e) =>
+                    setSelectedProvider({
+                      ...selectedProvider,
+                      adminGroupValue: e.target.value || null,
+                    })
+                  }
+                />
+
+                <Text size="sm" fw={500} mt="lg">
+                  Default Permissions for New Users
+                </Text>
+                <Text size="xs" c="dimmed" mb="md">
+                  Override the default permissions for users created via this
+                  provider. Unset options will use global defaults.
+                </Text>
+
+                <Stack gap="xs">
+                  <Group grow>
+                    <Switch
+                      label="Can manage requests"
+                      checked={
+                        selectedProvider.defaultPermissions
+                          ?.canManageRequests ?? true
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canManageRequests: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                    <Switch
+                      label="Can start downloads"
+                      checked={
+                        selectedProvider.defaultPermissions
+                          ?.canStartDownloads ?? true
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canStartDownloads: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                  </Group>
+
+                  <Group grow>
+                    <Switch
+                      label="Can delete downloads"
+                      checked={
+                        selectedProvider.defaultPermissions
+                          ?.canDeleteDownloads ?? false
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canDeleteDownloads: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                    <Switch
+                      label="Can manage lists"
+                      checked={
+                        selectedProvider.defaultPermissions?.canManageLists ??
+                        true
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canManageLists: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                  </Group>
+
+                  <Group grow>
+                    <Switch
+                      label="Can configure Tolino"
+                      checked={
+                        selectedProvider.defaultPermissions
+                          ?.canConfigureTolino ?? true
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canConfigureTolino: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                    <Switch
+                      label="Can see download owner"
+                      checked={
+                        selectedProvider.defaultPermissions
+                          ?.canSeeDownloadOwner ?? false
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canSeeDownloadOwner: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                  </Group>
+
+                  <Group grow>
+                    <Switch
+                      label="Can configure notifications"
+                      checked={
+                        selectedProvider.defaultPermissions
+                          ?.canConfigureNotifications ?? false
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canConfigureNotifications: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                    <Switch
+                      label="Can manage API keys"
+                      checked={
+                        selectedProvider.defaultPermissions?.canManageApiKeys ??
+                        false
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canManageApiKeys: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                  </Group>
+
+                  <Group grow>
+                    <Switch
+                      label="Can configure app"
+                      checked={
+                        selectedProvider.defaultPermissions?.canConfigureApp ??
+                        false
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canConfigureApp: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                    <Switch
+                      label="Can configure integrations"
+                      checked={
+                        selectedProvider.defaultPermissions
+                          ?.canConfigureIntegrations ?? false
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canConfigureIntegrations: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                  </Group>
+
+                  <Group grow>
+                    <Switch
+                      label="Can configure email"
+                      checked={
+                        selectedProvider.defaultPermissions
+                          ?.canConfigureEmail ?? false
+                      }
+                      onChange={(e) =>
+                        setSelectedProvider({
+                          ...selectedProvider,
+                          defaultPermissions: {
+                            ...selectedProvider.defaultPermissions,
+                            canConfigureEmail: e.currentTarget.checked,
+                          },
+                        })
+                      }
+                    />
+                    <Box />
+                  </Group>
+                </Stack>
+              </Card>
+            )}
 
             {testResult && (
               <Alert

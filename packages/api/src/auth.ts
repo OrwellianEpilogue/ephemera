@@ -12,6 +12,26 @@ import { ssoProvider, user, account } from "./db/schema.js";
 import { booklorePlugin } from "./auth/plugins/booklore-plugin.js";
 import { calibrePlugin } from "./auth/plugins/calibre-plugin.js";
 import { proxyAuthPlugin } from "./auth/plugins/proxy-auth-plugin.js";
+import { permissionsService } from "./services/permissions.js";
+
+/**
+ * Decode JWT payload without signature verification
+ * (signature is already verified by better-auth)
+ */
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      return {};
+    }
+    // Base64URL decode the payload (second part)
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = Buffer.from(payload, "base64").toString("utf-8");
+    return JSON.parse(decoded);
+  } catch {
+    return {};
+  }
+}
 
 // Get or generate persistent auth secret
 // Priority: BETTER_AUTH_SECRET env var > persisted secret file > generate new
@@ -309,7 +329,11 @@ export const auth = betterAuth({
       defaultOverrideUserInfo: true, // Update user info on each login
       trustEmailVerified: true, // Trust email verification from OIDC providers for account linking
       // Note: provisionUser callback is kept as secondary check (databaseHooks is primary)
-      provisionUser: async ({ user: ssoUser, provider: providerInfo }) => {
+      provisionUser: async ({
+        user: ssoUser,
+        provider: providerInfo,
+        token,
+      }) => {
         // Look up the provider in our database
         const providerResult = await db
           .select()
@@ -339,6 +363,70 @@ export const auth = betterAuth({
                 "Account does not exist. Please contact an administrator to create your account.",
             });
           }
+        }
+
+        // Get the current user from database to check/update role
+        const currentUserResult = await db
+          .select()
+          .from(user)
+          .where(eq(user.email, ssoUser.email))
+          .limit(1);
+
+        if (currentUserResult.length === 0) {
+          // User doesn't exist yet - will be created by better-auth
+          // Permissions will be created on first access via getPermissions()
+          return;
+        }
+
+        const currentUser = currentUserResult[0];
+
+        // Sync admin role from OIDC group claims (if configured)
+        if (providerConfig.adminGroupValue && token?.idToken) {
+          const idToken = decodeJwtPayload(token.idToken);
+          const groupClaim = providerConfig.groupClaimName || "groups";
+          const adminGroup = providerConfig.adminGroupValue;
+
+          const groups = idToken[groupClaim];
+          const groupArray = Array.isArray(groups)
+            ? groups
+            : groups
+              ? [groups]
+              : [];
+          const hasAdminGroup = groupArray.includes(adminGroup);
+
+          // Sync role with IdP (upgrade or downgrade)
+          const newRole = hasAdminGroup ? "admin" : "user";
+          if (currentUser.role !== newRole) {
+            await db
+              .update(user)
+              .set({ role: newRole })
+              .where(eq(user.id, currentUser.id));
+            console.log(
+              `[SSO] Updated user ${ssoUser.email} role to ${newRole} based on group claims`,
+            );
+          }
+        }
+
+        // Ensure permissions exist (creates defaults if not present)
+        // Use provider-specific defaults if configured
+        if (providerConfig.defaultPermissions) {
+          try {
+            const providerDefaults = JSON.parse(
+              providerConfig.defaultPermissions,
+            );
+            await permissionsService.getPermissions(
+              currentUser.id,
+              providerDefaults,
+            );
+          } catch (e) {
+            console.error(
+              "[SSO] Failed to parse provider default permissions:",
+              e,
+            );
+            await permissionsService.getPermissions(currentUser.id);
+          }
+        } else {
+          await permissionsService.getPermissions(currentUser.id);
         }
       },
     }),

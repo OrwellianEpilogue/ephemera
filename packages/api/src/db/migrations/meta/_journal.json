@@ -183,6 +183,13 @@
       "when": 1766964558489,
       "tag": "0025_huge_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1767004699001,
+      "tag": "0026_married_giant_man",
+      "breakpoints": true
     }
   ]
 }

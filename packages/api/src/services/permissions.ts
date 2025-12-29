@@ -41,8 +41,13 @@ class PermissionsService {
   /**
    * Get permissions for a user (with caching)
    * Creates default permissions if they don't exist
+   * @param userId - The user ID
+   * @param providerDefaults - Optional provider-specific defaults to merge with global defaults
    */
-  async getPermissions(userId: string): Promise<UserPermissions> {
+  async getPermissions(
+    userId: string,
+    providerDefaults?: Partial<Omit<NewUserPermissions, "userId">>,
+  ): Promise<UserPermissions> {
     // Check cache first
     const cached = this.cache.get(userId);
     if (cached && cached.expiresAt > Date.now()) {
@@ -68,8 +73,8 @@ class PermissionsService {
         return result[0];
       }
 
-      // Create default permissions for this user
-      const defaultPermissions: NewUserPermissions = {
+      // Global default permissions
+      const globalDefaults: NewUserPermissions = {
         userId,
         canDeleteDownloads: false,
         canConfigureNotifications: false,
@@ -84,12 +89,19 @@ class PermissionsService {
         canManageLists: true,
       };
 
+      // Merge provider-specific overrides if provided
+      const finalDefaults: NewUserPermissions = providerDefaults
+        ? { ...globalDefaults, ...providerDefaults, userId }
+        : globalDefaults;
+
       const created = await db
         .insert(userPermissions)
-        .values(defaultPermissions)
+        .values(finalDefaults)
         .returning();
 
-      logger.info(`Created default permissions for user: ${userId}`);
+      logger.info(
+        `Created ${providerDefaults ? "provider-customized" : "default"} permissions for user: ${userId}`,
+      );
 
       // Cache the newly created permissions
       this.cache.set(userId, {
