@@ -9,7 +9,7 @@ import {
 import {
   errorResponseSchema,
   createRequestInputSchema,
-  savedRequestWithBookSchema,
+  savedRequestWithMetadataSchema,
 } from "@ephemera/shared";
 import { logger, getErrorMessage } from "../utils/logger.js";
 import { permissionsService } from "../services/permissions.js";
@@ -40,7 +40,7 @@ const createRequestRoute = createRoute({
       description: "Successfully created request",
       content: {
         "application/json": {
-          schema: savedRequestWithBookSchema,
+          schema: savedRequestWithMetadataSchema,
         },
       },
     },
@@ -169,7 +169,7 @@ const listRequestsRoute = createRoute({
       description: "List of requests",
       content: {
         "application/json": {
-          schema: z.array(savedRequestWithBookSchema),
+          schema: z.array(savedRequestWithMetadataSchema),
         },
       },
     },

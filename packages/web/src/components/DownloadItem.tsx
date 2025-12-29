@@ -39,7 +39,11 @@ import { useFrontendConfig } from "../hooks/useConfig";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { UserBadge } from "./UserBadge";
 import { useEmailRecipients, useSendBookEmail } from "../hooks/useEmail";
-import { useTolinoSettings, useTolinoUpload } from "../hooks/useTolino";
+import {
+  useTolinoSettings,
+  useTolinoUpload,
+  useTolinoSuggestedCollection,
+} from "../hooks/useTolino";
 import { useCalibreStatus } from "../hooks/useCalibre";
 import { TolinoUploadDialog } from "./TolinoUploadDialog";
 import { useState, useEffect, memo } from "react";
@@ -190,6 +194,14 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const { data: tolinoSettings } = useTolinoSettings();
   const { data: calibreStatus } = useCalibreStatus();
   const tolinoUpload = useTolinoUpload();
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [tolinoDialogOpened, setTolinoDialogOpened] = useState(false);
+
+  // Fetch suggested collection when dialog is open
+  const { data: suggestedCollectionData } = useTolinoSuggestedCollection(
+    item.md5,
+    tolinoDialogOpened,
+  );
 
   // Determine if book can be uploaded to Tolino (client-side check)
   const itemFormat = (item.format || "").toLowerCase();
@@ -197,8 +209,6 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const canConvertToEpub = !isNativeFormat && calibreStatus?.available;
   const canUploadToTolino = isNativeFormat || canConvertToEpub;
   const needsConversion = !isNativeFormat && canConvertToEpub;
-  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
-  const [tolinoDialogOpened, setTolinoDialogOpened] = useState(false);
 
   const handleCancel = () => {
     cancelDownload.mutate({ md5: item.md5, title: item.title });
@@ -690,6 +700,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
         isUploading={tolinoUpload.isPending}
         bookTitle={item.title}
         needsConversion={needsConversion}
+        suggestedCollection={suggestedCollectionData?.suggestedCollection}
       />
     </Card>
   );

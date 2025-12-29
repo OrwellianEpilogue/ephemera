@@ -4,20 +4,23 @@ import { db } from "../db/index.js";
 import {
   downloadRequests,
   books,
+  bookMetadata,
   user,
   type DownloadRequest,
   type NewDownloadRequest,
   type Book,
+  type BookMetadata,
 } from "../db/schema.js";
 import type {
   RequestQueryParams,
-  SavedRequestWithBook,
+  SavedRequestWithMetadata,
   Book as SharedBook,
+  BookMetadata as SharedBookMetadata,
 } from "@ephemera/shared";
 
 // Re-export for convenience
 export type { RequestQueryParams };
-export type DownloadRequestWithBook = SavedRequestWithBook;
+export type DownloadRequestWithBook = SavedRequestWithMetadata;
 
 /**
  * Convert database Book to shared Book schema
@@ -43,6 +46,40 @@ function convertDbBookToSharedBook(dbBook: Book | null): SharedBook | null {
     saves: dbBook.saves ?? undefined,
     lists: dbBook.lists ?? undefined,
     issues: dbBook.issues ?? undefined,
+  };
+}
+
+/**
+ * Convert database BookMetadata to shared BookMetadata schema
+ * Transforms timestamp fields to ISO strings
+ */
+function convertDbMetadataToShared(
+  dbMetadata: BookMetadata | null,
+): SharedBookMetadata | null {
+  if (!dbMetadata) return null;
+
+  return {
+    id: dbMetadata.id,
+    requestId: dbMetadata.requestId,
+    source: dbMetadata.source as "goodreads" | "storygraph" | "hardcover",
+    sourceBookId: dbMetadata.sourceBookId,
+    sourceUrl: dbMetadata.sourceUrl,
+    title: dbMetadata.title,
+    author: dbMetadata.author,
+    description: dbMetadata.description,
+    isbn: dbMetadata.isbn,
+    seriesName: dbMetadata.seriesName,
+    seriesPosition: dbMetadata.seriesPosition,
+    publishedYear: dbMetadata.publishedYear,
+    pages: dbMetadata.pages,
+    rating: dbMetadata.rating,
+    averageRating: dbMetadata.averageRating,
+    genres: dbMetadata.genres,
+    coverUrl: dbMetadata.coverUrl,
+    coverPath: dbMetadata.coverPath,
+    fetchedAt: dbMetadata.fetchedAt,
+    createdAt: dbMetadata.createdAt.toISOString(),
+    updatedAt: dbMetadata.updatedAt.toISOString(),
   };
 }
 
@@ -116,7 +153,7 @@ class DownloadRequestsService {
 
   /**
    * Get all download requests with optional status filter
-   * Returns requests with fulfilled book info and approver info if available
+   * Returns requests with fulfilled book info, approver info, and metadata if available
    */
   async getAllRequests(
     statusFilter?:
@@ -134,6 +171,7 @@ class DownloadRequestsService {
         .select({
           request: downloadRequests,
           book: books,
+          metadata: bookMetadata,
           user: {
             id: user.id,
             name: user.name,
@@ -145,6 +183,7 @@ class DownloadRequestsService {
         })
         .from(downloadRequests)
         .leftJoin(books, eq(downloadRequests.fulfilledBookMd5, books.md5))
+        .leftJoin(bookMetadata, eq(downloadRequests.id, bookMetadata.requestId))
         .leftJoin(user, eq(downloadRequests.userId, user.id))
         .leftJoin(
           approverAlias,
@@ -169,17 +208,20 @@ class DownloadRequestsService {
         results = await query;
       }
 
-      return results.map(({ request, book, user: requestUser, approver }) => ({
-        ...request,
-        fulfilledBook: convertDbBookToSharedBook(book),
-        userId: request.userId,
-        userName: requestUser?.name || undefined,
-        approverId: request.approverId,
-        approverName: approver?.name || undefined,
-        approvedAt: request.approvedAt,
-        rejectedAt: request.rejectedAt,
-        rejectionReason: request.rejectionReason,
-      }));
+      return results.map(
+        ({ request, book, metadata, user: requestUser, approver }) => ({
+          ...request,
+          fulfilledBook: convertDbBookToSharedBook(book),
+          metadata: convertDbMetadataToShared(metadata),
+          userId: request.userId,
+          userName: requestUser?.name || undefined,
+          approverId: request.approverId,
+          approverName: approver?.name || undefined,
+          approvedAt: request.approvedAt,
+          rejectedAt: request.rejectedAt,
+          rejectionReason: request.rejectionReason,
+        }),
+      );
     } catch (error) {
       console.error("[Download Requests] Error fetching requests:", error);
       throw error;

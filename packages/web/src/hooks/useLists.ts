@@ -80,6 +80,9 @@ export interface ProcessResult {
 export interface ListSettings {
   listFetchInterval: ListFetchInterval;
   hardcoverApiToken: string | null;
+  searchByIsbnFirst: boolean;
+  includeYearInSearch: boolean;
+  embedMetadataInBooks: boolean;
   updatedAt: number;
 }
 
@@ -301,7 +304,13 @@ export function useUpdateListSettings() {
   return useMutation<
     ListSettings,
     Error,
-    { listFetchInterval?: ListFetchInterval; hardcoverApiToken?: string | null }
+    {
+      listFetchInterval?: ListFetchInterval;
+      hardcoverApiToken?: string | null;
+      searchByIsbnFirst?: boolean;
+      includeYearInSearch?: boolean;
+      embedMetadataInBooks?: boolean;
+    }
   >({
     mutationFn: async (data) => {
       return apiFetch<ListSettings>("/admin/lists/settings", {

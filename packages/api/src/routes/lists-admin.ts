@@ -28,12 +28,18 @@ const listFetchIntervalSchema = z.enum([
 const listSettingsSchema = z.object({
   listFetchInterval: listFetchIntervalSchema,
   hardcoverApiToken: z.string().nullable(),
+  searchByIsbnFirst: z.boolean(),
+  includeYearInSearch: z.boolean(),
+  embedMetadataInBooks: z.boolean(),
   updatedAt: z.number(),
 });
 
 const updateListSettingsSchema = z.object({
   listFetchInterval: listFetchIntervalSchema.optional(),
   hardcoverApiToken: z.string().nullable().optional(),
+  searchByIsbnFirst: z.boolean().optional(),
+  includeYearInSearch: z.boolean().optional(),
+  embedMetadataInBooks: z.boolean().optional(),
 });
 
 const listSourceSchema = z.enum(["goodreads", "storygraph", "hardcover"]);
@@ -138,6 +144,9 @@ app.openapi(getSettingsRoute, async (c) => {
     listFetchInterval: settings.listFetchInterval,
     // Don't expose full token, just whether it's set
     hardcoverApiToken: settings.hardcoverApiToken ? "••••••••••••" : null,
+    searchByIsbnFirst: settings.searchByIsbnFirst,
+    includeYearInSearch: settings.includeYearInSearch,
+    embedMetadataInBooks: settings.embedMetadataInBooks,
     updatedAt: settings.updatedAt?.getTime() || 0,
   });
 });
@@ -192,6 +201,9 @@ app.openapi(updateSettingsRoute, async (c) => {
       {
         listFetchInterval: settings.listFetchInterval,
         hardcoverApiToken: settings.hardcoverApiToken ? "••••••••••••" : null,
+        searchByIsbnFirst: settings.searchByIsbnFirst,
+        includeYearInSearch: settings.includeYearInSearch,
+        embedMetadataInBooks: settings.embedMetadataInBooks,
         updatedAt: settings.updatedAt?.getTime() || 0,
       },
       200,

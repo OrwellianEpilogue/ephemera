@@ -1,0 +1,1 @@
+ALTER TABLE `list_settings` ADD `embed_metadata_in_books` integer DEFAULT true NOT NULL;

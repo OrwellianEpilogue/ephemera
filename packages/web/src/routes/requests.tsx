@@ -18,6 +18,8 @@ import {
   Button,
   Modal,
   Textarea,
+  Image,
+  Box,
 } from "@mantine/core";
 import {
   IconBookmark,
@@ -27,6 +29,9 @@ import {
   IconRefresh,
   IconX,
   IconHourglass,
+  IconExternalLink,
+  IconBook,
+  IconStar,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
@@ -41,7 +46,14 @@ import {
 import { useAppSettings } from "../hooks/useSettings";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { UserBadge } from "../components/UserBadge";
-import type { SavedRequestWithBook } from "@ephemera/shared";
+import type { SavedRequestWithMetadata } from "@ephemera/shared";
+
+// Source colors (brand colors for list platforms)
+const sourceColors: Record<string, { bg: string; text: string }> = {
+  goodreads: { bg: "#B7AD98", text: "#000" },
+  storygraph: { bg: "#14919B", text: "#fff" },
+  hardcover: { bg: "#6466F1", text: "#fff" },
+};
 
 // Helper function to format check interval for display
 function formatCheckInterval(interval: string): string {
@@ -58,8 +70,22 @@ function formatCheckInterval(interval: string): string {
   return intervalMap[interval] || "every 6 hours";
 }
 
+// Helper to get cover URL (local or remote)
+function getCoverUrl(
+  metadata: SavedRequestWithMetadata["metadata"],
+): string | null {
+  if (!metadata) return null;
+  // Prefer local cover path, fall back to remote URL
+  if (metadata.coverPath) {
+    // Extract filename from path for API route
+    const filename = metadata.coverPath.split("/").pop();
+    return `/api/covers/${filename}`;
+  }
+  return metadata.coverUrl || null;
+}
+
 // Request card component
-function RequestCard({ request }: { request: SavedRequestWithBook }) {
+function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
   const deleteRequest = useDeleteRequest();
   const approveRequest = useApproveRequest();
   const rejectRequest = useRejectRequest();
@@ -160,183 +186,279 @@ function RequestCard({ request }: { request: SavedRequestWithBook }) {
     return "Unknown search";
   };
 
+  const metadata = request.metadata;
+  const coverUrl = getCoverUrl(metadata);
+
   return (
     <Card withBorder padding="md">
-      <Stack gap="sm">
-        <Group justify="space-between" wrap="nowrap">
-          <Group gap="xs">
-            <IconBookmark size={18} />
-            <Text fw={500} style={{ wordBreak: "break-word" }}>
-              {getDisplayTitle()}
-            </Text>
-          </Group>
-          <Group gap="xs">
-            <Badge color={statusColor} size="sm">
-              {statusLabel}
-            </Badge>
-            {hasManagePermission && (
-              <Tooltip label="Delete request">
-                <ActionIcon
-                  variant="subtle"
-                  color="red"
-                  onClick={handleDelete}
-                  loading={deleteRequest.isPending}
-                >
-                  <IconTrash size={16} />
-                </ActionIcon>
-              </Tooltip>
-            )}
-          </Group>
-        </Group>
-
-        {filters.length > 0 && (
-          <Group gap={4}>
-            {filters.map((filter, idx) => (
-              <Badge key={idx} size="xs" variant="light" color="gray">
-                {filter}
-              </Badge>
-            ))}
-          </Group>
-        )}
-
-        {/* Show user badge for admins */}
-        {isAdmin && request.userId && (
-          <Group gap="xs">
-            <UserBadge
-              userId={request.userId}
-              userName={request.userName}
-              size="sm"
+      <Group align="flex-start" wrap="nowrap" gap="md">
+        {/* Cover image */}
+        {coverUrl && (
+          <Box style={{ flexShrink: 0 }}>
+            <Image
+              src={coverUrl}
+              alt={metadata?.title || "Book cover"}
+              w={75}
+              h={112}
+              radius="sm"
+              fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='75' height='112' viewBox='0 0 75 112'%3E%3Crect fill='%23e0e0e0' width='75' height='112'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23999' font-size='10'%3ENo Cover%3C/text%3E%3C/svg%3E"
             />
-          </Group>
+          </Box>
         )}
 
-        <Group
-          gap="md"
-          style={{ fontSize: "0.85rem", color: "var(--mantine-color-dimmed)" }}
-        >
-          <Group gap={4}>
-            <IconClock size={14} />
-            <Text size="xs">
-              Created{" "}
-              {formatDistanceToNow(new Date(request.createdAt), {
-                addSuffix: true,
-              })}
-            </Text>
-          </Group>
-
-          {request.lastCheckedAt && (
-            <Group gap={4}>
-              <IconRefresh size={14} />
-              <Text size="xs">
-                Last checked{" "}
-                {formatDistanceToNow(new Date(request.lastCheckedAt), {
-                  addSuffix: true,
-                })}
-              </Text>
-            </Group>
-          )}
-
-          {request.fulfilledAt && (
-            <Group gap={4}>
-              <IconCheck size={14} />
-              <Text size="xs">
-                Fulfilled{" "}
-                {formatDistanceToNow(new Date(request.fulfilledAt), {
-                  addSuffix: true,
-                })}
-              </Text>
-            </Group>
-          )}
-        </Group>
-
-        {request.status === "fulfilled" && request.fulfilledBook && (
-          <Card withBorder bg="var(--mantine-color-green-light)">
-            <Stack gap={4}>
-              <Text size="sm" fw={500} c="green">
-                Book found & sent to queue
-              </Text>
-              <Text size="xs">{request.fulfilledBook.title}</Text>
-              {request.fulfilledBook.authors &&
-                request.fulfilledBook.authors.length > 0 && (
-                  <Text size="xs" c="dimmed">
-                    by {request.fulfilledBook.authors.join(", ")}
-                  </Text>
+        <Stack gap="sm" style={{ flex: 1, minWidth: 0 }}>
+          {/* Status chips - reused in both layouts */}
+          {(() => {
+            const statusChips = (
+              <Group
+                gap="xs"
+                wrap="nowrap"
+                style={{ flexShrink: 0, alignItems: "center" }}
+              >
+                {isAdmin && request.userId && (
+                  <UserBadge
+                    userId={request.userId}
+                    userName={request.userName}
+                    size="sm"
+                  />
                 )}
-              <Group gap={4}>
-                {request.fulfilledBook.format && (
-                  <Badge size="xs" variant="light">
-                    {request.fulfilledBook.format}
+                {request.status === "fulfilled" && request.fulfilledBookMd5 ? (
+                  <Badge
+                    component={Link}
+                    to={`/queue#${request.fulfilledBookMd5}`}
+                    color={statusColor}
+                    size="sm"
+                    style={{ cursor: "pointer" }}
+                  >
+                    {statusLabel}
+                  </Badge>
+                ) : (
+                  <Badge color={statusColor} size="sm">
+                    {statusLabel}
                   </Badge>
                 )}
-                {request.fulfilledBook.language && (
-                  <Badge size="xs" variant="light">
-                    {request.fulfilledBook.language}
-                  </Badge>
-                )}
-                {request.fulfilledBook.year && (
-                  <Badge size="xs" variant="light">
-                    {request.fulfilledBook.year}
-                  </Badge>
+                {hasManagePermission && (
+                  <Tooltip label="Delete request">
+                    <ActionIcon
+                      variant="subtle"
+                      color="red"
+                      size="sm"
+                      onClick={handleDelete}
+                      loading={deleteRequest.isPending}
+                    >
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  </Tooltip>
                 )}
               </Group>
-            </Stack>
-          </Card>
-        )}
+            );
 
-        {/* Show rejection reason for rejected requests */}
-        {request.status === "rejected" && (
-          <Card withBorder bg="var(--mantine-color-red-light)">
-            <Stack gap={4}>
-              <Text size="sm" fw={500} c="red">
-                Request rejected
-              </Text>
-              {request.rejectionReason && (
-                <Text size="xs">Reason: {request.rejectionReason}</Text>
-              )}
-              {request.approverName && (
-                <Text size="xs" c="dimmed">
-                  Rejected by {request.approverName}
-                  {request.rejectedAt &&
-                    ` ${formatDistanceToNow(new Date(request.rejectedAt), { addSuffix: true })}`}
+            const hasMetadata =
+              metadata &&
+              (metadata.seriesName ||
+                metadata.publishedYear ||
+                metadata.pages ||
+                metadata.isbn ||
+                metadata.rating ||
+                metadata.sourceUrl);
+
+            if (hasMetadata) {
+              return (
+                <>
+                  {/* Top row: metadata badges on left, status chips on right */}
+                  <Group
+                    justify="space-between"
+                    wrap="nowrap"
+                    align="center"
+                    style={{ marginBottom: -4 }}
+                  >
+                    <Group gap={4} style={{ minWidth: 0 }}>
+                      {metadata.sourceUrl && metadata.source && (
+                        <Badge
+                          component="a"
+                          href={metadata.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          size="xs"
+                          rightSection={<IconExternalLink size={10} />}
+                          style={{
+                            cursor: "pointer",
+                            backgroundColor:
+                              sourceColors[metadata.source]?.bg || "#868e96",
+                            color:
+                              sourceColors[metadata.source]?.text || "#fff",
+                          }}
+                        >
+                          {metadata.source}
+                        </Badge>
+                      )}
+                      {metadata.seriesName && (
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color="violet"
+                          leftSection={<IconBook size={10} />}
+                        >
+                          {metadata.seriesName}
+                          {metadata.seriesPosition != null &&
+                            ` #${metadata.seriesPosition}`}
+                        </Badge>
+                      )}
+                      {metadata.publishedYear && (
+                        <Badge size="xs" variant="light" color="gray">
+                          {metadata.publishedYear}
+                        </Badge>
+                      )}
+                      {metadata.pages && (
+                        <Badge size="xs" variant="light" color="gray">
+                          {metadata.pages} pages
+                        </Badge>
+                      )}
+                      {metadata.isbn && (
+                        <Badge size="xs" variant="light" color="gray">
+                          {metadata.isbn}
+                        </Badge>
+                      )}
+                      {metadata.rating && (
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color="yellow"
+                          leftSection={<IconStar size={10} />}
+                        >
+                          {metadata.rating.toFixed(1)}
+                        </Badge>
+                      )}
+                    </Group>
+                    {statusChips}
+                  </Group>
+
+                  {/* Title */}
+                  <Text fw={500} style={{ wordBreak: "break-word" }}>
+                    {getDisplayTitle()}
+                  </Text>
+                </>
+              );
+            }
+
+            // No metadata: title with status chips on same row
+            return (
+              <Group justify="space-between" wrap="nowrap" align="center">
+                <Text fw={500} style={{ wordBreak: "break-word", minWidth: 0 }}>
+                  {getDisplayTitle()}
                 </Text>
-              )}
-            </Stack>
-          </Card>
-        )}
+                {statusChips}
+              </Group>
+            );
+          })()}
 
-        {/* Show approver info for approved requests */}
-        {request.status === "active" && request.approverName && (
-          <Text size="xs" c="dimmed">
-            Approved by {request.approverName}
-            {request.approvedAt &&
-              ` ${formatDistanceToNow(new Date(request.approvedAt), { addSuffix: true })}`}
-          </Text>
-        )}
+          {filters.length > 0 && (
+            <Group gap={4}>
+              {filters.map((filter, idx) => (
+                <Badge key={idx} size="xs" variant="light" color="gray">
+                  {filter}
+                </Badge>
+              ))}
+            </Group>
+          )}
 
-        {/* Approve/Reject buttons for pending requests */}
-        {request.status === "pending_approval" && hasManagePermission && (
-          <Group gap="xs">
-            <Button
-              size="xs"
-              color="green"
-              leftSection={<IconCheck size={14} />}
-              onClick={handleApprove}
-              loading={approveRequest.isPending}
-            >
-              Approve
-            </Button>
-            <Button
-              size="xs"
-              color="red"
-              variant="light"
-              leftSection={<IconX size={14} />}
-              onClick={openRejectModal}
-            >
-              Reject
-            </Button>
+          <Group
+            gap="md"
+            style={{
+              fontSize: "0.85rem",
+              color: "var(--mantine-color-dimmed)",
+            }}
+          >
+            <Group gap={4}>
+              <IconClock size={14} />
+              <Text size="xs">
+                Created{" "}
+                {formatDistanceToNow(new Date(request.createdAt), {
+                  addSuffix: true,
+                })}
+              </Text>
+            </Group>
+
+            {request.lastCheckedAt && (
+              <Group gap={4}>
+                <IconRefresh size={14} />
+                <Text size="xs">
+                  Last checked{" "}
+                  {formatDistanceToNow(new Date(request.lastCheckedAt), {
+                    addSuffix: true,
+                  })}
+                </Text>
+              </Group>
+            )}
+
+            {request.fulfilledAt && (
+              <Group gap={4}>
+                <IconCheck size={14} />
+                <Text size="xs">
+                  Fulfilled{" "}
+                  {formatDistanceToNow(new Date(request.fulfilledAt), {
+                    addSuffix: true,
+                  })}
+                </Text>
+              </Group>
+            )}
           </Group>
-        )}
-      </Stack>
+
+          {/* Show rejection reason for rejected requests */}
+          {request.status === "rejected" && (
+            <Card withBorder bg="var(--mantine-color-red-light)">
+              <Stack gap={4}>
+                <Text size="sm" fw={500} c="red">
+                  Request rejected
+                </Text>
+                {request.rejectionReason && (
+                  <Text size="xs">Reason: {request.rejectionReason}</Text>
+                )}
+                {request.approverName && (
+                  <Text size="xs" c="dimmed">
+                    Rejected by {request.approverName}
+                    {request.rejectedAt &&
+                      ` ${formatDistanceToNow(new Date(request.rejectedAt), { addSuffix: true })}`}
+                  </Text>
+                )}
+              </Stack>
+            </Card>
+          )}
+
+          {/* Show approver info for approved requests */}
+          {request.status === "active" && request.approverName && (
+            <Text size="xs" c="dimmed">
+              Approved by {request.approverName}
+              {request.approvedAt &&
+                ` ${formatDistanceToNow(new Date(request.approvedAt), { addSuffix: true })}`}
+            </Text>
+          )}
+
+          {/* Approve/Reject buttons for pending requests */}
+          {request.status === "pending_approval" && hasManagePermission && (
+            <Group gap="xs">
+              <Button
+                size="xs"
+                color="green"
+                leftSection={<IconCheck size={14} />}
+                onClick={handleApprove}
+                loading={approveRequest.isPending}
+              >
+                Approve
+              </Button>
+              <Button
+                size="xs"
+                color="red"
+                variant="light"
+                leftSection={<IconX size={14} />}
+                onClick={openRejectModal}
+              >
+                Reject
+              </Button>
+            </Group>
+          )}
+        </Stack>
+      </Group>
 
       {/* Rejection modal */}
       <Modal

@@ -63,6 +63,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
   const [autoUploadCollection, setAutoUploadCollection] = useState<
     string | null
   >(null);
+  const [useSeriesAsCollection, setUseSeriesAsCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState("");
 
   // Initialize form with existing settings
@@ -73,6 +74,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
       setAutoUpload(settings.autoUpload || false);
       setAskCollectionOnUpload(settings.askCollectionOnUpload || false);
       setAutoUploadCollection(settings.autoUploadCollection || null);
+      setUseSeriesAsCollection(settings.useSeriesAsCollection || false);
     }
   }, [settings]);
 
@@ -86,6 +88,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
       autoUpload,
       askCollectionOnUpload,
       autoUploadCollection,
+      useSeriesAsCollection,
     });
 
     setPassword(""); // Clear password after save
@@ -115,6 +118,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
       await updateCollectionSettings.mutateAsync({
         askCollectionOnUpload: checked,
         autoUploadCollection,
+        useSeriesAsCollection,
       });
     }
   };
@@ -130,6 +134,18 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
       await updateCollectionSettings.mutateAsync({
         askCollectionOnUpload,
         autoUploadCollection: value,
+        useSeriesAsCollection,
+      });
+    }
+  };
+
+  const handleSeriesCollectionToggle = async (checked: boolean) => {
+    setUseSeriesAsCollection(checked);
+    if (settings?.configured) {
+      await updateCollectionSettings.mutateAsync({
+        askCollectionOnUpload,
+        autoUploadCollection,
+        useSeriesAsCollection: checked,
       });
     }
   };
@@ -143,6 +159,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
       await updateCollectionSettings.mutateAsync({
         askCollectionOnUpload,
         autoUploadCollection: collectionName,
+        useSeriesAsCollection,
       });
     }
   };
@@ -367,6 +384,16 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
               checked={askCollectionOnUpload}
               onChange={(e) =>
                 handleAskCollectionToggle(e.currentTarget.checked)
+              }
+              disabled={updateCollectionSettings.isPending}
+            />
+
+            <Switch
+              label="Use series name as collection"
+              description="Automatically add books to a collection matching the series name (from import list metadata). Falls back to default collection if no series info. Applies to both auto and manual upload."
+              checked={useSeriesAsCollection}
+              onChange={(e) =>
+                handleSeriesCollectionToggle(e.currentTarget.checked)
               }
               disabled={updateCollectionSettings.isPending}
             />

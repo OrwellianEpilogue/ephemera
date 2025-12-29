@@ -17,6 +17,8 @@ export const tolinoKeys = {
   resellers: ["tolinoResellers"] as const,
   collections: ["tolinoCollections"] as const,
   canUpload: (md5: string) => ["tolinoCanUpload", md5] as const,
+  suggestedCollection: (md5: string) =>
+    ["tolinoSuggestedCollection", md5] as const,
 };
 
 // Response types from API
@@ -27,6 +29,7 @@ interface TolinoSettingsApiResponse {
   autoUpload?: boolean;
   askCollectionOnUpload?: boolean;
   autoUploadCollection?: string | null;
+  useSeriesAsCollection?: boolean;
   isConnected?: boolean;
   tokenExpiresAt?: number | null;
   createdAt?: string;
@@ -87,6 +90,25 @@ export const useTolinoCanUpload = (md5: string, enabled = true) => {
     queryKey: tolinoKeys.canUpload(md5),
     queryFn: () =>
       apiFetch<TolinoCanUploadResponse>(`/tolino/can-upload/${md5}`),
+    enabled: enabled && !!md5,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+interface TolinoSuggestedCollectionResponse {
+  suggestedCollection: string | null;
+}
+
+/**
+ * Get suggested collection (series name) for a book
+ */
+export const useTolinoSuggestedCollection = (md5: string, enabled = true) => {
+  return useQuery({
+    queryKey: tolinoKeys.suggestedCollection(md5),
+    queryFn: () =>
+      apiFetch<TolinoSuggestedCollectionResponse>(
+        `/tolino/suggested-collection/${md5}`,
+      ),
     enabled: enabled && !!md5,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -167,11 +189,13 @@ export const useUpdateTolinoCollectionSettings = () => {
     mutationFn: async (settings: {
       askCollectionOnUpload: boolean;
       autoUploadCollection: string | null;
+      useSeriesAsCollection?: boolean;
     }) => {
       return apiFetch<{
         success: boolean;
         askCollectionOnUpload: boolean;
         autoUploadCollection: string | null;
+        useSeriesAsCollection?: boolean;
       }>("/tolino/settings/collections", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

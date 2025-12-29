@@ -6,9 +6,10 @@ import { createHash } from "crypto";
 export type ListSource = "goodreads" | "storygraph" | "hardcover";
 
 /**
- * A book from a reading list
+ * A book from a reading list with enriched metadata
  */
 export interface ListBook {
+  // Core identification
   title: string;
   author: string;
   /** ISBN if available */
@@ -19,6 +20,38 @@ export interface ListBook {
   hash: string;
   /** When the book was added to the list (if available) */
   addedAt?: Date;
+
+  // Source identification (for platform linking)
+  /** Platform-specific book ID (e.g., "43685219" for Goodreads) */
+  sourceBookId?: string;
+  /** Link to book on source platform */
+  sourceUrl?: string;
+
+  // Extended metadata
+  /** Book description/synopsis */
+  description?: string;
+  /** Number of pages */
+  pages?: number;
+  /** Publication year */
+  publishedYear?: number;
+  /** User's rating on the source platform (0-5) */
+  rating?: number;
+  /** Community average rating on the source platform */
+  averageRating?: number;
+
+  // Series information
+  /** Series name if book is part of a series */
+  seriesName?: string;
+  /** Position in series (supports decimals like 1.5 for novellas) */
+  seriesPosition?: number;
+
+  // Cover image
+  /** URL to cover image on source platform */
+  coverUrl?: string;
+
+  // Genres/tags
+  /** Genre/category tags from source platform */
+  genres?: string[];
 }
 
 /**

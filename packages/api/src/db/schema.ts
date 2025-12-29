@@ -735,6 +735,11 @@ export const tolinoSettings = sqliteTable("tolino_settings", {
     .notNull()
     .default(false),
   autoUploadCollection: text("auto_upload_collection"), // collection name for auto-uploads
+  useSeriesAsCollection: integer("use_series_as_collection", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false), // use book series name as collection when available
   // Timestamps
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
@@ -754,11 +759,83 @@ export const listSettings = sqliteTable("list_settings", {
     .notNull()
     .default("6h"),
   hardcoverApiToken: text("hardcover_api_token"),
+  // Search enhancement options (applied to import list and manual search)
+  searchByIsbnFirst: integer("search_by_isbn_first", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  includeYearInSearch: integer("include_year_in_search", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  // Post-download metadata embedding (via Calibre ebook-meta)
+  embedMetadataInBooks: integer("embed_metadata_in_books", { mode: "boolean" })
+    .notNull()
+    .default(true),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+// Book Metadata (Enriched metadata from import list sources)
+export const bookMetadata = sqliteTable(
+  "book_metadata",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+
+    // Link to download request (one-to-one)
+    requestId: integer("request_id")
+      .unique()
+      .references(() => downloadRequests.id, { onDelete: "cascade" }),
+
+    // Source tracking
+    source: text("source", {
+      enum: ["goodreads", "storygraph", "hardcover"],
+    }).notNull(),
+    sourceBookId: text("source_book_id"), // Platform-specific ID (e.g., "43685219")
+    sourceUrl: text("source_url"), // Link to book on platform
+
+    // Core metadata
+    title: text("title").notNull(),
+    author: text("author").notNull(),
+    description: text("description"),
+    isbn: text("isbn"),
+
+    // Series information
+    seriesName: text("series_name"),
+    seriesPosition: real("series_position"), // Supports 1.5 for novellas
+
+    // Publication info
+    publishedYear: integer("published_year"),
+    pages: integer("pages"),
+
+    // Ratings
+    rating: real("rating"), // User rating from source (0-5)
+    averageRating: real("average_rating"), // Community average rating
+
+    // Genre/Tags (JSON array)
+    genres: text("genres", { mode: "json" }).$type<string[]>(),
+
+    // Cover image
+    coverUrl: text("cover_url"), // Original URL from source
+    coverPath: text("cover_path"), // Local file path after download
+
+    // Timestamps
+    fetchedAt: integer("fetched_at").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    bookMetadata_requestId_idx: index("bookMetadata_requestId_idx").on(
+      table.requestId,
+    ),
+    bookMetadata_source_idx: index("bookMetadata_source_idx").on(table.source),
+  }),
+);
 
 // Import Lists (Per-user reading list imports)
 export const importLists = sqliteTable(
@@ -912,8 +989,19 @@ export const downloadRequestsRelations = relations(
       fields: [downloadRequests.userId],
       references: [user.id],
     }),
+    metadata: one(bookMetadata, {
+      fields: [downloadRequests.id],
+      references: [bookMetadata.requestId],
+    }),
   }),
 );
+
+export const bookMetadataRelations = relations(bookMetadata, ({ one }) => ({
+  request: one(downloadRequests, {
+    fields: [bookMetadata.requestId],
+    references: [downloadRequests.id],
+  }),
+}));
 
 // Better Auth types
 export type User = typeof user.$inferSelect;
@@ -962,3 +1050,5 @@ export type ListSettings = typeof listSettings.$inferSelect;
 export type NewListSettings = typeof listSettings.$inferInsert;
 export type ImportList = typeof importLists.$inferSelect;
 export type NewImportList = typeof importLists.$inferInsert;
+export type BookMetadata = typeof bookMetadata.$inferSelect;
+export type NewBookMetadata = typeof bookMetadata.$inferInsert;

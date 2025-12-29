@@ -2,13 +2,64 @@ import { XMLParser } from "fast-xml-parser";
 import {
   type ListFetcher,
   type FetchResult,
+  type ListBook,
   type AvailableList,
   type GoodreadsConfig,
   createBookHash,
-  normalizeTitle,
   normalizeAuthor,
 } from "./types.js";
 import { logger } from "../../utils/logger.js";
+
+/**
+ * Extract series information from Goodreads title format
+ * Examples:
+ *   "First Contact (In Her Name: The Last War, #1)" -> { title: "First Contact", seriesName: "In Her Name: The Last War", seriesPosition: 1 }
+ *   "Childhood (The Copenhagen Trilogy, #1)" -> { title: "Childhood", seriesName: "The Copenhagen Trilogy", seriesPosition: 1 }
+ *   "Regular Title" -> { title: "Regular Title" }
+ */
+function extractSeriesFromTitle(rawTitle: string): {
+  title: string;
+  seriesName?: string;
+  seriesPosition?: number;
+} {
+  // Match: "Title (Series Name, #N)" or "Title (Series Name, #N.5)"
+  const seriesMatch = rawTitle.match(
+    /^(.+?)\s*\(([^,]+),\s*#(\d+(?:\.\d+)?)\)\s*$/,
+  );
+
+  if (seriesMatch) {
+    return {
+      title: seriesMatch[1].trim(),
+      seriesName: seriesMatch[2].trim(),
+      seriesPosition: parseFloat(seriesMatch[3]),
+    };
+  }
+
+  // Also handle format without comma: "Title (Series Name #1)"
+  const altMatch = rawTitle.match(
+    /^(.+?)\s*\(([^#]+)\s*#(\d+(?:\.\d+)?)\)\s*$/,
+  );
+  if (altMatch) {
+    return {
+      title: altMatch[1].trim(),
+      seriesName: altMatch[2].trim(),
+      seriesPosition: parseFloat(altMatch[3]),
+    };
+  }
+
+  return { title: rawTitle };
+}
+
+/**
+ * Normalize a book title (remove CDATA but keep series info for extraction)
+ */
+function normalizeTitle(title: string): string {
+  // Remove CDATA markers if present (from RSS)
+  let normalized = title.replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1");
+  // Remove extra whitespace
+  normalized = normalized.replace(/\s+/g, " ").trim();
+  return normalized;
+}
 
 const GOODREADS_RSS_BASE = "https://www.goodreads.com/review/list_rss";
 const GOODREADS_LIST_BASE = "https://www.goodreads.com/review/list";
@@ -191,21 +242,66 @@ export class GoodreadsFetcher implements ListFetcher {
         items = [items];
       }
 
-      const books = items.map((item: Record<string, unknown>) => {
+      const books: ListBook[] = items.map((item: Record<string, unknown>) => {
         const rawTitle = this.extractText(item.title);
         const rawAuthor = this.extractText(item.author_name);
-        const title = normalizeTitle(rawTitle);
+        const normalizedTitle = normalizeTitle(rawTitle);
         const author = normalizeAuthor(rawAuthor);
 
-        // Extract book ID from book_id field or guid URL
-        // guid is typically: https://www.goodreads.com/review/show/12345
-        // book_id is the direct ID
-        let bookId = this.extractText(item.book_id);
+        // Extract series information from title
+        const { title, seriesName, seriesPosition } =
+          extractSeriesFromTitle(normalizedTitle);
+
+        // Extract book ID from <book id="..."> element attribute or book_id field
+        const bookElement = item.book as
+          | { "@_id"?: string; num_pages?: unknown }
+          | undefined;
+        let bookId = bookElement?.["@_id"] || this.extractText(item.book_id);
         if (!bookId) {
           const guid = this.extractText(item.guid);
           const match = guid.match(/\/(\d+)(?:\?|$)/);
           if (match) bookId = match[1];
         }
+
+        // Extract additional metadata
+        const description =
+          this.extractText(item.book_description) || undefined;
+
+        // Cover image - prefer larger versions
+        const coverUrl =
+          this.extractText(item.book_large_image_url) ||
+          this.extractText(item.book_medium_image_url) ||
+          this.extractText(item.book_image_url) ||
+          undefined;
+
+        // Pages - nested in book element
+        const pagesRaw =
+          bookElement?.num_pages !== undefined
+            ? this.extractText(bookElement.num_pages)
+            : this.extractText(item.num_pages);
+        const pages = pagesRaw ? parseInt(pagesRaw, 10) : undefined;
+
+        // Published year
+        const publishedRaw = this.extractText(item.book_published);
+        const publishedYear = publishedRaw
+          ? parseInt(publishedRaw, 10)
+          : undefined;
+
+        // User rating (their personal rating)
+        const ratingRaw = this.extractText(item.user_rating);
+        const rating =
+          ratingRaw && ratingRaw !== "0" ? parseFloat(ratingRaw) : undefined;
+
+        // Average rating (community rating)
+        const avgRatingRaw = this.extractText(item.average_rating);
+        const averageRating = avgRatingRaw
+          ? parseFloat(avgRatingRaw)
+          : undefined;
+
+        // Generate source URL for linking
+        const sourceUrl = bookId
+          ? `https://www.goodreads.com/book/show/${bookId}`
+          : undefined;
 
         return {
           title,
@@ -216,6 +312,26 @@ export class GoodreadsFetcher implements ListFetcher {
           addedAt: item.user_date_added
             ? new Date(this.extractText(item.user_date_added))
             : undefined,
+
+          // Source identification
+          sourceBookId: bookId || undefined,
+          sourceUrl,
+
+          // Extended metadata
+          description,
+          pages: pages && !isNaN(pages) ? pages : undefined,
+          publishedYear:
+            publishedYear && !isNaN(publishedYear) ? publishedYear : undefined,
+          rating: rating && !isNaN(rating) ? rating : undefined,
+          averageRating:
+            averageRating && !isNaN(averageRating) ? averageRating : undefined,
+
+          // Series info
+          seriesName,
+          seriesPosition,
+
+          // Cover
+          coverUrl,
         };
       });
 

@@ -42,6 +42,12 @@ export const searchQuerySchema = z.object({
     .describe("Search in descriptions and metadata"),
   author: z.string().optional().describe("Author name"),
   title: z.string().optional().describe("Book title"),
+  year: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Publication year"),
 });
 
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
@@ -51,6 +57,8 @@ export const requestQueryParamsSchema = z.object({
   q: z.string().describe("Search query").optional(),
   author: z.string().optional().describe("Author name"),
   title: z.string().optional().describe("Book title"),
+  year: z.number().int().positive().optional().describe("Publication year"),
+  isbn: z.string().optional().describe("ISBN for direct search"),
   sort: z.string().optional().describe("Sort order"),
   content: z
     .union([z.string(), z.array(z.string())])
@@ -1405,6 +1413,11 @@ export const tolinoSettingsInputSchema = z.object({
     .nullable()
     .optional()
     .describe("Default collection for auto-uploaded books"),
+  useSeriesAsCollection: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Use series name as collection when available"),
 });
 
 export type TolinoSettingsInput = z.infer<typeof tolinoSettingsInputSchema>;
@@ -1548,3 +1561,94 @@ export const frontendConfigSchema = z.object({
 });
 
 export type FrontendConfig = z.infer<typeof frontendConfigSchema>;
+
+// List source enum
+export const listSourceSchema = z.enum([
+  "goodreads",
+  "storygraph",
+  "hardcover",
+]);
+
+export type ListSource = z.infer<typeof listSourceSchema>;
+
+// Book metadata schema (from import lists)
+export const bookMetadataSchema = z.object({
+  id: z.number().describe("Metadata ID"),
+  requestId: z.number().nullable().describe("Associated request ID"),
+  source: listSourceSchema.describe(
+    "Source platform (goodreads, storygraph, hardcover)",
+  ),
+  sourceBookId: z.string().nullable().describe("Platform-specific book ID"),
+  sourceUrl: z
+    .string()
+    .url()
+    .nullable()
+    .describe("Link to book on source platform"),
+
+  // Core metadata
+  title: z.string().describe("Book title"),
+  author: z.string().describe("Book author"),
+  description: z.string().nullable().describe("Book description/synopsis"),
+  isbn: z.string().nullable().describe("ISBN if available"),
+
+  // Series info
+  seriesName: z
+    .string()
+    .nullable()
+    .describe("Series name if book is part of a series"),
+  seriesPosition: z
+    .number()
+    .nullable()
+    .describe("Position in series (supports decimals like 1.5 for novellas)"),
+
+  // Publication
+  publishedYear: z.number().nullable().describe("Publication year"),
+  pages: z.number().nullable().describe("Number of pages"),
+
+  // Ratings
+  rating: z
+    .number()
+    .nullable()
+    .describe("User's rating on source platform (0-5)"),
+  averageRating: z.number().nullable().describe("Community average rating"),
+
+  // Genres/tags
+  genres: z
+    .array(z.string())
+    .nullable()
+    .describe("Genre/category tags from source platform"),
+
+  // Cover image
+  coverUrl: z
+    .string()
+    .nullable()
+    .describe("Original cover image URL from source"),
+  coverPath: z
+    .string()
+    .nullable()
+    .describe("Local path to downloaded cover image"),
+
+  // Timestamps
+  fetchedAt: z.number().describe("When metadata was fetched from source"),
+  createdAt: z.string().datetime().describe("When metadata record was created"),
+  updatedAt: z
+    .string()
+    .datetime()
+    .describe("When metadata record was last updated"),
+});
+
+export type BookMetadata = z.infer<typeof bookMetadataSchema>;
+
+// Saved request with book and metadata (extended API response type)
+export const savedRequestWithMetadataSchema = savedRequestWithBookSchema.extend(
+  {
+    metadata: bookMetadataSchema
+      .nullable()
+      .optional()
+      .describe("Book metadata from import list source"),
+  },
+);
+
+export type SavedRequestWithMetadata = z.infer<
+  typeof savedRequestWithMetadataSchema
+>;

@@ -6,6 +6,7 @@ import {
   Container,
   Title,
   TextInput,
+  NumberInput,
   Select,
   MultiSelect,
   Grid,
@@ -44,6 +45,7 @@ type SearchParams = {
   q?: string;
   author?: string;
   title?: string;
+  year?: number;
   sort?: string;
   content?: string[];
   ext?: string[];
@@ -61,6 +63,9 @@ function SearchPage() {
   const [searchInput, setSearchInput] = useState(urlParams.q || "");
   const [authorInput, setAuthorInput] = useState(urlParams.author || "");
   const [titleInput, setTitleInput] = useState(urlParams.title || "");
+  const [yearInput, setYearInput] = useState<number | undefined>(
+    urlParams.year,
+  );
   const [existingRequestId, setExistingRequestId] = useState<number | null>(
     null,
   );
@@ -79,6 +84,7 @@ function SearchPage() {
       q: urlParams.q || "",
       author: urlParams.author,
       title: urlParams.title,
+      year: urlParams.year,
       sort: urlParams.sort,
       content: urlParams.content,
       ext: urlParams.ext,
@@ -95,6 +101,7 @@ function SearchPage() {
       q: urlParams.q || "",
       author: urlParams.author,
       title: urlParams.title,
+      year: urlParams.year,
       sort: (urlParams.sort as "relevant" | "newest" | "oldest") || "relevant",
       content:
         urlParams.content && urlParams.content.length > 0
@@ -112,6 +119,7 @@ function SearchPage() {
       urlParams.q,
       urlParams.author,
       urlParams.title,
+      urlParams.year,
       urlParams.sort,
       JSON.stringify(urlParams.content),
       JSON.stringify(urlParams.ext),
@@ -147,7 +155,8 @@ function SearchPage() {
     setSearchInput(urlParams.q || "");
     setAuthorInput(urlParams.author || "");
     setTitleInput(urlParams.title || "");
-  }, [urlParams.q, urlParams.author, urlParams.title]);
+    setYearInput(urlParams.year);
+  }, [urlParams.q, urlParams.author, urlParams.title, urlParams.year]);
 
   // Update URL params and save to localStorage
   const updateSearchParams = (updates: Partial<SearchParams>) => {
@@ -231,6 +240,7 @@ function SearchPage() {
       q: searchInput,
       author: authorInput,
       title: titleInput,
+      year: yearInput,
     });
   };
 
@@ -238,6 +248,7 @@ function SearchPage() {
     setSearchInput("");
     setAuthorInput("");
     setTitleInput("");
+    setYearInput(undefined);
     navigate({
       to: "/search",
       search: {
@@ -465,6 +476,34 @@ function SearchPage() {
                                 onClick={() => {
                                   setTitleInput("");
                                   updateSearchParams({ title: undefined });
+                                }}
+                              />
+                            )
+                          }
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, xs: 6 }}>
+                        <NumberInput
+                          label="Year"
+                          placeholder="Publication year"
+                          value={yearInput ?? ""}
+                          onChange={(value) =>
+                            setYearInput(
+                              typeof value === "number" ? value : undefined,
+                            )
+                          }
+                          onKeyDown={handleKeyPress}
+                          min={1000}
+                          max={new Date().getFullYear() + 1}
+                          allowDecimal={false}
+                          rightSection={
+                            yearInput && (
+                              <IconX
+                                size={16}
+                                style={{ cursor: "pointer" }}
+                                onClick={() => {
+                                  setYearInput(undefined);
+                                  updateSearchParams({ year: undefined });
                                 }}
                               />
                             )
@@ -706,10 +745,21 @@ export const Route = createFileRoute("/search")({
       return undefined;
     };
 
+    // Helper to parse year
+    const parseYear = (val: unknown): number | undefined => {
+      if (typeof val === "number") return val;
+      if (typeof val === "string") {
+        const parsed = parseInt(val, 10);
+        return isNaN(parsed) ? undefined : parsed;
+      }
+      return undefined;
+    };
+
     return {
       q: typeof search.q === "string" ? search.q : undefined,
       author: typeof search.author === "string" ? search.author : undefined,
       title: typeof search.title === "string" ? search.title : undefined,
+      year: parseYear(search.year),
       sort: typeof search.sort === "string" ? search.sort : undefined,
       content: toArray(search.content),
       ext: toArray(search.ext),
