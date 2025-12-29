@@ -379,6 +379,7 @@ export const queueResponseSchema = z.object({
   cancelled: z
     .record(z.string(), queueItemSchema)
     .describe("Cancelled downloads"),
+  paused: z.boolean().describe("Whether the download queue is paused"),
 });
 
 export type QueueResponse = z.infer<typeof queueResponseSchema>;

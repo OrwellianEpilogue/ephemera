@@ -225,6 +225,13 @@
       "when": 1767028192945,
       "tag": "0031_cooing_penance",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1767045041267,
+      "tag": "0032_wet_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }

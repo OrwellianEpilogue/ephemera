@@ -28,13 +28,20 @@ import {
   IconList,
   IconSearch,
   IconTrash,
+  IconPlayerPause,
+  IconPlayerPlay,
 } from "@tabler/icons-react";
 import { useQueue } from "../hooks/useQueue";
 import { DownloadItem } from "../components/DownloadItem";
 import { useState, useMemo, useCallback, useRef } from "react";
 import type { QueueItem } from "@ephemera/shared";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useClearQueue } from "../hooks/useDownload";
+import {
+  useClearQueue,
+  usePauseQueue,
+  useResumeQueue,
+} from "../hooks/useDownload";
+import { useAuth } from "../hooks/useAuth";
 
 // Virtualized list component for better performance with large lists
 function VirtualizedDownloadList({ items }: { items: QueueItem[] }) {
@@ -95,6 +102,10 @@ function QueuePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [clearModalOpened, setClearModalOpened] = useState(false);
   const clearQueue = useClearQueue();
+  const pauseQueue = usePauseQueue();
+  const resumeQueue = useResumeQueue();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   // 2. Convert queue records to arrays (with safe fallbacks) - memoized to prevent recalculation
   const downloading = useMemo(
@@ -239,8 +250,8 @@ function QueuePage() {
   return (
     <Container size="xl">
       <Stack gap="lg">
-        <Group justify="space-between" align="baseline">
-          <Group align="baseline" gap="md">
+        <Group justify="space-between" align="baseline" wrap="nowrap">
+          <Group align="baseline" gap="md" wrap="nowrap">
             <Title order={1}>Download Queue</Title>
             {totalActive > 0 && (
               <Badge
@@ -252,16 +263,50 @@ function QueuePage() {
                 {totalActive} active
               </Badge>
             )}
+            {queue?.paused && (
+              <Badge
+                size="lg"
+                variant="filled"
+                color="orange"
+                style={{ transform: "translateY(-3px)" }}
+              >
+                Paused
+              </Badge>
+            )}
           </Group>
-          <Button
-            leftSection={<IconTrash size={16} />}
-            color="red"
-            variant="light"
-            onClick={() => setClearModalOpened(true)}
-            disabled={clearableCount === 0}
-          >
-            Clear Queue
-          </Button>
+          <Group gap="sm">
+            {isAdmin &&
+              (queue?.paused ? (
+                <Button
+                  leftSection={<IconPlayerPlay size={16} />}
+                  color="green"
+                  variant="filled"
+                  onClick={() => resumeQueue.mutate()}
+                  loading={resumeQueue.isPending}
+                >
+                  Resume
+                </Button>
+              ) : (
+                <Button
+                  leftSection={<IconPlayerPause size={16} />}
+                  color="orange"
+                  variant="light"
+                  onClick={() => pauseQueue.mutate()}
+                  loading={pauseQueue.isPending}
+                >
+                  Pause
+                </Button>
+              ))}
+            <Button
+              leftSection={<IconTrash size={16} />}
+              color="red"
+              variant="light"
+              onClick={() => setClearModalOpened(true)}
+              disabled={clearableCount === 0}
+            >
+              Clear Queue
+            </Button>
+          </Group>
         </Group>
 
         <TextInput
@@ -271,6 +316,18 @@ function QueuePage() {
           onChange={(event) => setSearchQuery(event.currentTarget.value)}
           size="md"
         />
+
+        {queue?.paused && (
+          <Card withBorder bg="orange.0" p="sm">
+            <Group gap="xs">
+              <IconPlayerPause size={16} />
+              <Text size="sm" fw={500}>
+                Downloads are paused. New items can be added but won&apos;t
+                start downloading until resumed.
+              </Text>
+            </Group>
+          </Card>
+        )}
 
         {/* Clear Queue Confirmation Modal */}
         <Modal

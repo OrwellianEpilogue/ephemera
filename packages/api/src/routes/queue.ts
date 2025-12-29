@@ -244,6 +244,159 @@ app.openapi(clearQueueRoute, async (c) => {
   }
 });
 
+// Pause downloads
+const pauseQueueRoute = createRoute({
+  method: "post",
+  path: "/queue/pause",
+  tags: ["Queue"],
+  summary: "Pause download processing",
+  description:
+    "Pause the download queue. Current downloads will complete, but no new downloads will start. Admin only.",
+  responses: {
+    200: {
+      description: "Queue paused successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            paused: z.boolean(),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    403: {
+      description: "Forbidden - admin only",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(pauseQueueRoute, async (c) => {
+  try {
+    const user = c.get("user");
+
+    if (user.role !== "admin") {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "Only administrators can pause the download queue",
+        },
+        403,
+      );
+    }
+
+    await queueManager.pause();
+
+    return c.json(
+      {
+        success: true,
+        paused: true,
+        message: "Download queue paused",
+      },
+      200,
+    );
+  } catch (error: unknown) {
+    logger.error("Pause queue error:", error);
+
+    return c.json(
+      {
+        error: "Failed to pause queue",
+        details: getErrorMessage(error),
+      },
+      500,
+    );
+  }
+});
+
+// Resume downloads
+const resumeQueueRoute = createRoute({
+  method: "post",
+  path: "/queue/resume",
+  tags: ["Queue"],
+  summary: "Resume download processing",
+  description: "Resume the download queue after it was paused. Admin only.",
+  responses: {
+    200: {
+      description: "Queue resumed successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            paused: z.boolean(),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    403: {
+      description: "Forbidden - admin only",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(resumeQueueRoute, async (c) => {
+  try {
+    const user = c.get("user");
+
+    if (user.role !== "admin") {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "Only administrators can resume the download queue",
+        },
+        403,
+      );
+    }
+
+    await queueManager.resume();
+
+    return c.json(
+      {
+        success: true,
+        paused: false,
+        message: "Download queue resumed",
+      },
+      200,
+    );
+  } catch (error: unknown) {
+    logger.error("Resume queue error:", error);
+
+    return c.json(
+      {
+        error: "Failed to resume queue",
+        details: getErrorMessage(error),
+      },
+      500,
+    );
+  }
+});
+
 // Get specific download status
 const downloadStatusRoute = createRoute({
   method: "get",

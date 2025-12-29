@@ -67,6 +67,7 @@ class AppSettingsService {
       dateFormat: "eur",
       libraryUrl: null,
       libraryLinkLocation: "sidebar",
+      downloadsPaused: false,
       updatedAt: Date.now(),
     };
   }
@@ -128,6 +129,8 @@ class AppSettingsService {
           updates.libraryLinkLocation ??
           existing[0]?.libraryLinkLocation ??
           "sidebar",
+        downloadsPaused:
+          updates.downloadsPaused ?? existing[0]?.downloadsPaused ?? false,
         updatedAt: Date.now(),
       };
 
@@ -168,7 +171,7 @@ class AppSettingsService {
 
       if (result.length === 0) {
         console.log(
-          "[App Settings] Initializing default settings (moveToIngest=true, uploadToBooklore=false, moveToIndexer=false, keepInDownloads=false, normalizeEpub=true, convertFormat=null, bookRetentionDays=30, bookSearchCacheDays=7, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur)",
+          "[App Settings] Initializing default settings (moveToIngest=true, uploadToBooklore=false, moveToIndexer=false, keepInDownloads=false, normalizeEpub=true, convertFormat=null, bookRetentionDays=30, bookSearchCacheDays=7, requestCheckInterval=6h, timeFormat=24h, dateFormat=eur, downloadsPaused=false)",
         );
         await db.insert(appSettings).values({
           id: 1,
@@ -186,6 +189,7 @@ class AppSettingsService {
           dateFormat: "eur",
           libraryUrl: null,
           libraryLinkLocation: "sidebar",
+          downloadsPaused: false,
           updatedAt: Date.now(),
         });
       }
@@ -202,6 +206,21 @@ class AppSettingsService {
   clearCache(): void {
     this.settingsCache = null;
     this.cacheExpiry = 0;
+  }
+
+  /**
+   * Check if downloads are paused
+   */
+  async isPaused(): Promise<boolean> {
+    const settings = await this.getSettings();
+    return settings.downloadsPaused;
+  }
+
+  /**
+   * Set the downloads paused state
+   */
+  async setPaused(paused: boolean): Promise<void> {
+    await this.updateSettings({ downloadsPaused: paused });
   }
 
   /**

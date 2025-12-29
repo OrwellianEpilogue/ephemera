@@ -429,6 +429,9 @@ export const appSettings = sqliteTable("app_settings", {
   })
     .notNull()
     .default("sidebar"),
+  downloadsPaused: integer("downloads_paused", { mode: "boolean" })
+    .notNull()
+    .default(false),
   updatedAt: integer("updated_at").notNull(),
 });
 

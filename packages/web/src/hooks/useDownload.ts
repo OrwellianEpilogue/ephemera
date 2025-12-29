@@ -157,6 +157,70 @@ export const useClearQueue = () => {
   });
 };
 
+export const usePauseQueue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<{
+      success: boolean;
+      paused: boolean;
+      message: string;
+    }> => {
+      return apiFetch("/queue/pause", {
+        method: "POST",
+      }) as Promise<{ success: boolean; paused: boolean; message: string }>;
+    },
+    onSuccess: () => {
+      notifications.show({
+        title: "Queue Paused",
+        message: "Downloads have been paused",
+        color: "orange",
+      });
+      // Invalidate queue to trigger refetch (backup in case SSE is delayed)
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+    onError: (error: Error) => {
+      notifications.show({
+        title: "Pause Failed",
+        message: error.message || "Failed to pause queue",
+        color: "red",
+      });
+    },
+  });
+};
+
+export const useResumeQueue = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<{
+      success: boolean;
+      paused: boolean;
+      message: string;
+    }> => {
+      return apiFetch("/queue/resume", {
+        method: "POST",
+      }) as Promise<{ success: boolean; paused: boolean; message: string }>;
+    },
+    onSuccess: () => {
+      notifications.show({
+        title: "Queue Resumed",
+        message: "Downloads have been resumed",
+        color: "green",
+      });
+      // Invalidate queue to trigger refetch (backup in case SSE is delayed)
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+    onError: (error: Error) => {
+      notifications.show({
+        title: "Resume Failed",
+        message: error.message || "Failed to resume queue",
+        color: "red",
+      });
+    },
+  });
+};
+
 interface DownloadFileParams {
   md5: string;
   title: string;

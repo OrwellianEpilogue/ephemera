@@ -8,6 +8,7 @@ import { bookloreSettingsService } from "./booklore-settings.js";
 import { bookloreUploader } from "./booklore-uploader.js";
 import { appSettingsService } from "./app-settings.js";
 import { appConfigService } from "./app-config.js";
+// Note: appSettingsService is used for pause state persistence
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
 import { indexerSettingsService } from "./indexer-settings.js";
@@ -46,9 +47,30 @@ export class QueueManager extends EventEmitter {
   private queue: QueuedDownload[] = [];
   private isProcessing: boolean = false;
   private currentDownload: string | null = null;
+  private paused: boolean = false;
 
   constructor() {
     super();
+    // Load pause state from database and resume incomplete downloads
+    this.initialize();
+  }
+
+  /**
+   * Initialize queue manager - load pause state and resume downloads
+   */
+  private async initialize() {
+    try {
+      this.paused = await appSettingsService.isPaused();
+      if (this.paused) {
+        logger.info("Queue is paused - downloads will not start until resumed");
+      }
+    } catch (error) {
+      logger.error(
+        "Failed to load pause state, defaulting to unpaused:",
+        error,
+      );
+      this.paused = false;
+    }
     // Resume incomplete downloads on startup
     this.resumeIncompleteDownloads();
   }
@@ -62,6 +84,46 @@ export class QueueManager extends EventEmitter {
       this.emit("queue-updated", status);
     } catch (error) {
       logger.error("Failed to emit queue update:", error);
+    }
+  }
+
+  /**
+   * Check if downloads are paused
+   */
+  isPaused(): boolean {
+    return this.paused;
+  }
+
+  /**
+   * Pause all downloads
+   * Current download will complete, but no new downloads will start
+   */
+  async pause(): Promise<void> {
+    if (this.paused) {
+      logger.info("Queue is already paused");
+      return;
+    }
+    this.paused = true;
+    await appSettingsService.setPaused(true);
+    logger.info("Queue paused - no new downloads will start");
+    this.emitQueueUpdate();
+  }
+
+  /**
+   * Resume downloads
+   */
+  async resume(): Promise<void> {
+    if (!this.paused) {
+      logger.info("Queue is not paused");
+      return;
+    }
+    this.paused = false;
+    await appSettingsService.setPaused(false);
+    logger.info("Queue resumed - processing will continue");
+    this.emitQueueUpdate();
+    // Restart processing if there are items in queue
+    if (this.queue.length > 0 && !this.isProcessing) {
+      this.processQueue();
     }
   }
 
@@ -197,9 +259,20 @@ export class QueueManager extends EventEmitter {
       return;
     }
 
+    // Don't start processing if paused
+    if (this.paused) {
+      logger.info("Queue is paused - not starting new downloads");
+      return;
+    }
+
     this.isProcessing = true;
 
     while (this.queue.length > 0) {
+      // Check if paused before processing next item
+      if (this.paused) {
+        logger.info("Queue paused - stopping after current download completes");
+        break;
+      }
       const item = this.queue.shift();
       if (!item) break;
 
@@ -1014,6 +1087,7 @@ export class QueueManager extends EventEmitter {
       cancelled: Object.fromEntries(
         cancelled.map((d) => [d.md5, toQueueItem(d)]),
       ),
+      paused: this.paused,
     };
   }
 

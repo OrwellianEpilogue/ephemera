@@ -1,0 +1,1 @@
+ALTER TABLE `app_settings` ADD `downloads_paused` integer DEFAULT false NOT NULL;
