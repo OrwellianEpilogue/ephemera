@@ -343,6 +343,11 @@ export const downloads = sqliteTable(
     // Performance indexes for common queries
     downloads_userId_idx: index("downloads_userId_idx").on(table.userId),
     downloads_status_idx: index("downloads_status_idx").on(table.status),
+    // Composite index for queue queries that filter by status and sort by queuedAt
+    downloads_status_queuedAt_idx: index("downloads_status_queuedAt_idx").on(
+      table.status,
+      table.queuedAt,
+    ),
   }),
 );
 

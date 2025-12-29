@@ -1,6 +1,9 @@
 import { EventEmitter } from "events";
 import { eq } from "drizzle-orm";
-import { downloadTracker } from "./download-tracker.js";
+import {
+  downloadTracker,
+  type DownloadWithMetadata,
+} from "./download-tracker.js";
 import { downloader } from "./downloader.js";
 import { fileManager } from "../utils/file-manager.js";
 import { logger } from "../utils/logger.js";
@@ -961,76 +964,48 @@ export class QueueManager extends EventEmitter {
   }
 
   async getQueueStatus(): Promise<QueueResponse> {
-    const allDownloadsFromDb = await downloadTracker.getAll();
+    // Single JOIN query to get downloads with book and user metadata
+    const allWithMetadata = await downloadTracker.getAllWithMetadata();
 
-    const allDownloads: Download[] = [];
-    const downloading: Download[] = [];
-    const done: Download[] = [];
-    const available: Download[] = [];
-    const delayed: Download[] = [];
-    const error: Download[] = [];
-    const cancelled: Download[] = [];
+    // Categorize by status (already sorted by queuedAt from the query)
+    const queued: DownloadWithMetadata[] = [];
+    const downloading: DownloadWithMetadata[] = [];
+    const done: DownloadWithMetadata[] = [];
+    const available: DownloadWithMetadata[] = [];
+    const delayed: DownloadWithMetadata[] = [];
+    const error: DownloadWithMetadata[] = [];
+    const cancelled: DownloadWithMetadata[] = [];
 
-    for (const download of allDownloadsFromDb) {
-      switch (download.status) {
+    for (const row of allWithMetadata) {
+      switch (row.download.status) {
         case "queued":
-          allDownloads.push(download);
+          queued.push(row);
           break;
         case "downloading":
-          downloading.push(download);
+          downloading.push(row);
           break;
         case "done":
-          done.push(download);
+          done.push(row);
           break;
         case "available":
-          available.push(download);
+          available.push(row);
           break;
         case "delayed":
-          delayed.push(download);
+          delayed.push(row);
           break;
         case "error":
-          error.push(download);
+          error.push(row);
           break;
         case "cancelled":
-          cancelled.push(download);
+          cancelled.push(row);
           break;
       }
     }
 
-    // Sort each array by queuedAt descending
-    const sortByQueuedAt = (a: Download, b: Download) =>
-      (b.queuedAt || 0) - (a.queuedAt || 0);
-    allDownloads.sort(sortByQueuedAt);
-    downloading.sort(sortByQueuedAt);
-    done.sort(sortByQueuedAt);
-    available.sort(sortByQueuedAt);
-    delayed.sort(sortByQueuedAt);
-    error.sort(sortByQueuedAt);
-    cancelled.sort(sortByQueuedAt);
-
-    // Get all unique MD5s
-    const allMd5s = allDownloadsFromDb.map((d) => d.md5);
-
-    // Fetch all books for these downloads
-    const books = await bookService.getBooksByMd5s(allMd5s);
-    const booksMap = new Map(books.map((book) => [book.md5, book]));
-
-    // Fetch all users for these downloads (filter out null userIds from legacy data)
-    const uniqueUserIds = [
-      ...new Set(
-        allDownloadsFromDb
-          .map((d) => d.userId)
-          .filter((id): id is string => !!id),
-      ),
-    ];
-    const users = await this.getUsersByIds(uniqueUserIds);
-    const usersMap = new Map(users.map((user) => [user.id, user]));
-
-    // Helper to convert download to queue item with book details
-    const toQueueItem = (d: Download): QueueItem => {
-      const queueItem = downloadTracker.downloadToQueueItem(d);
-      const book = booksMap.get(d.md5);
-      const user = d.userId ? usersMap.get(d.userId) : undefined;
+    // Helper to convert download + metadata to queue item
+    const toQueueItem = (row: DownloadWithMetadata): QueueItem => {
+      const { download, book, user } = row;
+      const queueItem = downloadTracker.downloadToQueueItem(download);
 
       if (book) {
         // Ensure authors is always an array (handle both string and array types)
@@ -1054,11 +1029,11 @@ export class QueueManager extends EventEmitter {
           authors,
           publisher: book.publisher || undefined,
           coverUrl: book.coverUrl || undefined,
-          format: d.format || book.format || undefined,
+          format: download.format || book.format || undefined,
           language: book.language || undefined,
           year: book.year || undefined,
           size: book.size || undefined,
-          userId: d.userId,
+          userId: download.userId,
           userName: user?.name || undefined,
         } as QueueItem;
       }
@@ -1066,26 +1041,32 @@ export class QueueManager extends EventEmitter {
       // No book metadata, but still include user info
       return {
         ...queueItem,
-        userId: d.userId,
+        userId: download.userId,
         userName: user?.name || undefined,
       } as QueueItem;
     };
 
     return {
       available: Object.fromEntries(
-        available.map((d) => [d.md5, toQueueItem(d)]),
+        available.map((row) => [row.download.md5, toQueueItem(row)]),
       ),
       queued: Object.fromEntries(
-        allDownloads.map((d) => [d.md5, toQueueItem(d)]),
+        queued.map((row) => [row.download.md5, toQueueItem(row)]),
       ),
       downloading: Object.fromEntries(
-        downloading.map((d) => [d.md5, toQueueItem(d)]),
+        downloading.map((row) => [row.download.md5, toQueueItem(row)]),
       ),
-      done: Object.fromEntries(done.map((d) => [d.md5, toQueueItem(d)])),
-      delayed: Object.fromEntries(delayed.map((d) => [d.md5, toQueueItem(d)])),
-      error: Object.fromEntries(error.map((d) => [d.md5, toQueueItem(d)])),
+      done: Object.fromEntries(
+        done.map((row) => [row.download.md5, toQueueItem(row)]),
+      ),
+      delayed: Object.fromEntries(
+        delayed.map((row) => [row.download.md5, toQueueItem(row)]),
+      ),
+      error: Object.fromEntries(
+        error.map((row) => [row.download.md5, toQueueItem(row)]),
+      ),
       cancelled: Object.fromEntries(
-        cancelled.map((d) => [d.md5, toQueueItem(d)]),
+        cancelled.map((row) => [row.download.md5, toQueueItem(row)]),
       ),
       paused: this.paused,
     };

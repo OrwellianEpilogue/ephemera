@@ -232,6 +232,13 @@
       "when": 1767045041267,
       "tag": "0032_wet_johnny_blaze",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1767046777161,
+      "tag": "0033_small_jimmy_woo",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+CREATE INDEX `downloads_status_queuedAt_idx` ON `downloads` (`status`,`queued_at`);

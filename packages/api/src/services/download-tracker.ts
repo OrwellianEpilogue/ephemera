@@ -1,8 +1,21 @@
 import { eq, like, or, sql, desc, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { downloads, type Download, type NewDownload } from "../db/schema.js";
+import {
+  downloads,
+  books,
+  user,
+  type Download,
+  type NewDownload,
+  type Book,
+} from "../db/schema.js";
 import type { DownloadStatus, QueueItem } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
+
+export type DownloadWithMetadata = {
+  download: Download;
+  book: Book | null;
+  user: { id: string; name: string } | null;
+};
 
 export class DownloadTracker {
   async create(data: NewDownload): Promise<Download> {
@@ -42,6 +55,33 @@ export class DownloadTracker {
       return await db.select().from(downloads).all();
     } catch (error) {
       logger.error("Failed to get all downloads:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all downloads with book and user metadata in a single JOIN query.
+   * More efficient than getAll() + separate book/user lookups.
+   */
+  async getAllWithMetadata(userId?: string): Promise<DownloadWithMetadata[]> {
+    try {
+      const baseQuery = db
+        .select({
+          download: downloads,
+          book: books,
+          user: { id: user.id, name: user.name },
+        })
+        .from(downloads)
+        .leftJoin(books, eq(downloads.md5, books.md5))
+        .leftJoin(user, eq(downloads.userId, user.id))
+        .orderBy(desc(downloads.queuedAt));
+
+      if (userId) {
+        return await baseQuery.where(eq(downloads.userId, userId));
+      }
+      return await baseQuery;
+    } catch (error) {
+      logger.error("Failed to get all downloads with metadata:", error);
       throw error;
     }
   }
