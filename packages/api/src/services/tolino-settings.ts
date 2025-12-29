@@ -6,10 +6,11 @@ import {
   scryptSync,
 } from "crypto";
 import { db } from "../db/index.js";
-import { tolinoSettings, type TolinoSettings } from "../db/schema.js";
+import { tolinoSettings, user, type TolinoSettings } from "../db/schema.js";
 import { tolinoAuthService, type TolinoTokens } from "./tolino/auth.js";
 import { getAllResellers, type ResellerId } from "./tolino/resellers.js";
 import { logger } from "../utils/logger.js";
+import { appriseService } from "./apprise.js";
 
 // Encryption algorithm
 const ALGORITHM = "aes-256-gcm";
@@ -226,6 +227,20 @@ class TolinoSettingsService {
     }
 
     logger.info(`[Tolino Settings] Settings saved for user ${userId}`);
+
+    // Send notification for new Tolino configuration
+    const userResult = await db
+      .select({ name: user.name, email: user.email })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    const tolinoUser = userResult[0];
+    const reseller = getAllResellers().find((r) => r.id === input.resellerId);
+
+    await appriseService.send("tolino_configured", {
+      userName: tolinoUser?.name || tolinoUser?.email || "Unknown user",
+      reseller: reseller?.name || input.resellerId,
+    });
 
     return {
       resellerId: input.resellerId,

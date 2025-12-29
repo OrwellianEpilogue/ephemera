@@ -11,6 +11,7 @@ import {
 } from "../services/tolino/resellers.js";
 import { downloadTracker } from "../services/download-tracker.js";
 import { permissionsService } from "../services/permissions.js";
+import { appriseService } from "../services/apprise.js";
 import type { User } from "../db/schema.js";
 import { logger } from "../utils/logger.js";
 
@@ -338,6 +339,13 @@ tolino.post("/upload", zValidator("json", uploadSchema), async (c) => {
   if (!result.success) {
     return c.json({ error: result.message }, 400);
   }
+
+  // Send notification for manual Tolino upload
+  await appriseService.send("tolino_uploaded", {
+    bookTitle: download.title || "Unknown",
+    bookAuthors: download.author,
+    collectionName: collection,
+  });
 
   return c.json({
     success: true,
