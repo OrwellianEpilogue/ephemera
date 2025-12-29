@@ -1,6 +1,7 @@
 import {
   type ListFetcher,
   type FetchResult,
+  type ListBook,
   type StoryGraphConfig,
   normalizeTitle,
   normalizeAuthor,
@@ -177,84 +178,145 @@ export class StoryGraphFetcher implements ListFetcher {
 
   /**
    * Parse books from StoryGraph HTML
-   * The page structure has book cards with titles and authors
+   * The page structure has book cards with titles, authors, covers, pages, year, and series info
    */
-  private parseBooks(
-    html: string,
-  ): Array<{ title: string; author: string; hash: string }> {
-    const books: Array<{ title: string; author: string; hash: string }> = [];
-
-    // StoryGraph book cards have structure like:
-    // <h3 class="font-bold text-xl">
-    //   <span ...></span>
-    //   <a href="/books/UUID">Title</a>
-    //   <p class="font-body ...">
-    //     <a href="/authors/UUID">Author Name</a>
-    //   </p>
-    // </h3>
-
-    // Primary pattern: Look for book-pane-content sections containing book data
-    // Match: <a href="/books/UUID">Title</a> followed by <a href="/authors/...">Author</a>
-    const bookPattern =
-      /<a[^>]*href="\/books\/([a-f0-9-]{36})"[^>]*>([^<]+)<\/a>[\s\S]*?<a[^>]*href="\/authors\/[^"]*"[^>]*>([^<]+)<\/a>/gi;
-
-    let match;
+  private parseBooks(html: string): ListBook[] {
+    const books: ListBook[] = [];
     const seenIds = new Set<string>();
 
-    while ((match = bookPattern.exec(html)) !== null) {
-      const bookId = match[1];
+    // StoryGraph book cards are wrapped in:
+    // <div class="book-pane" id="book_UUID" data-book-id="UUID">
+    //   <img src="cdn.thestorygraph.com/...">
+    //   <a href="/series/ID">Series Name</a> <a href="/series/ID">#N</a> (optional)
+    //   <a href="/books/UUID">Title</a>
+    //   <a href="/authors/UUID">Author</a>
+    //   336 pages<span>•</span>hardcover<span>•</span>2019
+    // </div>
 
-      // Skip duplicates (StoryGraph shows books multiple times for mobile/desktop)
-      if (seenIds.has(bookId)) {
-        continue;
-      }
+    // Find all unique book UUIDs from data-book-id attributes
+    const bookIdPattern = /data-book-id="([a-f0-9-]{36})"/gi;
+    const bookIds = new Set<string>();
+    let idMatch;
+    while ((idMatch = bookIdPattern.exec(html)) !== null) {
+      bookIds.add(idMatch[1]);
+    }
+
+    // For each book ID, extract the section and parse details
+    for (const bookId of bookIds) {
+      if (seenIds.has(bookId)) continue;
       seenIds.add(bookId);
 
-      const title = normalizeTitle(match[2].trim());
-      const author = normalizeAuthor(match[3].trim());
+      // Find the book-pane section for this book using id="book_UUID"
+      // Match from id="book_UUID" to the next book-pane or end
+      const bookSectionPattern = new RegExp(
+        `id="book_${bookId}"[^>]*>[\\s\\S]*?(?=id="book_[a-f0-9-]{36}"|$)`,
+        "i",
+      );
+      const sectionMatch = html.match(bookSectionPattern);
+      if (!sectionMatch) continue;
 
-      if (title && author) {
+      const section = sectionMatch[0];
+
+      // Extract cover URL from img src (cdn.thestorygraph.com)
+      const coverMatch = section.match(
+        /<img[^>]*src="(https:\/\/cdn\.thestorygraph\.com\/[^"]+)"/i,
+      );
+      const coverUrl = coverMatch?.[1];
+
+      // Extract title - from <a href="/books/UUID">Title</a> (text content, not image)
+      const titleMatch = section.match(
+        /<a[^>]*href="\/books\/[a-f0-9-]{36}"[^>]*>([^<]+)<\/a>/i,
+      );
+      if (!titleMatch) continue;
+      const title = normalizeTitle(titleMatch[1].trim());
+      if (!title) continue;
+
+      // Extract author from <a href="/authors/...">Author</a>
+      const authorMatch = section.match(
+        /<a[^>]*href="\/authors\/[^"]*"[^>]*>([^<]+)<\/a>/i,
+      );
+      if (!authorMatch) continue;
+      const author = normalizeAuthor(authorMatch[1].trim());
+      if (!author) continue;
+
+      // Extract page count: "336 pages"
+      const pagesMatch = section.match(/(\d+)\s*pages/i);
+      const pages = pagesMatch ? parseInt(pagesMatch[1], 10) : undefined;
+
+      // Extract year: appears after </span> as "2019" before newline or SVG
+      // Pattern: </span>YEAR followed by whitespace/newline/<
+      const yearMatch = section.match(/<\/span>(\d{4})[\s\n<]/);
+      const publishedYear = yearMatch ? parseInt(yearMatch[1], 10) : undefined;
+
+      // Extract series info: <a href="/series/ID">Series Name</a> <a href="/series/ID">#N</a>
+      let seriesName: string | undefined;
+      let seriesPosition: number | undefined;
+      const seriesMatch = section.match(
+        /<a[^>]*href="\/series\/\d+"[^>]*>([^<#]+)<\/a>\s*<a[^>]*href="\/series\/\d+"[^>]*>#(\d+(?:\.\d+)?)<\/a>/i,
+      );
+      if (seriesMatch) {
+        seriesName = seriesMatch[1].trim();
+        seriesPosition = parseFloat(seriesMatch[2]);
+      }
+
+      books.push({
+        title,
+        author,
+        hash: `storygraph:${bookId}`,
+        sourceBookId: bookId,
+        sourceUrl: `${STORYGRAPH_BASE_URL}/books/${bookId}`,
+        coverUrl,
+        pages,
+        publishedYear,
+        seriesName,
+        seriesPosition,
+      });
+    }
+
+    // Fallback: If no books found with data-book-id, try href pattern
+    if (books.length === 0) {
+      const hrefPattern = /href="\/books\/([a-f0-9-]{36})"/gi;
+      const fallbackIds = new Set<string>();
+      let hrefMatch;
+      while ((hrefMatch = hrefPattern.exec(html)) !== null) {
+        fallbackIds.add(hrefMatch[1]);
+      }
+
+      for (const bookId of fallbackIds) {
+        if (seenIds.has(bookId)) continue;
+        seenIds.add(bookId);
+
+        // Try to find title and author near this book link
+        const nearbyPattern = new RegExp(
+          `href="/books/${bookId}"[^>]*>([^<]+)</a>[\\s\\S]*?href="/authors/[^"]*"[^>]*>([^<]+)</a>`,
+          "i",
+        );
+        const nearbyMatch = html.match(nearbyPattern);
+        if (!nearbyMatch) continue;
+
+        const title = normalizeTitle(nearbyMatch[1].trim());
+        const author = normalizeAuthor(nearbyMatch[2].trim());
+        if (!title || !author) continue;
+
+        // Try to get cover from alt text pattern
+        const coverPattern = new RegExp(
+          `href="/books/${bookId}"[^>]*>[\\s\\S]*?<img[^>]*src="(https://cdn\\.thestorygraph\\.com/[^"]+)"`,
+          "i",
+        );
+        const coverMatch = html.match(coverPattern);
+
         books.push({
           title,
           author,
-          // Use StoryGraph's book UUID as stable identifier
           hash: `storygraph:${bookId}`,
+          sourceBookId: bookId,
+          sourceUrl: `${STORYGRAPH_BASE_URL}/books/${bookId}`,
+          coverUrl: coverMatch?.[1],
         });
       }
     }
 
-    // Fallback: Try alt text from cover images (format: "Title by Author")
-    if (books.length === 0) {
-      const altPattern =
-        /<a[^>]*href="\/books\/([a-f0-9-]{36})"[^>]*>[\s\S]*?<img[^>]*alt="([^"]+) by ([^"]+)"[^>]*>/gi;
-
-      while ((match = altPattern.exec(html)) !== null) {
-        const bookId = match[1];
-        if (seenIds.has(bookId)) continue;
-        seenIds.add(bookId);
-
-        const title = normalizeTitle(match[2].trim());
-        const author = normalizeAuthor(match[3].trim());
-
-        if (title && author) {
-          books.push({
-            title,
-            author,
-            hash: `storygraph:${bookId}`,
-          });
-        }
-      }
-    }
-
-    // Deduplicate by hash
-    const seen = new Set<string>();
-    return books.filter((book) => {
-      if (seen.has(book.hash)) {
-        return false;
-      }
-      seen.add(book.hash);
-      return true;
-    });
+    return books;
   }
 
   /**
