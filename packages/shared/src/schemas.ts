@@ -1276,6 +1276,13 @@ export const tolinoSettingsResponseSchema = z.object({
   resellerId: tolinoResellerSchema.describe("Selected reseller"),
   email: z.string().email().describe("Tolino account email"),
   autoUpload: z.boolean().describe("Automatically upload books after download"),
+  askCollectionOnUpload: z
+    .boolean()
+    .describe("Show collection dialog on manual upload"),
+  autoUploadCollection: z
+    .string()
+    .nullable()
+    .describe("Default collection for auto-uploaded books"),
   isConnected: z
     .boolean()
     .describe("Whether currently authenticated with valid tokens"),
@@ -1302,6 +1309,16 @@ export const tolinoSettingsInputSchema = z.object({
     .optional()
     .default(false)
     .describe("Automatically upload books after download"),
+  askCollectionOnUpload: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Show collection dialog on manual upload"),
+  autoUploadCollection: z
+    .string()
+    .nullable()
+    .optional()
+    .describe("Default collection for auto-uploaded books"),
 });
 
 export type TolinoSettingsInput = z.infer<typeof tolinoSettingsInputSchema>;
@@ -1312,6 +1329,10 @@ export const tolinoUploadRequestSchema = z.object({
     .string()
     .regex(/^[a-f0-9]{32}$/)
     .describe("MD5 hash of the book to upload"),
+  collection: z
+    .string()
+    .optional()
+    .describe("Collection name to add the book to after upload"),
 });
 
 export type TolinoUploadRequest = z.infer<typeof tolinoUploadRequestSchema>;
@@ -1348,6 +1369,17 @@ export const tolinoCanUploadResponseSchema = z.object({
 
 export type TolinoCanUploadResponse = z.infer<
   typeof tolinoCanUploadResponseSchema
+>;
+
+// Tolino collections response schema
+export const tolinoCollectionsResponseSchema = z.object({
+  collections: z
+    .array(z.string())
+    .describe("List of collection names from Tolino Cloud"),
+});
+
+export type TolinoCollectionsResponse = z.infer<
+  typeof tolinoCollectionsResponseSchema
 >;
 
 // Calibre status response schema

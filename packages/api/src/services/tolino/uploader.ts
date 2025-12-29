@@ -17,12 +17,15 @@ const TOLINO_FORMATS = ["epub", "pdf"];
 
 export interface UploadOptions {
   skipCover?: boolean;
+  collectionName?: string;
 }
 
 export interface UploadResult {
   success: boolean;
   message: string;
   uploadedAt?: number;
+  collectionAdded?: boolean;
+  collectionError?: string;
 }
 
 export interface CanUploadResult {
@@ -67,9 +70,18 @@ class TolinoUploadService {
         };
       }
 
-      // 3. Check if file exists
-      const filePath = download.tempPath || download.finalPath;
-      if (!filePath || !existsSync(filePath)) {
+      // 3. Check if file exists - prefer finalPath as tempPath may have been moved
+      let filePath: string | null = null;
+      if (download.finalPath && existsSync(download.finalPath)) {
+        filePath = download.finalPath;
+      } else if (download.tempPath && existsSync(download.tempPath)) {
+        filePath = download.tempPath;
+      }
+
+      if (!filePath) {
+        logger.warn(
+          `[Tolino Upload] File not found. tempPath: ${download.tempPath}, finalPath: ${download.finalPath}`,
+        );
         return {
           success: false,
           message: "Book file is not available",
@@ -134,10 +146,57 @@ class TolinoUploadService {
 
       // 7. Upload cover if available and we got an inventory UUID
       if (!options.skipCover && uploadResult.inventoryUuid) {
-        await this.uploadCover(client, uploadResult.inventoryUuid, md5);
+        await this.uploadCover(
+          client,
+          uploadResult.inventoryUuid,
+          md5,
+          filePath,
+        );
       }
 
-      // 8. Cleanup temp converted file
+      // 8. Add to collection if requested and we have an inventory UUID
+      let collectionAdded = false;
+      let collectionError: string | undefined;
+
+      if (options.collectionName && uploadResult.inventoryUuid) {
+        logger.info(
+          `[Tolino Upload] Adding book to collection "${options.collectionName}"`,
+        );
+
+        try {
+          // Get current revision
+          const metadataResult = await client.getReadingMetadata();
+          if (!metadataResult.success) {
+            collectionError = metadataResult.error || "Failed to get metadata";
+          } else {
+            // Add to collection
+            const collectionResult = await client.addToCollection(
+              metadataResult.revision,
+              uploadResult.inventoryUuid,
+              options.collectionName,
+            );
+
+            if (collectionResult.success) {
+              collectionAdded = true;
+              logger.info(
+                `[Tolino Upload] Book added to collection "${options.collectionName}"`,
+              );
+            } else {
+              collectionError =
+                collectionResult.error || "Failed to add to collection";
+              logger.warn(
+                `[Tolino Upload] Failed to add to collection: ${collectionError}`,
+              );
+            }
+          }
+        } catch (error) {
+          collectionError =
+            error instanceof Error ? error.message : "Unknown collection error";
+          logger.warn(`[Tolino Upload] Collection error: ${collectionError}`);
+        }
+      }
+
+      // 9. Cleanup temp converted file
       if (tempConvertedPath) {
         try {
           await unlink(tempConvertedPath);
@@ -152,8 +211,14 @@ class TolinoUploadService {
 
       return {
         success: true,
-        message: "Book uploaded successfully",
+        message: collectionAdded
+          ? `Book uploaded and added to collection "${options.collectionName}"`
+          : collectionError
+            ? `Book uploaded, but failed to add to collection: ${collectionError}`
+            : "Book uploaded successfully",
         uploadedAt: Date.now(),
+        collectionAdded,
+        collectionError,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -167,67 +232,102 @@ class TolinoUploadService {
 
   /**
    * Upload cover image for a book
+   * Tries to extract from the ebook file first (fast), falls back to URL download
    */
   private async uploadCover(
     client: TolinoApiClient,
     inventoryUuid: string,
     md5: string,
+    bookFilePath: string,
   ): Promise<void> {
     try {
-      // Get book info to find cover URL
-      const book = await bookService.getBook(md5);
-      if (!book?.coverUrl) {
-        logger.debug(`[Tolino Upload] No cover URL for book ${md5}`);
+      const tempDir = process.env.DOWNLOAD_FOLDER || "./downloads";
+      const coverPath = join(tempDir, `${md5}_cover.jpg`);
+
+      // Try extracting cover from the ebook file first (fast, local)
+      let extractedCover: string | null = null;
+      if (await calibreService.isAvailable()) {
+        logger.debug(`[Tolino Upload] Extracting cover from ebook file`);
+        extractedCover = await calibreService.extractCover(
+          bookFilePath,
+          coverPath,
+        );
+      }
+
+      // Fall back to downloading from URL if extraction failed
+      if (!extractedCover) {
+        const book = await bookService.getBook(md5);
+        if (book?.coverUrl) {
+          logger.debug(
+            `[Tolino Upload] Downloading cover from ${book.coverUrl}`,
+          );
+          extractedCover = await this.downloadCoverWithTimeout(
+            book.coverUrl,
+            coverPath,
+          );
+        }
+      }
+
+      if (!extractedCover) {
+        logger.debug(`[Tolino Upload] No cover available`);
         return;
       }
 
-      // Download cover to temp file
-      const coverPath = await this.downloadCover(book.coverUrl, md5);
-      if (!coverPath) {
-        return;
-      }
+      logger.debug(`[Tolino Upload] Uploading cover to Tolino`);
 
-      // Upload cover
-      const result = await client.uploadCover(inventoryUuid, coverPath);
+      // Upload cover with timeout
+      const result = await Promise.race([
+        client.uploadCover(inventoryUuid, extractedCover),
+        new Promise<{ success: false; error: string }>((resolve) =>
+          setTimeout(
+            () => resolve({ success: false, error: "Cover upload timeout" }),
+            10000,
+          ),
+        ),
+      ]);
+
       if (!result.success) {
         logger.warn(`[Tolino Upload] Cover upload failed: ${result.error}`);
+      } else {
+        logger.debug(`[Tolino Upload] Cover uploaded successfully`);
       }
 
       // Cleanup temp cover file
       try {
-        await unlink(coverPath);
+        await unlink(extractedCover);
       } catch {
         // Ignore cleanup errors
       }
     } catch (error) {
-      logger.warn(`[Tolino Upload] Cover processing error:`, error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logger.warn(`[Tolino Upload] Cover processing error: ${message}`);
       // Cover upload errors are non-blocking
     }
   }
 
   /**
-   * Download cover image to temp file
+   * Download cover image from URL with timeout
    */
-  private async downloadCover(
+  private async downloadCoverWithTimeout(
     coverUrl: string,
-    md5: string,
+    outputPath: string,
   ): Promise<string | null> {
     try {
-      const response = await fetch(coverUrl);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const response = await fetch(coverUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
         return null;
       }
 
-      const contentType = response.headers.get("content-type") || "";
-      const ext = contentType.includes("png") ? "png" : "jpg";
-      const tempDir = process.env.DOWNLOAD_FOLDER || "./downloads";
-      const coverPath = join(tempDir, `${md5}_cover.${ext}`);
-
       const buffer = await response.arrayBuffer();
       const { writeFile } = await import("fs/promises");
-      await writeFile(coverPath, Buffer.from(buffer));
+      await writeFile(outputPath, Buffer.from(buffer));
 
-      return coverPath;
+      return outputPath;
     } catch (error) {
       logger.debug(`[Tolino Upload] Failed to download cover: ${error}`);
       return null;
@@ -247,8 +347,15 @@ class TolinoUploadService {
       };
     }
 
-    const filePath = download.tempPath || download.finalPath;
-    if (!filePath || !existsSync(filePath)) {
+    // Check if file exists - prefer finalPath as tempPath may have been moved
+    let filePath: string | null = null;
+    if (download.finalPath && existsSync(download.finalPath)) {
+      filePath = download.finalPath;
+    } else if (download.tempPath && existsSync(download.tempPath)) {
+      filePath = download.tempPath;
+    }
+
+    if (!filePath) {
       return {
         canUpload: false,
         needsConversion: false,

@@ -41,6 +41,7 @@ import { UserBadge } from "./UserBadge";
 import { useEmailRecipients, useSendBookEmail } from "../hooks/useEmail";
 import { useTolinoSettings, useTolinoUpload } from "../hooks/useTolino";
 import { useCalibreStatus } from "../hooks/useCalibre";
+import { TolinoUploadDialog } from "./TolinoUploadDialog";
 import { useState, useEffect, memo } from "react";
 
 // Tolino Cloud accepts EPUB and PDF directly
@@ -197,6 +198,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const canUploadToTolino = isNativeFormat || canConvertToEpub;
   const needsConversion = !isNativeFormat && canConvertToEpub;
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [tolinoDialogOpened, setTolinoDialogOpened] = useState(false);
 
   const handleCancel = () => {
     cancelDownload.mutate({ md5: item.md5, title: item.title });
@@ -222,8 +224,24 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
     });
   };
 
-  const handleTolinoUpload = () => {
-    tolinoUpload.mutate({ md5: item.md5 });
+  const handleTolinoUploadClick = () => {
+    // Show dialog if askCollectionOnUpload is enabled, otherwise upload directly
+    if (tolinoSettings?.askCollectionOnUpload) {
+      setTolinoDialogOpened(true);
+    } else {
+      tolinoUpload.mutate({ md5: item.md5 });
+    }
+  };
+
+  const handleTolinoUploadWithCollection = (collection?: string) => {
+    tolinoUpload.mutate(
+      { md5: item.md5, collection },
+      {
+        onSuccess: () => {
+          setTolinoDialogOpened(false);
+        },
+      },
+    );
   };
 
   const canCancel = ["queued", "downloading", "delayed"].includes(item.status);
@@ -437,7 +455,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                     <ActionIcon
                       color={fileAccessDisabled ? "gray" : "cyan"}
                       variant="subtle"
-                      onClick={handleTolinoUpload}
+                      onClick={handleTolinoUploadClick}
                       loading={tolinoUpload.isPending}
                       disabled={fileAccessDisabled}
                     >
@@ -663,6 +681,16 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
           </Group>
         </Stack>
       </Modal>
+
+      {/* Tolino Upload Dialog */}
+      <TolinoUploadDialog
+        opened={tolinoDialogOpened}
+        onClose={() => setTolinoDialogOpened(false)}
+        onUpload={handleTolinoUploadWithCollection}
+        isUploading={tolinoUpload.isPending}
+        bookTitle={item.title}
+        needsConversion={needsConversion}
+      />
     </Card>
   );
 };

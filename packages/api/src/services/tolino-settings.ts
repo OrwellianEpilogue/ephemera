@@ -69,12 +69,16 @@ export interface TolinoSettingsInput {
   email: string;
   password: string;
   autoUpload: boolean;
+  askCollectionOnUpload?: boolean;
+  autoUploadCollection?: string | null;
 }
 
 export interface TolinoSettingsResponse {
   resellerId: ResellerId;
   email: string;
   autoUpload: boolean;
+  askCollectionOnUpload: boolean;
+  autoUploadCollection: string | null;
   isConnected: boolean;
   tokenExpiresAt: number | null;
   createdAt: string;
@@ -106,6 +110,8 @@ class TolinoSettingsService {
       resellerId: settings.resellerId as ResellerId,
       email: settings.email,
       autoUpload: settings.autoUpload,
+      askCollectionOnUpload: settings.askCollectionOnUpload,
+      autoUploadCollection: settings.autoUploadCollection,
       isConnected: this.isConnected(settings),
       tokenExpiresAt: settings.tokenExpiresAt,
       createdAt: settings.createdAt.toISOString(),
@@ -195,6 +201,8 @@ class TolinoSettingsService {
           tokenExpiresAt: tokens.expiresAt,
           hardwareId,
           autoUpload: input.autoUpload,
+          askCollectionOnUpload: input.askCollectionOnUpload ?? false,
+          autoUploadCollection: input.autoUploadCollection ?? null,
           updatedAt: now,
         })
         .where(eq(tolinoSettings.userId, userId));
@@ -210,6 +218,8 @@ class TolinoSettingsService {
         tokenExpiresAt: tokens.expiresAt,
         hardwareId,
         autoUpload: input.autoUpload,
+        askCollectionOnUpload: input.askCollectionOnUpload ?? false,
+        autoUploadCollection: input.autoUploadCollection ?? null,
         createdAt: now,
         updatedAt: now,
       });
@@ -221,6 +231,8 @@ class TolinoSettingsService {
       resellerId: input.resellerId,
       email: input.email,
       autoUpload: input.autoUpload,
+      askCollectionOnUpload: input.askCollectionOnUpload ?? false,
+      autoUploadCollection: input.autoUploadCollection ?? null,
       isConnected: true,
       tokenExpiresAt: tokens.expiresAt,
       createdAt: now.toISOString(),
@@ -236,6 +248,24 @@ class TolinoSettingsService {
       .update(tolinoSettings)
       .set({
         autoUpload,
+        updatedAt: new Date(),
+      })
+      .where(eq(tolinoSettings.userId, userId));
+  }
+
+  /**
+   * Update collection settings
+   */
+  async updateCollectionSettings(
+    userId: string,
+    askCollectionOnUpload: boolean,
+    autoUploadCollection: string | null,
+  ): Promise<void> {
+    await db
+      .update(tolinoSettings)
+      .set({
+        askCollectionOnUpload,
+        autoUploadCollection,
         updatedAt: new Date(),
       })
       .where(eq(tolinoSettings.userId, userId));

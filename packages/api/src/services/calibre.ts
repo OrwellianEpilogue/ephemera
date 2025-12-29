@@ -251,6 +251,55 @@ class CalibreService {
   }
 
   /**
+   * Extract cover image from an ebook file
+   * @param inputPath Path to the ebook file
+   * @param outputPath Path to save the cover image (should end in .jpg or .png)
+   * @returns Path to the extracted cover, or null if no cover found
+   */
+  async extractCover(
+    inputPath: string,
+    outputPath: string,
+  ): Promise<string | null> {
+    if (!existsSync(inputPath)) {
+      logger.debug(
+        `[Calibre] Cannot extract cover - file not found: ${inputPath}`,
+      );
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      const proc = spawn(
+        getCalibreBinary("ebook-meta"),
+        [inputPath, "--get-cover", outputPath],
+        { timeout: 10000 }, // 10 second timeout
+      );
+
+      let stderr = "";
+
+      proc.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", (code) => {
+        if (code === 0 && existsSync(outputPath)) {
+          logger.debug(`[Calibre] Cover extracted: ${outputPath}`);
+          resolve(outputPath);
+        } else {
+          logger.debug(
+            `[Calibre] No cover found or extraction failed: ${stderr}`,
+          );
+          resolve(null);
+        }
+      });
+
+      proc.on("error", (error) => {
+        logger.debug(`[Calibre] Cover extraction error: ${error.message}`);
+        resolve(null);
+      });
+    });
+  }
+
+  /**
    * Normalize an EPUB file for Kindle compatibility
    * Performs epub->epub conversion which cleans up encoding issues and malformed EPUBs
    * The file is normalized in-place (original replaced with normalized version)

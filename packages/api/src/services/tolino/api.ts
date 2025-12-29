@@ -15,6 +15,37 @@ export interface CoverUploadResult {
   error?: string;
 }
 
+export interface ReadingMetadataResult {
+  success: boolean;
+  revision: string;
+  collections: string[];
+  error?: string;
+}
+
+export interface AddToCollectionResult {
+  success: boolean;
+  revision?: string;
+  error?: string;
+}
+
+// Reading metadata API response types
+interface ReadingMetadataPatch {
+  op: string;
+  path: string;
+  value?: {
+    category?: string;
+    name?: string;
+    modified?: number;
+    revision?: string;
+    [key: string]: unknown;
+  };
+}
+
+interface ReadingMetadataResponse {
+  revision: string;
+  patches?: ReadingMetadataPatch[];
+}
+
 // MIME types for supported formats
 const MIME_TYPES: Record<string, string> = {
   epub: "application/epub+zip",
@@ -198,6 +229,169 @@ export class TolinoApiClient {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       logger.warn(`[Tolino API] Cover upload error: ${message}`);
+      return {
+        success: false,
+        error: message,
+      };
+    }
+  }
+
+  /**
+   * Get current reading metadata revision and list of collections
+   * Sends an empty revision to get the current state
+   */
+  async getReadingMetadata(): Promise<ReadingMetadataResult> {
+    try {
+      logger.info(`[Tolino API] Fetching reading metadata and collections`);
+
+      const resellerId = getResellerApiId(this.resellerId);
+
+      logger.debug(
+        `[Tolino API] Fetching with device-id: ${this.hardwareId}, reseller-id: ${resellerId}`,
+      );
+
+      const response = await fetch(
+        "https://api.pageplace.de/v4/reading-metadata?paths=publications,audiobooks",
+        {
+          method: "PATCH",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            authorization: `Bearer ${this.accessToken}`,
+            client_type: "TOLINO_WEBREADER",
+            "client-type": "TOLINO_WEBREADER",
+            "reseller-id": resellerId,
+            "device-id": this.hardwareId,
+            Referer: "https://webreader.mytolino.com/",
+            Origin: "https://webreader.mytolino.com",
+          },
+          body: JSON.stringify({
+            revision: "",
+            patches: [],
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        logger.error(
+          `[Tolino API] Failed to get reading metadata: ${response.status} - ${text}`,
+        );
+        return {
+          success: false,
+          revision: "",
+          collections: [],
+          error: `Failed to get reading metadata: ${response.status}`,
+        };
+      }
+
+      const data = (await response.json()) as ReadingMetadataResponse;
+
+      // Extract unique collection names from patches
+      const collections = new Set<string>();
+      if (data.patches) {
+        for (const patch of data.patches) {
+          if (patch.value?.category === "collection" && patch.value?.name) {
+            collections.add(patch.value.name);
+          }
+        }
+      }
+
+      logger.info(
+        `[Tolino API] Got ${collections.size} collections, revision: ${data.revision.substring(0, 20)}...`,
+      );
+
+      return {
+        success: true,
+        revision: data.revision,
+        collections: Array.from(collections).sort(),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logger.error(`[Tolino API] Error getting reading metadata: ${message}`);
+      return {
+        success: false,
+        revision: "",
+        collections: [],
+        error: message,
+      };
+    }
+  }
+
+  /**
+   * Add a book to a collection
+   * @param revision Current revision token from getReadingMetadata()
+   * @param bookUuid The book's UUID (inventoryUuid from upload)
+   * @param collectionName Name of the collection (created if doesn't exist)
+   */
+  async addToCollection(
+    revision: string,
+    bookUuid: string,
+    collectionName: string,
+  ): Promise<AddToCollectionResult> {
+    try {
+      logger.info(
+        `[Tolino API] Adding book ${bookUuid} to collection "${collectionName}"`,
+      );
+
+      const resellerId = getResellerApiId(this.resellerId);
+
+      const response = await fetch(
+        "https://api.pageplace.de/v4/reading-metadata?paths=publications,audiobooks",
+        {
+          method: "PATCH",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            authorization: `Bearer ${this.accessToken}`,
+            client_type: "TOLINO_WEBREADER",
+            "client-type": "TOLINO_WEBREADER",
+            "reseller-id": resellerId,
+            "device-id": this.hardwareId,
+            Referer: "https://webreader.mytolino.com/",
+            Origin: "https://webreader.mytolino.com",
+          },
+          body: JSON.stringify({
+            revision,
+            patches: [
+              {
+                op: "add",
+                path: `publications/${bookUuid}/tags`,
+                value: {
+                  name: collectionName,
+                  category: "collection",
+                  modified: Date.now(),
+                },
+              },
+            ],
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        logger.error(
+          `[Tolino API] Failed to add to collection: ${response.status} - ${text}`,
+        );
+        return {
+          success: false,
+          error: `Failed to add to collection: ${response.status}`,
+        };
+      }
+
+      const data = (await response.json()) as ReadingMetadataResponse;
+
+      logger.info(
+        `[Tolino API] Book added to collection "${collectionName}" successfully`,
+      );
+
+      return {
+        success: true,
+        revision: data.revision,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logger.error(`[Tolino API] Error adding to collection: ${message}`);
       return {
         success: false,
         error: message,
