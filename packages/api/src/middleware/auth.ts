@@ -13,13 +13,66 @@ declare module "hono" {
 }
 
 /**
+ * Cross-request session cache
+ * Caches session lookups by session token for a short period
+ * to avoid redundant Better Auth calls during parallel requests
+ */
+interface CachedSession {
+  user: User;
+  expiresAt: number;
+}
+
+const SESSION_CACHE_TTL_MS = 5000; // 5 seconds
+const sessionCache = new Map<string, CachedSession>();
+
+// Periodic cleanup of expired cache entries (every 30 seconds)
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [key, value] of sessionCache) {
+    if (value.expiresAt < now) {
+      sessionCache.delete(key);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    logger.debug(
+      `[PERF] Session cache cleanup: removed ${cleaned} expired entries`,
+    );
+  }
+}, 30000);
+
+/**
+ * Extract session token from cookies
+ * Better Auth uses 'better-auth.session_token' cookie
+ */
+function getSessionToken(c: {
+  req: { raw: { headers: { get(name: string): string | null } } };
+}): string | undefined {
+  // Better Auth session cookie name - parse from raw request headers
+  const cookieHeader = c.req.raw.headers.get("cookie");
+  if (!cookieHeader) return undefined;
+
+  const cookies = cookieHeader.split(";").map((c) => c.trim());
+  for (const cookie of cookies) {
+    const [name, ...rest] = cookie.split("=");
+    if (name === "better-auth.session_token") {
+      return rest.join("="); // Handle values that might contain '='
+    }
+  }
+  return undefined;
+}
+
+/**
  * Middleware to require authentication
  * Validates session and attaches user to context
- * Uses request-scoped caching to prevent multiple session fetches
+ * Uses multi-level caching:
+ * 1. Request-scoped cache (same request, multiple middleware calls)
+ * 2. Cross-request cache (parallel requests with same session token)
  */
 export const requireAuth = createMiddleware(async (c, next) => {
   try {
-    // Check if session was already fetched this request (request-scoped cache)
+    // Level 1: Request-scoped cache (same request)
     const existingUser = c.get("user");
     if (existingUser && c.get("sessionChecked")) {
       logger.debug(`[PERF] Auth session cache HIT (request-scoped)`);
@@ -27,7 +80,20 @@ export const requireAuth = createMiddleware(async (c, next) => {
       return;
     }
 
-    // Get session from Better Auth
+    // Level 2: Cross-request cache (parallel requests)
+    const sessionToken = getSessionToken(c);
+    if (sessionToken) {
+      const cached = sessionCache.get(sessionToken);
+      if (cached && cached.expiresAt > Date.now()) {
+        logger.debug(`[PERF] Auth session cache HIT (cross-request)`);
+        c.set("user", cached.user);
+        c.set("sessionChecked", true);
+        await next();
+        return;
+      }
+    }
+
+    // Cache miss - fetch from Better Auth
     logger.debug(`[PERF] Auth session cache MISS - fetching from Better Auth`);
     const session = await auth.api.getSession({
       headers: c.req.raw.headers,
@@ -43,8 +109,18 @@ export const requireAuth = createMiddleware(async (c, next) => {
       );
     }
 
+    const user = session.user as User;
+
+    // Cache the session for parallel requests
+    if (sessionToken) {
+      sessionCache.set(sessionToken, {
+        user,
+        expiresAt: Date.now() + SESSION_CACHE_TTL_MS,
+      });
+    }
+
     // Attach user to context and mark session as checked
-    c.set("user", session.user as User);
+    c.set("user", user);
     c.set("sessionChecked", true);
 
     return await next();
