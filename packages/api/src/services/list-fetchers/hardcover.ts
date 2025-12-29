@@ -17,15 +17,20 @@ interface HardcoverContributor {
 }
 
 interface HardcoverLanguage {
-  code?: string;
-  name?: string;
+  code2?: string;
+  language?: string;
+}
+
+interface HardcoverEdition {
+  language?: HardcoverLanguage | null;
 }
 
 interface HardcoverBook {
   id: number;
   title: string;
   cached_contributors: HardcoverContributor[] | null;
-  language?: HardcoverLanguage | null;
+  default_ebook_edition?: HardcoverEdition | null;
+  default_physical_edition?: HardcoverEdition | null;
 }
 
 interface HardcoverUserBook {
@@ -228,7 +233,12 @@ export class HardcoverFetcher implements ListFetcher {
             id
             title
             cached_contributors
-            language { code }
+            default_ebook_edition {
+              language { code2 }
+            }
+            default_physical_edition {
+              language { code2 }
+            }
           }
         }
       }
@@ -257,7 +267,10 @@ export class HardcoverFetcher implements ListFetcher {
         // Use Hardcover's book ID as stable identifier
         hash: `hardcover:${ub.book.id}`,
         addedAt: ub.date_added ? new Date(ub.date_added) : undefined,
-        language: ub.book.language?.code || undefined,
+        language:
+          ub.book.default_ebook_edition?.language?.code2 ||
+          ub.book.default_physical_edition?.language?.code2 ||
+          undefined,
       };
     });
 
@@ -302,7 +315,12 @@ export class HardcoverFetcher implements ListFetcher {
             id
             title
             cached_contributors
-            language { code }
+            default_ebook_edition {
+              language { code2 }
+            }
+            default_physical_edition {
+              language { code2 }
+            }
           }
         }
       }
@@ -335,7 +353,10 @@ export class HardcoverFetcher implements ListFetcher {
         // Use Hardcover's book ID as stable identifier
         hash: `hardcover:${lb.book.id}`,
         addedAt: lb.created_at ? new Date(lb.created_at) : undefined,
-        language: lb.book.language?.code || undefined,
+        language:
+          lb.book.default_ebook_edition?.language?.code2 ||
+          lb.book.default_physical_edition?.language?.code2 ||
+          undefined,
       };
     });
 
