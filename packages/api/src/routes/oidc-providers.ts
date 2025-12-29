@@ -6,12 +6,6 @@ import { eq } from "drizzle-orm";
 
 const app = new OpenAPIHono();
 
-// Normalize issuer URL by removing trailing slash
-// Fixes compatibility with Authentik and other IdPs that return issuer with trailing slash
-function normalizeIssuerUrl(url: string): string {
-  return url.endsWith("/") ? url.slice(0, -1) : url;
-}
-
 // Schemas
 const OIDCConfigSchema = z.object({
   clientId: z.string().min(1),
@@ -281,7 +275,9 @@ app.openapi(createProviderRoute, async (c) => {
       id,
       providerId: body.providerId,
       name: body.name || null,
-      issuer: normalizeIssuerUrl(body.issuer),
+      // Use issuer from discovery document (authoritative) to match JWT 'iss' claim
+      // This fixes compatibility with IdPs like Authentik that include trailing slashes
+      issuer: discoveryDoc.issuer || body.issuer,
       domain: body.domain || "",
       allowAutoProvision: body.allowAutoProvision ?? false,
       groupClaimName: body.groupClaimName || null,
@@ -399,21 +395,40 @@ app.openapi(updateProviderRoute, async (c) => {
       ? JSON.parse(provider.oidcConfig)
       : {};
 
+    // If discoveryUrl is being updated, fetch the discovery document to get the authoritative issuer
+    let discoveredIssuer: string | null = null;
+    if (body.discoveryUrl) {
+      try {
+        const discoveryResponse = await fetch(body.discoveryUrl);
+        if (discoveryResponse.ok) {
+          const discoveryDoc = await discoveryResponse.json();
+          discoveredIssuer = discoveryDoc.issuer || null;
+        }
+      } catch {
+        // Ignore fetch errors - use provided issuer as fallback
+      }
+    }
+
     // Build updated config
     const updatedConfig = {
       ...currentConfig,
       ...(body.clientId && { clientId: body.clientId }),
       ...(body.clientSecret && { clientSecret: body.clientSecret }),
       ...(body.scopes && { scopes: body.scopes }),
-      ...(body.discoveryUrl && { discoveryUrl: body.discoveryUrl }),
+      ...(body.discoveryUrl && { discoveryEndpoint: body.discoveryUrl }),
     };
+
+    // Determine the issuer to use:
+    // 1. If we fetched a discovery doc, use its issuer (authoritative)
+    // 2. Otherwise, use the provided issuer as-is
+    const issuerToStore = discoveredIssuer || body.issuer || null;
 
     // Update in database
     await db
       .update(ssoProvider)
       .set({
         ...(body.name !== undefined && { name: body.name }),
-        ...(body.issuer && { issuer: normalizeIssuerUrl(body.issuer) }),
+        ...(issuerToStore && { issuer: issuerToStore }),
         ...(body.domain !== undefined && { domain: body.domain || "" }),
         ...(body.allowAutoProvision !== undefined && {
           allowAutoProvision: body.allowAutoProvision,

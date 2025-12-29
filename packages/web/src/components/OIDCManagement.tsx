@@ -17,7 +17,7 @@ import {
   Alert,
   Loader,
   Center,
-  MultiSelect,
+  TagsInput,
   Tooltip,
   Select,
   Input,
@@ -92,6 +92,11 @@ interface TestResult {
   message: string;
 }
 
+interface DiscoveryResult {
+  issuer?: string;
+  error?: string;
+}
+
 function OIDCProvidersPage() {
   const queryClient = useQueryClient();
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -104,6 +109,9 @@ function OIDCProvidersPage() {
   const [testing, setTesting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showEditAdvanced, setShowEditAdvanced] = useState(false);
+  const [discoveryResult, setDiscoveryResult] =
+    useState<DiscoveryResult | null>(null);
+  const [fetchingDiscovery, setFetchingDiscovery] = useState(false);
 
   // Form state for create
   const [createForm, setCreateForm] = useState<CreateProviderForm>({
@@ -312,6 +320,37 @@ function OIDCProvidersPage() {
     }
   };
 
+  // Fetch discovery document to show the authoritative issuer
+  const handleFetchDiscovery = async (discoveryUrl: string) => {
+    if (!discoveryUrl) {
+      setDiscoveryResult(null);
+      return;
+    }
+
+    setFetchingDiscovery(true);
+    setDiscoveryResult(null);
+
+    try {
+      const response = await fetch(discoveryUrl);
+      if (!response.ok) {
+        setDiscoveryResult({
+          error: `Failed to fetch discovery document: ${response.status}`,
+        });
+        return;
+      }
+      const doc = await response.json();
+      setDiscoveryResult({
+        issuer: doc.issuer || "No issuer found in discovery document",
+      });
+    } catch (err) {
+      setDiscoveryResult({
+        error: err instanceof Error ? err.message : "Failed to fetch discovery",
+      });
+    } finally {
+      setFetchingDiscovery(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Center h={400}>
@@ -465,6 +504,7 @@ function OIDCProvidersPage() {
           setCreateModalOpen(false);
           setError(null);
           setTestResult(null);
+          setDiscoveryResult(null);
         }}
         title="Add OIDC Provider"
         size="lg"
@@ -522,7 +562,9 @@ function OIDCProvidersPage() {
                 placeholder="id.example.com"
                 value={createForm.issuer}
                 onChange={(e) => {
-                  const host = e.target.value.replace(/\/$/, "");
+                  // Preserve user input as-is (including trailing slashes)
+                  // The backend will use the authoritative issuer from the discovery document
+                  const host = e.target.value;
                   const issuer = host ? `${createProtocol}${host}` : "";
                   setCreateForm({
                     ...createForm,
@@ -543,15 +585,59 @@ function OIDCProvidersPage() {
             </Group>
           </Input.Wrapper>
 
-          <TextInput
-            label="Discovery URL"
-            description="Auto-derived from Issuer URL. Override only if your provider uses a non-standard path."
-            placeholder="https://id.example.com/.well-known/openid-configuration"
-            value={createForm.discoveryUrl}
-            onChange={(e) =>
-              setCreateForm({ ...createForm, discoveryUrl: e.target.value })
-            }
-          />
+          <Stack gap="xs">
+            <Group align="flex-end" gap="xs">
+              <TextInput
+                label="Discovery URL"
+                description="Auto-derived from Issuer URL. Override only if your provider uses a non-standard path."
+                placeholder="https://id.example.com/.well-known/openid-configuration"
+                value={createForm.discoveryUrl}
+                onChange={(e) => {
+                  setCreateForm({
+                    ...createForm,
+                    discoveryUrl: e.target.value,
+                  });
+                  setDiscoveryResult(null);
+                }}
+                style={{ flex: 1 }}
+              />
+              <Button
+                variant="light"
+                onClick={() => handleFetchDiscovery(createForm.discoveryUrl)}
+                loading={fetchingDiscovery}
+                disabled={!createForm.discoveryUrl}
+              >
+                Test Discovery
+              </Button>
+            </Group>
+            {discoveryResult && (
+              <Alert
+                icon={
+                  discoveryResult.error ? (
+                    <IconAlertCircle size={16} />
+                  ) : (
+                    <IconCheck size={16} />
+                  )
+                }
+                color={discoveryResult.error ? "red" : "teal"}
+                title={
+                  discoveryResult.error
+                    ? "Discovery Failed"
+                    : "Discovered Issuer"
+                }
+              >
+                <Text size="sm" style={{ wordBreak: "break-all" }}>
+                  {discoveryResult.error || discoveryResult.issuer}
+                </Text>
+                {discoveryResult.issuer && (
+                  <Text size="xs" c="dimmed" mt="xs">
+                    This is the authoritative issuer URL that will be stored and
+                    used for token validation.
+                  </Text>
+                )}
+              </Alert>
+            )}
+          </Stack>
 
           <TextInput
             label="Domain (Optional)"
@@ -584,21 +670,16 @@ function OIDCProvidersPage() {
             }
           />
 
-          <MultiSelect
+          <TagsInput
             label="Scopes"
-            description="OAuth scopes to request"
-            data={[
-              { value: "openid", label: "openid" },
-              { value: "email", label: "email" },
-              { value: "profile", label: "profile" },
-              { value: "groups", label: "groups" },
-              { value: "offline_access", label: "offline_access" },
-            ]}
+            description="OAuth scopes to request. Type to add custom scopes."
+            data={["openid", "email", "profile", "groups", "offline_access"]}
             value={createForm.scopes}
             onChange={(value) =>
               setCreateForm({ ...createForm, scopes: value })
             }
-            searchable
+            placeholder="Add scope..."
+            splitChars={[",", " "]}
           />
 
           <Switch
@@ -973,7 +1054,9 @@ function OIDCProvidersPage() {
                   placeholder="id.example.com"
                   value={selectedProvider.issuer}
                   onChange={(e) => {
-                    const host = e.target.value.replace(/\/$/, "");
+                    // Preserve user input as-is (including trailing slashes)
+                    // The backend will use the authoritative issuer from the discovery document
+                    const host = e.target.value;
                     const fullIssuer = host ? `${editProtocol}${host}` : "";
                     setSelectedProvider({
                       ...selectedProvider,
@@ -1053,15 +1136,10 @@ function OIDCProvidersPage() {
               }
             />
 
-            <MultiSelect
+            <TagsInput
               label="Scopes"
-              data={[
-                { value: "openid", label: "openid" },
-                { value: "email", label: "email" },
-                { value: "profile", label: "profile" },
-                { value: "groups", label: "groups" },
-                { value: "offline_access", label: "offline_access" },
-              ]}
+              description="OAuth scopes to request. Type to add custom scopes."
+              data={["openid", "email", "profile", "groups", "offline_access"]}
               value={selectedProvider.oidcConfig.scopes}
               onChange={(value) =>
                 setSelectedProvider({
@@ -1072,7 +1150,8 @@ function OIDCProvidersPage() {
                   },
                 })
               }
-              searchable
+              placeholder="Add scope..."
+              splitChars={[",", " "]}
             />
 
             <Switch
