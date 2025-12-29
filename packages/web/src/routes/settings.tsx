@@ -598,20 +598,31 @@ function SettingsComponent() {
   };
 
   const hasAppChanges =
-    settings &&
-    (settings.postDownloadMoveToIngest !== postDownloadMoveToIngest ||
-      settings.postDownloadUploadToBooklore !== postDownloadUploadToBooklore ||
-      settings.postDownloadMoveToIndexer !== postDownloadMoveToIndexer ||
-      settings.postDownloadKeepInDownloads !== postDownloadKeepInDownloads ||
-      settings.postDownloadNormalizeEpub !== postDownloadNormalizeEpub ||
-      settings.postDownloadConvertFormat !== postDownloadConvertFormat ||
-      settings.bookRetentionDays !== bookRetentionDays ||
-      settings.bookSearchCacheDays !== bookSearchCacheDays ||
-      settings.requestCheckInterval !== requestCheckInterval ||
-      settings.timeFormat !== timeFormat ||
-      settings.dateFormat !== dateFormat ||
-      (settings.libraryUrl || "") !== libraryUrl ||
-      settings.libraryLinkLocation !== libraryLinkLocation);
+    (settings &&
+      (settings.postDownloadMoveToIngest !== postDownloadMoveToIngest ||
+        settings.postDownloadUploadToBooklore !==
+          postDownloadUploadToBooklore ||
+        settings.postDownloadMoveToIndexer !== postDownloadMoveToIndexer ||
+        settings.postDownloadKeepInDownloads !== postDownloadKeepInDownloads ||
+        settings.postDownloadNormalizeEpub !== postDownloadNormalizeEpub ||
+        settings.postDownloadConvertFormat !== postDownloadConvertFormat ||
+        settings.bookRetentionDays !== bookRetentionDays ||
+        settings.bookSearchCacheDays !== bookSearchCacheDays ||
+        settings.requestCheckInterval !== requestCheckInterval ||
+        settings.timeFormat !== timeFormat ||
+        settings.dateFormat !== dateFormat ||
+        (settings.libraryUrl || "") !== libraryUrl ||
+        settings.libraryLinkLocation !== libraryLinkLocation)) ||
+    (systemConfig &&
+      ((systemConfig.searcherBaseUrl || "") !== searcherBaseUrl ||
+        (systemConfig.searcherApiKey || "") !== searcherApiKey ||
+        (systemConfig.quickBaseUrl || "") !== quickBaseUrl ||
+        systemConfig.downloadFolder !== downloadFolder ||
+        systemConfig.ingestFolder !== ingestFolder ||
+        systemConfig.retryAttempts !== retryAttempts ||
+        systemConfig.requestTimeout !== requestTimeout ||
+        systemConfig.searchCacheTtl !== searchCacheTtl ||
+        systemConfig.maxConcurrentDownloads !== maxConcurrentDownloads));
   // Check if there are unsaved changes OR if this is authentication/re-authentication
   const hasBookloreChanges = bookloreSettings
     ? bookloreSettings.enabled !== bookloreEnabled ||

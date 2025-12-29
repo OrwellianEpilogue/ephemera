@@ -3,12 +3,11 @@ import type { SearchQuery, Book, SearchResponse } from "@ephemera/shared";
 import { getErrorMessage } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
 import { searchCacheManager } from "./search-cache.js";
+import { appConfigService } from "./app-config.js";
 
 // Configure Crawlee to use in-memory storage globally
 // This avoids file conflicts when multiple crawlers run concurrently
 Configuration.getGlobalConfig().set("persistStorage", false);
-
-const BASE_URL = process.env.AA_BASE_URL;
 
 /**
  * Transform an AA image URL to use our proxy endpoint
@@ -387,11 +386,72 @@ export class AAScraper {
 
     logger.info(`[${searchId}] Cache miss (${cacheDuration}ms)`);
 
-    // Cache miss - scrape the page
-    const url = this.buildSearchUrl(query);
-    logger.info(`[${searchId}] URL: ${url}`);
+    // Get URL variants for fallback
+    const urlVariants = await appConfigService.getSearcherUrlVariants();
 
-    const result = await this.scrapeUrl(url);
+    if (urlVariants.length === 0) {
+      logger.error(`[${searchId}] No searcher URL configured`);
+      return {
+        results: [],
+        pagination: {
+          page: 1,
+          per_page: 50,
+          has_next: false,
+          has_previous: false,
+          estimated_total_results: null,
+        },
+      };
+    }
+
+    // Try each URL variant until one succeeds
+    let lastResult: SearchResponse | null = null;
+    let workingBaseUrl: string | null = null;
+
+    for (let i = 0; i < urlVariants.length; i++) {
+      const baseUrl = urlVariants[i];
+      const url = this.buildSearchUrl(query, baseUrl);
+
+      if (i > 0) {
+        logger.info(`[${searchId}] Trying fallback domain: ${baseUrl}`);
+      }
+      logger.info(`[${searchId}] URL: ${url}`);
+
+      const result = await this.scrapeUrl(url);
+
+      // Check if we got actual results (success indicator)
+      // Empty results with no error is still a valid response
+      if (
+        result.results.length > 0 ||
+        result.pagination.estimated_total_results !== null
+      ) {
+        lastResult = result;
+        workingBaseUrl = baseUrl;
+        break;
+      }
+
+      // If no results, try the next domain (might be a domain issue)
+      logger.warn(`[${searchId}] No results from ${baseUrl}, trying next...`);
+      lastResult = result;
+    }
+
+    // If a fallback URL worked, save it
+    if (workingBaseUrl && workingBaseUrl !== urlVariants[0]) {
+      logger.info(
+        `[${searchId}] Fallback URL worked, saving: ${workingBaseUrl}`,
+      );
+      await appConfigService.updateSearcherBaseUrl(workingBaseUrl);
+    }
+
+    const result = lastResult || {
+      results: [],
+      pagination: {
+        page: 1,
+        per_page: 50,
+        has_next: false,
+        has_previous: false,
+        estimated_total_results: null,
+      },
+    };
 
     if (result.results.length === 0) {
       logger.warn(`[${searchId}] No results found`);
@@ -409,7 +469,7 @@ export class AAScraper {
     return result;
   }
 
-  private buildSearchUrl(query: SearchQuery): string {
+  private buildSearchUrl(query: SearchQuery, baseUrl: string): string {
     const params = new URLSearchParams();
 
     // Check if we're doing an advanced search (author or title present)
@@ -467,7 +527,7 @@ export class AAScraper {
       query.lang.forEach((l) => params.append("lang", l));
     }
 
-    return `${BASE_URL}/search?${params.toString()}`;
+    return `${baseUrl}/search?${params.toString()}`;
   }
 }
 
