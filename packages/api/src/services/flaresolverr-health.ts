@@ -1,4 +1,5 @@
 import { appConfigService } from "./app-config.js";
+import { appriseService } from "./apprise.js";
 
 const FLARESOLVERR_URL = process.env.FLARESOLVERR_URL;
 const DISABLE_MAINTENANCE_MODE =
@@ -204,6 +205,12 @@ class FlareSolverrHealthService {
           console.warn(
             "[FlareSolverr Health] Entering maintenance mode - FlareSolverr unavailable",
           );
+
+          // Send notification for service becoming unhealthy
+          await appriseService.send("service_unhealthy", {
+            reason:
+              "FlareSolverr is unavailable and no API key is configured for fallback",
+          });
         }
       } else {
         this.currentStatus = {
@@ -218,6 +225,9 @@ class FlareSolverrHealthService {
           console.log(
             "[FlareSolverr Health] Exiting maintenance mode - FlareSolverr available",
           );
+
+          // Send notification for service recovery
+          await appriseService.send("service_recovered", {});
         }
       }
     } catch (error) {

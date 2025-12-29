@@ -13,6 +13,7 @@ import { booklorePlugin } from "./auth/plugins/booklore-plugin.js";
 import { calibrePlugin } from "./auth/plugins/calibre-plugin.js";
 import { proxyAuthPlugin } from "./auth/plugins/proxy-auth-plugin.js";
 import { permissionsService } from "./services/permissions.js";
+import { appriseService } from "./services/apprise.js";
 
 /**
  * Decode JWT payload without signature verification
@@ -290,6 +291,54 @@ export const auth = betterAuth({
             });
           }
         },
+        after: async (newAccount) => {
+          // Only check SSO providers (not "credential")
+          if (
+            !newAccount.providerId ||
+            newAccount.providerId === "credential"
+          ) {
+            return;
+          }
+
+          // Check if this was the first account for this user (new user created via OIDC)
+          const existingAccounts = await db
+            .select()
+            .from(account)
+            .where(eq(account.userId, newAccount.userId));
+
+          // If user has exactly 1 account (the one just created), this is a new user
+          if (existingAccounts.length === 1) {
+            // Get user details for notification
+            const userResult = await db
+              .select()
+              .from(user)
+              .where(eq(user.id, newAccount.userId))
+              .limit(1);
+
+            const newUser = userResult[0];
+
+            // Get provider name
+            const providerResult = await db
+              .select()
+              .from(ssoProvider)
+              .where(eq(ssoProvider.providerId, newAccount.providerId))
+              .limit(1);
+
+            const providerName =
+              providerResult[0]?.name || newAccount.providerId;
+
+            // Send notification for new OIDC user
+            await appriseService.send("oidc_account_created", {
+              userName: newUser?.name || "Unknown",
+              email: newUser?.email || "Unknown",
+              providerName,
+            });
+
+            console.log(
+              `[SSO] New user auto-provisioned: ${newUser?.email} via ${providerName}`,
+            );
+          }
+        },
       },
     },
   },
@@ -397,6 +446,7 @@ export const auth = betterAuth({
           // Sync role with IdP (upgrade or downgrade)
           const newRole = hasAdminGroup ? "admin" : "user";
           if (currentUser.role !== newRole) {
+            const oldRole = currentUser.role;
             await db
               .update(user)
               .set({ role: newRole })
@@ -404,6 +454,14 @@ export const auth = betterAuth({
             console.log(
               `[SSO] Updated user ${ssoUser.email} role to ${newRole} based on group claims`,
             );
+
+            // Send notification for role change
+            await appriseService.send("oidc_role_updated", {
+              userName: ssoUser.name || ssoUser.email,
+              oldRole,
+              newRole,
+              groupClaim: groupClaim,
+            });
           }
         }
 

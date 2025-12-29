@@ -13,7 +13,16 @@ export type NotificationEvent =
   | "book_queued"
   | "request_pending_approval"
   | "request_approved"
-  | "request_rejected";
+  | "request_rejected"
+  | "list_created"
+  | "tolino_configured"
+  | "email_recipient_added"
+  | "oidc_account_created"
+  | "oidc_role_updated"
+  | "service_unhealthy"
+  | "service_recovered"
+  | "email_sent"
+  | "tolino_uploaded";
 
 interface NotificationData {
   title: string;
@@ -84,6 +93,15 @@ class AppriseService {
       notifyOnRequestPendingApproval: true,
       notifyOnRequestApproved: true,
       notifyOnRequestRejected: true,
+      notifyOnListCreated: true,
+      notifyOnTolinoConfigured: true,
+      notifyOnEmailRecipientAdded: true,
+      notifyOnOidcAccountCreated: true,
+      notifyOnOidcRoleUpdated: true,
+      notifyOnServiceUnhealthy: true,
+      notifyOnServiceRecovered: true,
+      notifyOnEmailSent: false, // Default OFF - high volume
+      notifyOnTolinoUploaded: false, // Default OFF - high volume
       updatedAt: Date.now(),
     };
   }
@@ -134,6 +152,52 @@ class AppriseService {
         notifyOnBookQueued:
           updates.notifyOnBookQueued ??
           existing[0]?.notifyOnBookQueued ??
+          false,
+        notifyOnRequestPendingApproval:
+          updates.notifyOnRequestPendingApproval ??
+          existing[0]?.notifyOnRequestPendingApproval ??
+          true,
+        notifyOnRequestApproved:
+          updates.notifyOnRequestApproved ??
+          existing[0]?.notifyOnRequestApproved ??
+          true,
+        notifyOnRequestRejected:
+          updates.notifyOnRequestRejected ??
+          existing[0]?.notifyOnRequestRejected ??
+          true,
+        notifyOnListCreated:
+          updates.notifyOnListCreated ??
+          existing[0]?.notifyOnListCreated ??
+          true,
+        notifyOnTolinoConfigured:
+          updates.notifyOnTolinoConfigured ??
+          existing[0]?.notifyOnTolinoConfigured ??
+          true,
+        notifyOnEmailRecipientAdded:
+          updates.notifyOnEmailRecipientAdded ??
+          existing[0]?.notifyOnEmailRecipientAdded ??
+          true,
+        notifyOnOidcAccountCreated:
+          updates.notifyOnOidcAccountCreated ??
+          existing[0]?.notifyOnOidcAccountCreated ??
+          true,
+        notifyOnOidcRoleUpdated:
+          updates.notifyOnOidcRoleUpdated ??
+          existing[0]?.notifyOnOidcRoleUpdated ??
+          true,
+        notifyOnServiceUnhealthy:
+          updates.notifyOnServiceUnhealthy ??
+          existing[0]?.notifyOnServiceUnhealthy ??
+          true,
+        notifyOnServiceRecovered:
+          updates.notifyOnServiceRecovered ??
+          existing[0]?.notifyOnServiceRecovered ??
+          true,
+        notifyOnEmailSent:
+          updates.notifyOnEmailSent ?? existing[0]?.notifyOnEmailSent ?? false,
+        notifyOnTolinoUploaded:
+          updates.notifyOnTolinoUploaded ??
+          existing[0]?.notifyOnTolinoUploaded ??
           false,
         updatedAt: Date.now(),
       };
@@ -190,6 +254,15 @@ class AppriseService {
           notifyOnRequestPendingApproval: true,
           notifyOnRequestApproved: true,
           notifyOnRequestRejected: true,
+          notifyOnListCreated: true,
+          notifyOnTolinoConfigured: true,
+          notifyOnEmailRecipientAdded: true,
+          notifyOnOidcAccountCreated: true,
+          notifyOnOidcRoleUpdated: true,
+          notifyOnServiceUnhealthy: true,
+          notifyOnServiceRecovered: true,
+          notifyOnEmailSent: false,
+          notifyOnTolinoUploaded: false,
           updatedAt: Date.now(),
         });
       }
@@ -259,6 +332,24 @@ class AppriseService {
         return settings.notifyOnRequestApproved;
       case "request_rejected":
         return settings.notifyOnRequestRejected;
+      case "list_created":
+        return settings.notifyOnListCreated;
+      case "tolino_configured":
+        return settings.notifyOnTolinoConfigured;
+      case "email_recipient_added":
+        return settings.notifyOnEmailRecipientAdded;
+      case "oidc_account_created":
+        return settings.notifyOnOidcAccountCreated;
+      case "oidc_role_updated":
+        return settings.notifyOnOidcRoleUpdated;
+      case "service_unhealthy":
+        return settings.notifyOnServiceUnhealthy;
+      case "service_recovered":
+        return settings.notifyOnServiceRecovered;
+      case "email_sent":
+        return settings.notifyOnEmailSent;
+      case "tolino_uploaded":
+        return settings.notifyOnTolinoUploaded;
       default:
         return false;
     }
@@ -327,12 +418,17 @@ class AppriseService {
     };
 
     switch (event) {
-      case "new_request":
+      case "new_request": {
+        const userInfo = data.username ? ` by ${data.username}` : "";
+        const listInfo = data.listName
+          ? `\nFrom list: ${data.listName} (${data.listServiceName})`
+          : "";
         return {
           title: "Ephemera: New Download Request Created",
-          body: `Request for: ${data.query || "unknown query"}`,
+          body: `Request for: ${data.query || "unknown query"}${userInfo}${listInfo}`,
           type: "info",
         };
+      }
 
       case "download_error":
         return {
@@ -416,6 +512,69 @@ class AppriseService {
           type: "warning",
         };
       }
+
+      case "list_created":
+        return {
+          title: "Ephemera: New Import List Created",
+          body: `List "${data.listName}" (${data.source}) created by ${data.userName}`,
+          type: "info",
+        };
+
+      case "tolino_configured":
+        return {
+          title: "Ephemera: Tolino Cloud Configured",
+          body: `${data.userName} connected Tolino Cloud (${data.reseller})`,
+          type: "info",
+        };
+
+      case "email_recipient_added":
+        return {
+          title: "Ephemera: Email Recipient Added",
+          body: `${data.userName} added email recipient: ${data.recipientName || data.recipientEmail}`,
+          type: "info",
+        };
+
+      case "oidc_account_created":
+        return {
+          title: "Ephemera: New User Auto-Provisioned",
+          body: `User ${data.userName} (${data.email}) was created via ${data.providerName}`,
+          type: "info",
+        };
+
+      case "oidc_role_updated":
+        return {
+          title: "Ephemera: User Role Changed",
+          body: `${data.userName}'s role changed from ${data.oldRole} to ${data.newRole} (via ${data.groupClaim} claim)`,
+          type: "info",
+        };
+
+      case "service_unhealthy":
+        return {
+          title: "Ephemera: Service Unavailable",
+          body: `FlareSolverr has become unavailable.${data.reason ? `\n${data.reason}` : ""}`,
+          type: "warning",
+        };
+
+      case "service_recovered":
+        return {
+          title: "Ephemera: Service Recovered",
+          body: "FlareSolverr is available again",
+          type: "success",
+        };
+
+      case "email_sent":
+        return {
+          title: "Ephemera: Book Sent via Email",
+          body: `${formatBookInfo((data.bookTitle as string) || "Unknown book", data.bookAuthors as string | string[])} sent to ${data.recipientName || data.recipientEmail}`,
+          type: "success",
+        };
+
+      case "tolino_uploaded":
+        return {
+          title: "Ephemera: Book Uploaded to Tolino Cloud",
+          body: `${formatBookInfo((data.bookTitle as string) || "Unknown book", data.bookAuthors as string | string[])} uploaded${data.collectionName ? ` to collection "${data.collectionName}"` : ""}`,
+          type: "success",
+        };
 
       default:
         return {

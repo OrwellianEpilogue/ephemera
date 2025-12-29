@@ -96,6 +96,14 @@ app.openapi(createRequestRoute, async (c) => {
       targetBookMd5,
     );
 
+    // Send notification for new request
+    await appriseService.send("new_request", {
+      query: queryParams.q,
+      title: queryParams.title,
+      author: queryParams.author,
+      username: user.name || user.email,
+    });
+
     // If request needs approval, send notification to managers
     if (!canStartDownloads) {
       await appriseService.send("request_pending_approval", {

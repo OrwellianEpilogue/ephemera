@@ -580,6 +580,47 @@ export const appriseSettings = sqliteTable("apprise_settings", {
   })
     .notNull()
     .default(true),
+  notifyOnListCreated: integer("notify_on_list_created", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  notifyOnTolinoConfigured: integer("notify_on_tolino_configured", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+  notifyOnEmailRecipientAdded: integer("notify_on_email_recipient_added", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+  notifyOnOidcAccountCreated: integer("notify_on_oidc_account_created", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+  notifyOnOidcRoleUpdated: integer("notify_on_oidc_role_updated", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+  notifyOnServiceUnhealthy: integer("notify_on_service_unhealthy", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+  notifyOnServiceRecovered: integer("notify_on_service_recovered", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(true),
+  notifyOnEmailSent: integer("notify_on_email_sent", { mode: "boolean" })
+    .notNull()
+    .default(false), // Default OFF - high volume
+  notifyOnTolinoUploaded: integer("notify_on_tolino_uploaded", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false), // Default OFF - high volume
 
   updatedAt: integer("updated_at").notNull(),
 });

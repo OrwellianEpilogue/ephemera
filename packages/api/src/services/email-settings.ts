@@ -8,6 +8,7 @@ import {
   type EmailRecipient,
 } from "../db/schema.js";
 import { logger } from "../utils/logger.js";
+import { appriseService } from "./apprise.js";
 
 // Extended type to include user info for admin views
 export type EmailRecipientWithUser = EmailRecipient & {
@@ -266,6 +267,21 @@ class EmailSettingsService {
     logger.info(
       `[Email Settings] Added recipient: ${email} for user: ${userId}`,
     );
+
+    // Send notification for new email recipient
+    const userResult = await db
+      .select({ name: user.name, email: user.email })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    const emailUser = userResult[0];
+
+    await appriseService.send("email_recipient_added", {
+      recipientEmail: email,
+      recipientName: name,
+      userName: emailUser?.name || emailUser?.email || "Unknown user",
+    });
+
     return result[0];
   }
 

@@ -864,6 +864,44 @@ export const appriseSettingsSchema = z.object({
   notifyOnBookQueued: z
     .boolean()
     .describe("Send notification when a book is added to the download queue"),
+  notifyOnRequestPendingApproval: z
+    .boolean()
+    .describe("Send notification when a request needs approval"),
+  notifyOnRequestApproved: z
+    .boolean()
+    .describe("Send notification when a request is approved"),
+  notifyOnRequestRejected: z
+    .boolean()
+    .describe("Send notification when a request is rejected"),
+  notifyOnListCreated: z
+    .boolean()
+    .describe("Send notification when a new import list is created"),
+  notifyOnTolinoConfigured: z
+    .boolean()
+    .describe("Send notification when Tolino Cloud is configured by a user"),
+  notifyOnEmailRecipientAdded: z
+    .boolean()
+    .describe("Send notification when an email recipient is added"),
+  notifyOnOidcAccountCreated: z
+    .boolean()
+    .describe("Send notification when a new user is auto-provisioned via OIDC"),
+  notifyOnOidcRoleUpdated: z
+    .boolean()
+    .describe(
+      "Send notification when a user's role changes from OIDC group claims",
+    ),
+  notifyOnServiceUnhealthy: z
+    .boolean()
+    .describe("Send notification when FlareSolverr becomes unavailable"),
+  notifyOnServiceRecovered: z
+    .boolean()
+    .describe("Send notification when FlareSolverr becomes available again"),
+  notifyOnEmailSent: z
+    .boolean()
+    .describe("Send notification when a book is sent via email"),
+  notifyOnTolinoUploaded: z
+    .boolean()
+    .describe("Send notification when a book is uploaded to Tolino Cloud"),
   updatedAt: z.string().datetime().describe("When settings were last updated"),
 });
 
@@ -915,6 +953,54 @@ export const updateAppriseSettingsSchema = z
       .boolean()
       .optional()
       .describe("Notify on book queued"),
+    notifyOnRequestPendingApproval: z
+      .boolean()
+      .optional()
+      .describe("Notify on request pending approval"),
+    notifyOnRequestApproved: z
+      .boolean()
+      .optional()
+      .describe("Notify on request approved"),
+    notifyOnRequestRejected: z
+      .boolean()
+      .optional()
+      .describe("Notify on request rejected"),
+    notifyOnListCreated: z
+      .boolean()
+      .optional()
+      .describe("Notify on import list created"),
+    notifyOnTolinoConfigured: z
+      .boolean()
+      .optional()
+      .describe("Notify on Tolino Cloud configured"),
+    notifyOnEmailRecipientAdded: z
+      .boolean()
+      .optional()
+      .describe("Notify on email recipient added"),
+    notifyOnOidcAccountCreated: z
+      .boolean()
+      .optional()
+      .describe("Notify on OIDC user auto-provisioned"),
+    notifyOnOidcRoleUpdated: z
+      .boolean()
+      .optional()
+      .describe("Notify on OIDC role change"),
+    notifyOnServiceUnhealthy: z
+      .boolean()
+      .optional()
+      .describe("Notify on FlareSolverr unavailable"),
+    notifyOnServiceRecovered: z
+      .boolean()
+      .optional()
+      .describe("Notify on FlareSolverr recovered"),
+    notifyOnEmailSent: z
+      .boolean()
+      .optional()
+      .describe("Notify on book sent via email"),
+    notifyOnTolinoUploaded: z
+      .boolean()
+      .optional()
+      .describe("Notify on book uploaded to Tolino"),
   })
   .refine(
     (data) => {

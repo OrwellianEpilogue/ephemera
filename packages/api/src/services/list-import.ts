@@ -3,12 +3,14 @@ import { db } from "../db/index.js";
 import {
   importLists,
   downloadRequests,
+  user,
   type ImportList,
   type NewImportList,
 } from "../db/schema.js";
 import { logger } from "../utils/logger.js";
 import { permissionsService } from "./permissions.js";
 import { requestCheckerService } from "./request-checker.js";
+import { appriseService } from "./apprise.js";
 import {
   getFetcher,
   type ListSource,
@@ -110,6 +112,20 @@ class ListImportService {
     logger.info(
       `[ListImport] Created list "${data.name}" for user ${userId} (source: ${data.source})`,
     );
+
+    // Send notification for new list
+    const userResult = await db
+      .select({ name: user.name, email: user.email })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    const listUser = userResult[0];
+
+    await appriseService.send("list_created", {
+      listName: data.name,
+      source: data.source,
+      userName: listUser?.name || listUser?.email || "Unknown user",
+    });
 
     // Trigger initial fetch for both modes:
     // - "all" mode: imports all existing books
@@ -481,6 +497,23 @@ class ListImportService {
     logger.info(
       `[ListImport] Created ${status} request for "${book.title}" by ${book.author}`,
     );
+
+    // Send notification for new request with list context
+    const userResult = await db
+      .select({ name: user.name, email: user.email })
+      .from(user)
+      .where(eq(user.id, list.userId))
+      .limit(1);
+    const requestUser = userResult[0];
+
+    await appriseService.send("new_request", {
+      query: `${book.title} by ${book.author}`,
+      title: book.title,
+      author: book.author,
+      username: requestUser?.name || requestUser?.email || "Unknown user",
+      listServiceName: list.source,
+      listName: list.name,
+    });
 
     // If active, trigger an immediate check
     if (status === "active" && result[0]) {

@@ -635,6 +635,14 @@ export class QueueManager extends EventEmitter {
               logger.success(
                 `[Auto-Email] Sent "${title}" to ${recipient.email}`,
               );
+
+              // Send notification for book sent via email
+              await appriseService.send("email_sent", {
+                bookTitle: title,
+                bookAuthors: book?.authors,
+                recipientEmail: recipient.email,
+                recipientName: recipient.name,
+              });
             } catch (emailError) {
               logger.error(
                 `[Auto-Email] Failed to send to ${recipient.email}:`,
@@ -666,6 +674,14 @@ export class QueueManager extends EventEmitter {
               logger.success(
                 `[Auto-Tolino] Uploaded "${title}" to Tolino Cloud`,
               );
+
+              // Send notification for book uploaded to Tolino
+              await appriseService.send("tolino_uploaded", {
+                bookTitle: title,
+                bookAuthors: book?.authors,
+                collectionName:
+                  tolinoSettings.autoUploadCollection || undefined,
+              });
             } else {
               logger.error(
                 `[Auto-Tolino] Failed to upload "${title}": ${uploadResult.message}`,

@@ -2,6 +2,8 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { emailSettingsService } from "../services/email-settings.js";
 import { emailService } from "../services/email.js";
+import { downloadTracker } from "../services/download-tracker.js";
+import { appriseService } from "../services/apprise.js";
 import {
   emailSettingsSchema,
   updateEmailSettingsSchema,
@@ -648,6 +650,19 @@ app.openapi(sendEmailRoute, async (c) => {
     }
 
     await emailService.sendBook(recipientId, md5);
+
+    // Send notification for manual email send
+    const [recipient, download] = await Promise.all([
+      emailSettingsService.getRecipient(recipientId),
+      downloadTracker.get(md5),
+    ]);
+
+    await appriseService.send("email_sent", {
+      bookTitle: download?.title || "Unknown",
+      bookAuthors: download?.author,
+      recipientEmail: recipient?.email || "Unknown",
+      recipientName: recipient?.name,
+    });
 
     return c.json(
       {

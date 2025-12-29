@@ -286,6 +286,24 @@ function SettingsComponent() {
   const [notifyOnRequestFulfilled, setNotifyOnRequestFulfilled] =
     useState(true);
   const [notifyOnBookQueued, setNotifyOnBookQueued] = useState(false);
+  const [notifyOnRequestPendingApproval, setNotifyOnRequestPendingApproval] =
+    useState(true);
+  const [notifyOnRequestApproved, setNotifyOnRequestApproved] = useState(true);
+  const [notifyOnRequestRejected, setNotifyOnRequestRejected] = useState(true);
+  const [notifyOnListCreated, setNotifyOnListCreated] = useState(true);
+  const [notifyOnTolinoConfigured, setNotifyOnTolinoConfigured] =
+    useState(true);
+  const [notifyOnEmailRecipientAdded, setNotifyOnEmailRecipientAdded] =
+    useState(true);
+  const [notifyOnOidcAccountCreated, setNotifyOnOidcAccountCreated] =
+    useState(true);
+  const [notifyOnOidcRoleUpdated, setNotifyOnOidcRoleUpdated] = useState(true);
+  const [notifyOnServiceUnhealthy, setNotifyOnServiceUnhealthy] =
+    useState(true);
+  const [notifyOnServiceRecovered, setNotifyOnServiceRecovered] =
+    useState(true);
+  const [notifyOnEmailSent, setNotifyOnEmailSent] = useState(false);
+  const [notifyOnTolinoUploaded, setNotifyOnTolinoUploaded] = useState(false);
 
   // Email settings state
   const [emailEnabled, setEmailEnabled] = useState(false);
@@ -392,6 +410,22 @@ function SettingsComponent() {
       setNotifyOnUpdateAvailable(appriseSettings.notifyOnUpdateAvailable);
       setNotifyOnRequestFulfilled(appriseSettings.notifyOnRequestFulfilled);
       setNotifyOnBookQueued(appriseSettings.notifyOnBookQueued);
+      setNotifyOnRequestPendingApproval(
+        appriseSettings.notifyOnRequestPendingApproval,
+      );
+      setNotifyOnRequestApproved(appriseSettings.notifyOnRequestApproved);
+      setNotifyOnRequestRejected(appriseSettings.notifyOnRequestRejected);
+      setNotifyOnListCreated(appriseSettings.notifyOnListCreated);
+      setNotifyOnTolinoConfigured(appriseSettings.notifyOnTolinoConfigured);
+      setNotifyOnEmailRecipientAdded(
+        appriseSettings.notifyOnEmailRecipientAdded,
+      );
+      setNotifyOnOidcAccountCreated(appriseSettings.notifyOnOidcAccountCreated);
+      setNotifyOnOidcRoleUpdated(appriseSettings.notifyOnOidcRoleUpdated);
+      setNotifyOnServiceUnhealthy(appriseSettings.notifyOnServiceUnhealthy);
+      setNotifyOnServiceRecovered(appriseSettings.notifyOnServiceRecovered);
+      setNotifyOnEmailSent(appriseSettings.notifyOnEmailSent);
+      setNotifyOnTolinoUploaded(appriseSettings.notifyOnTolinoUploaded);
     }
   }, [appriseSettings]);
 
@@ -489,6 +523,18 @@ function SettingsComponent() {
       notifyOnUpdateAvailable,
       notifyOnRequestFulfilled,
       notifyOnBookQueued,
+      notifyOnRequestPendingApproval,
+      notifyOnRequestApproved,
+      notifyOnRequestRejected,
+      notifyOnListCreated,
+      notifyOnTolinoConfigured,
+      notifyOnEmailRecipientAdded,
+      notifyOnOidcAccountCreated,
+      notifyOnOidcRoleUpdated,
+      notifyOnServiceUnhealthy,
+      notifyOnServiceRecovered,
+      notifyOnEmailSent,
+      notifyOnTolinoUploaded,
     });
   };
 
@@ -587,6 +633,21 @@ function SettingsComponent() {
       appriseSettings.notifyOnUpdateAvailable !== notifyOnUpdateAvailable ||
       appriseSettings.notifyOnRequestFulfilled !== notifyOnRequestFulfilled ||
       appriseSettings.notifyOnBookQueued !== notifyOnBookQueued ||
+      appriseSettings.notifyOnRequestPendingApproval !==
+        notifyOnRequestPendingApproval ||
+      appriseSettings.notifyOnRequestApproved !== notifyOnRequestApproved ||
+      appriseSettings.notifyOnRequestRejected !== notifyOnRequestRejected ||
+      appriseSettings.notifyOnListCreated !== notifyOnListCreated ||
+      appriseSettings.notifyOnTolinoConfigured !== notifyOnTolinoConfigured ||
+      appriseSettings.notifyOnEmailRecipientAdded !==
+        notifyOnEmailRecipientAdded ||
+      appriseSettings.notifyOnOidcAccountCreated !==
+        notifyOnOidcAccountCreated ||
+      appriseSettings.notifyOnOidcRoleUpdated !== notifyOnOidcRoleUpdated ||
+      appriseSettings.notifyOnServiceUnhealthy !== notifyOnServiceUnhealthy ||
+      appriseSettings.notifyOnServiceRecovered !== notifyOnServiceRecovered ||
+      appriseSettings.notifyOnEmailSent !== notifyOnEmailSent ||
+      appriseSettings.notifyOnTolinoUploaded !== notifyOnTolinoUploaded ||
       JSON.stringify(appriseSettings.customHeaders || {}) !==
         JSON.stringify(
           customHeaders.reduce(
@@ -1271,59 +1332,198 @@ function SettingsComponent() {
                       </Stack>
 
                       {/* Notification Toggles */}
-                      <Stack gap="xs" mt="md">
-                        <Text size="sm" fw={500}>
-                          Notification Events
-                        </Text>
-                        <Checkbox
-                          label="New download request created"
-                          checked={notifyOnNewRequest}
-                          onChange={(e) =>
-                            setNotifyOnNewRequest(e.currentTarget.checked)
-                          }
-                        />
-                        <Checkbox
-                          label="Download error (max retries reached)"
-                          checked={notifyOnDownloadError}
-                          onChange={(e) =>
-                            setNotifyOnDownloadError(e.currentTarget.checked)
-                          }
-                        />
-                        <Checkbox
-                          label="Download available (moved to final destination)"
-                          checked={notifyOnAvailable}
-                          onChange={(e) =>
-                            setNotifyOnAvailable(e.currentTarget.checked)
-                          }
-                        />
-                        <Checkbox
-                          label="Download delayed (quota exhausted)"
-                          checked={notifyOnDelayed}
-                          onChange={(e) =>
-                            setNotifyOnDelayed(e.currentTarget.checked)
-                          }
-                        />
-                        <Checkbox
-                          label="Update available"
-                          checked={notifyOnUpdateAvailable}
-                          onChange={(e) =>
-                            setNotifyOnUpdateAvailable(e.currentTarget.checked)
-                          }
-                        />
-                        <Checkbox
-                          label="Request fulfilled (automatic search found book)"
-                          checked={notifyOnRequestFulfilled}
-                          onChange={(e) =>
-                            setNotifyOnRequestFulfilled(e.currentTarget.checked)
-                          }
-                        />
-                        <Checkbox
-                          label="Book queued for download"
-                          checked={notifyOnBookQueued}
-                          onChange={(e) =>
-                            setNotifyOnBookQueued(e.currentTarget.checked)
-                          }
-                        />
+                      <Stack gap="md" mt="md">
+                        {/* Request Notifications */}
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>
+                            Request Notifications
+                          </Text>
+                          <Checkbox
+                            label="New download request created"
+                            checked={notifyOnNewRequest}
+                            onChange={(e) =>
+                              setNotifyOnNewRequest(e.currentTarget.checked)
+                            }
+                          />
+                          <Checkbox
+                            label="Request fulfilled (automatic search found book)"
+                            checked={notifyOnRequestFulfilled}
+                            onChange={(e) =>
+                              setNotifyOnRequestFulfilled(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <Checkbox
+                            label="Request pending approval"
+                            checked={notifyOnRequestPendingApproval}
+                            onChange={(e) =>
+                              setNotifyOnRequestPendingApproval(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <Checkbox
+                            label="Request approved"
+                            checked={notifyOnRequestApproved}
+                            onChange={(e) =>
+                              setNotifyOnRequestApproved(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <Checkbox
+                            label="Request rejected"
+                            checked={notifyOnRequestRejected}
+                            onChange={(e) =>
+                              setNotifyOnRequestRejected(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                        </Stack>
+
+                        {/* Download Notifications */}
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>
+                            Download Notifications
+                          </Text>
+                          <Checkbox
+                            label="Book queued for download"
+                            checked={notifyOnBookQueued}
+                            onChange={(e) =>
+                              setNotifyOnBookQueued(e.currentTarget.checked)
+                            }
+                          />
+                          <Checkbox
+                            label="Download available (moved to final destination)"
+                            checked={notifyOnAvailable}
+                            onChange={(e) =>
+                              setNotifyOnAvailable(e.currentTarget.checked)
+                            }
+                          />
+                          <Checkbox
+                            label="Download error (max retries reached)"
+                            checked={notifyOnDownloadError}
+                            onChange={(e) =>
+                              setNotifyOnDownloadError(e.currentTarget.checked)
+                            }
+                          />
+                          <Checkbox
+                            label="Download delayed (quota exhausted)"
+                            checked={notifyOnDelayed}
+                            onChange={(e) =>
+                              setNotifyOnDelayed(e.currentTarget.checked)
+                            }
+                          />
+                        </Stack>
+
+                        {/* Integration Notifications */}
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>
+                            Integration Notifications
+                          </Text>
+                          <Checkbox
+                            label="New list created"
+                            checked={notifyOnListCreated}
+                            onChange={(e) =>
+                              setNotifyOnListCreated(e.currentTarget.checked)
+                            }
+                          />
+                          <Checkbox
+                            label="Email recipient added"
+                            checked={notifyOnEmailRecipientAdded}
+                            onChange={(e) =>
+                              setNotifyOnEmailRecipientAdded(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <Checkbox
+                            label="Book sent via email"
+                            description="High volume - consider disabling for active users"
+                            checked={notifyOnEmailSent}
+                            onChange={(e) =>
+                              setNotifyOnEmailSent(e.currentTarget.checked)
+                            }
+                          />
+                          <Checkbox
+                            label="Tolino account configured"
+                            checked={notifyOnTolinoConfigured}
+                            onChange={(e) =>
+                              setNotifyOnTolinoConfigured(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <Checkbox
+                            label="Book uploaded to Tolino"
+                            description="High volume - consider disabling for active users"
+                            checked={notifyOnTolinoUploaded}
+                            onChange={(e) =>
+                              setNotifyOnTolinoUploaded(e.currentTarget.checked)
+                            }
+                          />
+                        </Stack>
+
+                        {/* System Notifications */}
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>
+                            System Notifications
+                          </Text>
+                          <Checkbox
+                            label="Update available"
+                            checked={notifyOnUpdateAvailable}
+                            onChange={(e) =>
+                              setNotifyOnUpdateAvailable(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <Checkbox
+                            label="Service unhealthy (FlareSolverr down)"
+                            checked={notifyOnServiceUnhealthy}
+                            onChange={(e) =>
+                              setNotifyOnServiceUnhealthy(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <Checkbox
+                            label="Service recovered (FlareSolverr back up)"
+                            checked={notifyOnServiceRecovered}
+                            onChange={(e) =>
+                              setNotifyOnServiceRecovered(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                        </Stack>
+
+                        {/* Authentication Notifications */}
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>
+                            Authentication Notifications
+                          </Text>
+                          <Checkbox
+                            label="New user auto-provisioned via OIDC"
+                            checked={notifyOnOidcAccountCreated}
+                            onChange={(e) =>
+                              setNotifyOnOidcAccountCreated(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                          <Checkbox
+                            label="User role updated via OIDC groups"
+                            checked={notifyOnOidcRoleUpdated}
+                            onChange={(e) =>
+                              setNotifyOnOidcRoleUpdated(
+                                e.currentTarget.checked,
+                              )
+                            }
+                          />
+                        </Stack>
                       </Stack>
 
                       <Group justify="flex-end" mt="md">
