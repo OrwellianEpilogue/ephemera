@@ -1,5 +1,4 @@
 import { createWriteStream } from "fs";
-import { mkdir } from "fs/promises";
 import { join } from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
@@ -7,10 +6,8 @@ import { logger } from "../utils/logger.js";
 import { downloadTracker } from "./download-tracker.js";
 import { appConfigService } from "./app-config.js";
 
-const AA_BASE_URL = process.env.AA_BASE_URL;
 const FLARESOLVERR_URL =
   process.env.FLARESOLVERR_URL || "http://localhost:8191";
-const LG_BASE_URL = process.env.LG_BASE_URL || "";
 const SLOW_DOWNLOAD_TIMEOUT = parseInt(
   process.env.SLOW_DOWNLOAD_TIMEOUT || "300000",
   10,
@@ -72,21 +69,63 @@ export class SlowDownloader {
     downloadId: string,
     onProgress?: (info: ProgressInfo) => void,
   ): Promise<SlowDownloadResult | null> {
-    // Feature disabled if LG_BASE_URL not set
-    if (!LG_BASE_URL) {
+    // Get quick download URL variants with fallbacks
+    const lgUrlVariants = await appConfigService.getQuickUrlVariants();
+
+    // Feature disabled if no quick URL configured
+    if (lgUrlVariants.length === 0) {
       return null;
     }
 
+    logger.info(`[${downloadId}] Attempting LG fast download...`);
+
+    onProgress?.({
+      status: "bypassing_protection",
+      message: "Trying LG fast download...",
+    });
+
+    // Try each LG URL variant
+    for (let i = 0; i < lgUrlVariants.length; i++) {
+      const lgBaseUrl = lgUrlVariants[i];
+
+      if (i > 0) {
+        logger.info(`[${downloadId}] Trying fallback LG domain: ${lgBaseUrl}`);
+      }
+
+      const result = await this.tryLgFastDownloadWithUrl(
+        md5,
+        downloadId,
+        lgBaseUrl,
+        onProgress,
+      );
+
+      if (result) {
+        // If a fallback URL worked, save it
+        if (i > 0) {
+          logger.info(
+            `[${downloadId}] LG fallback domain worked, saving: ${lgBaseUrl}`,
+          );
+          await appConfigService.updateQuickBaseUrl(lgBaseUrl);
+        }
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Try LG fast download with a specific base URL
+   */
+  private async tryLgFastDownloadWithUrl(
+    md5: string,
+    downloadId: string,
+    lgBaseUrl: string,
+    onProgress?: (info: ProgressInfo) => void,
+  ): Promise<SlowDownloadResult | null> {
     try {
-      logger.info(`[${downloadId}] Attempting LG fast download...`);
-
-      onProgress?.({
-        status: "bypassing_protection",
-        message: "Trying LG fast download...",
-      });
-
       // Request the LG ads page
-      const lgAdsUrl = `${LG_BASE_URL}/ads.php?md5=${md5}`;
+      const lgAdsUrl = `${lgBaseUrl}/ads.php?md5=${md5}`;
       logger.info(`[${downloadId}] Requesting: ${lgAdsUrl}`);
 
       // Try direct fetch first (without FlareSolverr) to avoid ad scripts
@@ -119,7 +158,7 @@ export class SlowDownloader {
       );
 
       // Check if we got redirected to an ad page (URL no longer contains LG domain)
-      const lgHostname = new URL(LG_BASE_URL).hostname;
+      const lgHostname = new URL(lgBaseUrl).hostname;
 
       // Check if we're still on LG domain (handle both direct domain and redirects)
       if (!finalUrl.includes(lgHostname) && !finalUrl.includes("ads.php")) {
@@ -178,7 +217,7 @@ export class SlowDownloader {
       if (!downloadUrl.startsWith("http")) {
         // Remove leading slash if present before joining
         const cleanPath = downloadUrl.replace(/^\//, "");
-        downloadUrl = `${LG_BASE_URL}/${cleanPath}`;
+        downloadUrl = `${lgBaseUrl}/${cleanPath}`;
       }
 
       logger.info(`[${downloadId}] Found LG download URL: ${downloadUrl}`);
@@ -215,122 +254,148 @@ export class SlowDownloader {
     const downloadId = Math.random().toString(36).substring(7);
     logger.info(`[${downloadId}] Starting slow download for ${md5}`);
 
-    // Try LG fast download first (if enabled)
-    if (LG_BASE_URL) {
-      const lgResult = await this.tryLgFastDownload(
-        md5,
-        downloadId,
-        onProgress,
+    // Try LG fast download first (if enabled) - now uses fallbacks internally
+    const lgResult = await this.tryLgFastDownload(md5, downloadId, onProgress);
+    if (lgResult && lgResult.success) {
+      return lgResult;
+    }
+
+    // Check if download was cancelled before continuing to slow servers
+    const status = await downloadTracker.get(md5);
+    if (status?.status === "cancelled") {
+      logger.info(
+        `[${downloadId}] Download was cancelled, aborting slow server fallback`,
       );
-      if (lgResult && lgResult.success) {
-        return lgResult;
-      }
+      return {
+        success: false,
+        error: "Download cancelled by user",
+      };
+    }
 
-      // Check if download was cancelled before continuing to slow servers
-      const status = await downloadTracker.get(md5);
-      if (status?.status === "cancelled") {
-        logger.info(
-          `[${downloadId}] Download was cancelled, aborting slow server fallback`,
-        );
-        return {
-          success: false,
-          error: "Download cancelled by user",
-        };
-      }
-
-      // If failed or returned null, continue to slow servers
+    // If failed or returned null, continue to slow servers
+    if (lgResult === null) {
+      // LG not configured, just continue to AA slow
+      logger.info(`[${downloadId}] LG not configured, trying slow servers...`);
+    } else {
       logger.info(
         `[${downloadId}] LG fast download unavailable, trying slow servers...`,
       );
     }
 
-    // Try each path and server in sequence
-    for (let pathIndex = 0; pathIndex < MAX_PATHS; pathIndex++) {
-      for (let serverIndex = 0; serverIndex < MAX_SERVERS; serverIndex++) {
-        // Check if download was cancelled before trying next server
-        const status = await downloadTracker.get(md5);
-        if (status?.status === "cancelled") {
-          logger.info(
-            `[${downloadId}] Download was cancelled, aborting server attempts`,
-          );
-          return {
-            success: false,
-            error: "Download cancelled by user",
-          };
-        }
-
-        try {
-          const attemptNum = pathIndex * MAX_SERVERS + serverIndex + 1;
-          const totalAttempts = MAX_PATHS * MAX_SERVERS;
-          logger.info(
-            `[${downloadId}] Trying path ${pathIndex}, server ${serverIndex} (attempt ${attemptNum}/${totalAttempts})...`,
-          );
-
-          onProgress?.({
-            status: "bypassing_protection",
-            message: `Trying slow server (path ${pathIndex}, server ${serverIndex + 1})...`,
-          });
-
-          const result = await this.download({
-            md5,
-            pathIndex,
-            serverIndex,
-            downloadId,
-            onProgress,
-          });
-
-          if (result.success) {
-            logger.success(
-              `[${downloadId}] Successfully downloaded from path ${pathIndex}, server ${serverIndex}`,
-            );
-            return result;
-          }
-
-          logger.warn(
-            `[${downloadId}] Path ${pathIndex}, server ${serverIndex} failed: ${result.error}`,
-          );
-        } catch (error: unknown) {
-          logger.error(
-            `[${downloadId}] Path ${pathIndex}, server ${serverIndex} error:`,
-            error instanceof Error ? error.message : String(error),
-          );
-        }
-      }
+    // Get searcher URL variants with fallbacks
+    const aaUrlVariants = await appConfigService.getSearcherUrlVariants();
+    if (aaUrlVariants.length === 0) {
+      return {
+        success: false,
+        error: "Searcher base URL is not configured",
+      };
     }
 
-    const totalAttempts = MAX_PATHS * MAX_SERVERS;
-    const error = `All ${totalAttempts} slow download attempts failed (${MAX_PATHS} paths × ${MAX_SERVERS} servers)`;
+    // Try each domain variant, then all paths/servers for that domain
+    for (
+      let domainIndex = 0;
+      domainIndex < aaUrlVariants.length;
+      domainIndex++
+    ) {
+      const aaBaseUrl = aaUrlVariants[domainIndex];
+
+      if (domainIndex > 0) {
+        logger.info(`[${downloadId}] Trying fallback AA domain: ${aaBaseUrl}`);
+      }
+
+      // Try each path and server in sequence for this domain
+      for (let pathIndex = 0; pathIndex < MAX_PATHS; pathIndex++) {
+        for (let serverIndex = 0; serverIndex < MAX_SERVERS; serverIndex++) {
+          // Check if download was cancelled before trying next server
+          const status = await downloadTracker.get(md5);
+          if (status?.status === "cancelled") {
+            logger.info(
+              `[${downloadId}] Download was cancelled, aborting server attempts`,
+            );
+            return {
+              success: false,
+              error: "Download cancelled by user",
+            };
+          }
+
+          try {
+            const attemptNum = pathIndex * MAX_SERVERS + serverIndex + 1;
+            const totalAttempts = MAX_PATHS * MAX_SERVERS;
+            logger.info(
+              `[${downloadId}] Trying path ${pathIndex}, server ${serverIndex} (attempt ${attemptNum}/${totalAttempts})...`,
+            );
+
+            onProgress?.({
+              status: "bypassing_protection",
+              message: `Trying slow server (path ${pathIndex}, server ${serverIndex + 1})...`,
+            });
+
+            const result = await this.download({
+              md5,
+              pathIndex,
+              serverIndex,
+              downloadId,
+              aaBaseUrl,
+              onProgress,
+            });
+
+            if (result.success) {
+              // If a fallback domain worked, save it
+              if (domainIndex > 0) {
+                logger.info(
+                  `[${downloadId}] AA fallback domain worked, saving: ${aaBaseUrl}`,
+                );
+                await appConfigService.updateSearcherBaseUrl(aaBaseUrl);
+              }
+              logger.success(
+                `[${downloadId}] Successfully downloaded from path ${pathIndex}, server ${serverIndex}`,
+              );
+              return result;
+            }
+
+            logger.warn(
+              `[${downloadId}] Path ${pathIndex}, server ${serverIndex} failed: ${result.error}`,
+            );
+          } catch (error: unknown) {
+            logger.error(
+              `[${downloadId}] Path ${pathIndex}, server ${serverIndex} error:`,
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        }
+      }
+
+      logger.warn(`[${downloadId}] All servers failed for domain ${aaBaseUrl}`);
+    }
+
+    const totalAttempts = MAX_PATHS * MAX_SERVERS * aaUrlVariants.length;
+    const error = `All ${totalAttempts} slow download attempts failed (${aaUrlVariants.length} domains × ${MAX_PATHS} paths × ${MAX_SERVERS} servers)`;
     logger.error(`[${downloadId}] ${error}`);
     return { success: false, error };
   }
 
   /**
-   * Download from a specific slow download server
+   * Download from a specific slow download server with a specific base URL
    */
   private async download(options: {
     md5: string;
     pathIndex: number;
     serverIndex: number;
     downloadId: string;
+    aaBaseUrl: string;
     onProgress?: (info: ProgressInfo) => void;
   }): Promise<SlowDownloadResult> {
-    const { md5, pathIndex, serverIndex, onProgress } = options;
-    const downloadId = options.downloadId;
+    const { md5, pathIndex, serverIndex, downloadId, aaBaseUrl, onProgress } =
+      options;
     let sessionId: string | null = null;
 
     try {
-      // Get temp folder from config
-      const tempFolder = await appConfigService.getDownloadFolder();
-
-      // Ensure temp folder exists
-      await mkdir(tempFolder, { recursive: true });
-
       // Create FlareSolverr session
       sessionId = await this.createSession(downloadId);
       logger.info(`[${downloadId}] Created FlareSolverr session: ${sessionId}`);
 
       // Build slow download URL
-      const slowDownloadUrl = `${AA_BASE_URL}/slow_download/${md5}/${pathIndex}/${serverIndex}`;
+      const slowDownloadUrl = `${aaBaseUrl}/slow_download/${md5}/${pathIndex}/${serverIndex}`;
       logger.info(`[${downloadId}] Requesting: ${slowDownloadUrl}`);
 
       onProgress?.({
@@ -437,7 +502,6 @@ export class SlowDownloader {
       };
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      logger.error(`[${downloadId}] Download failed:`, errorMsg);
       return {
         success: false,
         error: errorMsg,

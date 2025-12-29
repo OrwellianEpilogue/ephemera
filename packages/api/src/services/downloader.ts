@@ -8,9 +8,6 @@ import { downloadTracker } from "./download-tracker.js";
 import { slowDownloader, type ProgressInfo } from "./slow-downloader.js";
 import { appConfigService } from "./app-config.js";
 
-const AA_API_KEY = process.env.AA_API_KEY;
-const AA_BASE_URL = process.env.AA_BASE_URL;
-
 export interface DownloadOptions {
   md5: string;
   pathIndex?: number;
@@ -41,13 +38,19 @@ export class Downloader {
     pathIndex?: number,
     domainIndex?: number,
   ): Promise<AAResponse> {
-    if (!AA_API_KEY) {
+    const apiKey = await appConfigService.getSearcherApiKey();
+    if (!apiKey) {
       throw new Error("AA_API_KEY is not set");
+    }
+
+    const urlVariants = await appConfigService.getSearcherUrlVariants();
+    if (urlVariants.length === 0) {
+      throw new Error("Searcher base URL is not configured");
     }
 
     const params = new URLSearchParams({
       md5,
-      key: AA_API_KEY,
+      key: apiKey,
     });
 
     if (pathIndex !== undefined) {
@@ -58,30 +61,72 @@ export class Downloader {
       params.append("domain_index", domainIndex.toString());
     }
 
-    const url = `${AA_BASE_URL}/dyn/api/fast_download.json?${params.toString()}`;
+    const requestTimeout = await appConfigService.getRequestTimeout();
+    let lastError: string | null = null;
 
-    try {
-      const requestTimeout = await appConfigService.getRequestTimeout();
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), requestTimeout);
+    // Try each URL variant until one succeeds
+    for (let i = 0; i < urlVariants.length; i++) {
+      const baseUrl = urlVariants[i];
+      const url = `${baseUrl}/dyn/api/fast_download.json?${params.toString()}`;
 
-      const response = await fetch(url, {
-        signal: controller.signal,
-      });
+      if (i > 0) {
+        logger.info(`Trying fallback domain for download API: ${baseUrl}`);
+      }
 
-      clearTimeout(timeout);
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), requestTimeout);
 
-      const data = await response.json();
+        const response = await fetch(url, {
+          signal: controller.signal,
+        });
 
-      return data as AAResponse;
-    } catch (error: unknown) {
-      logger.error(`Failed to get download URL for ${md5}:`, error);
-      return {
-        download_url: null,
-        error:
-          error instanceof Error ? error.message : "Failed to get download URL",
-      };
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+          lastError = `HTTP ${response.status}: ${response.statusText}`;
+          logger.warn(
+            `Download API request failed for ${baseUrl}: ${lastError}`,
+          );
+          continue;
+        }
+
+        const data = (await response.json()) as AAResponse;
+
+        // If we got a valid response, save the working URL if it's a fallback
+        if (data.download_url || data.account_fast_download_info) {
+          if (i > 0) {
+            logger.info(`Fallback domain worked, saving: ${baseUrl}`);
+            await appConfigService.updateSearcherBaseUrl(baseUrl);
+          }
+          return data;
+        }
+
+        // If we got an error response, try next domain
+        if (data.error) {
+          lastError = data.error;
+          logger.warn(
+            `Download API returned error for ${baseUrl}: ${data.error}`,
+          );
+          continue;
+        }
+
+        return data;
+      } catch (error: unknown) {
+        lastError =
+          error instanceof Error ? error.message : "Failed to get download URL";
+        logger.warn(`Download API request failed for ${baseUrl}: ${lastError}`);
+        continue;
+      }
     }
+
+    logger.error(
+      `Failed to get download URL for ${md5} after trying all domains`,
+    );
+    return {
+      download_url: null,
+      error: lastError || "Failed to get download URL from all domains",
+    };
   }
 
   async download(options: DownloadOptions): Promise<DownloadResult> {
@@ -96,7 +141,8 @@ export class Downloader {
       await mkdir(tempFolder, { recursive: true });
 
       // Check if API key is available - if not, use slow download
-      if (!AA_API_KEY) {
+      const apiKey = await appConfigService.getSearcherApiKey();
+      if (!apiKey) {
         logger.info(
           `No AA_API_KEY configured - using slow download fallback for ${md5}`,
         );

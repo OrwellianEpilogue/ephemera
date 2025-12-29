@@ -1,6 +1,39 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { appConfig, type AppConfig } from "../db/schema.js";
+import { logger } from "../utils/logger.js";
+
+// Domain fallback configurations
+const SEARCHER_FALLBACK_TLDS = [".org", ".se", ".li"];
+const QUICK_FALLBACK_TLDS = [".bz", ".la", ".gl", ".vg", ".li"];
+
+/**
+ * Replace the TLD of a URL with a new one
+ */
+function replaceUrlTld(url: string, newTld: string): string {
+  const urlObj = new URL(url);
+  const hostParts = urlObj.hostname.split(".");
+  // Replace last part (TLD)
+  hostParts[hostParts.length - 1] = newTld.replace(".", "");
+  urlObj.hostname = hostParts.join(".");
+  return urlObj.toString().replace(/\/$/, ""); // Remove trailing slash
+}
+
+/**
+ * Get all TLD variants of a URL based on fallback list
+ */
+function getUrlVariants(baseUrl: string, fallbackTlds: string[]): string[] {
+  const variants: string[] = [baseUrl];
+
+  for (const tld of fallbackTlds) {
+    const variant = replaceUrlTld(baseUrl, tld);
+    if (!variants.includes(variant)) {
+      variants.push(variant);
+    }
+  }
+
+  return variants;
+}
 
 /**
  * App Config Service
@@ -228,6 +261,76 @@ class AppConfigService {
       searchCacheTtl: config.searchCacheTtl,
       maxConcurrentDownloads: config.maxConcurrentDownloads,
     };
+  }
+
+  /**
+   * Get searcher base URL from config
+   */
+  async getSearcherBaseUrl(): Promise<string | null> {
+    const config = await this.getConfig();
+    return config.searcherBaseUrl;
+  }
+
+  /**
+   * Get searcher API key from config
+   */
+  async getSearcherApiKey(): Promise<string | null> {
+    const config = await this.getConfig();
+    return config.searcherApiKey;
+  }
+
+  /**
+   * Get quick download base URL from config
+   */
+  async getQuickBaseUrl(): Promise<string | null> {
+    const config = await this.getConfig();
+    return config.quickBaseUrl;
+  }
+
+  /**
+   * Get all searcher URL variants (original + fallback TLDs)
+   * Returns empty array if no URL configured
+   */
+  async getSearcherUrlVariants(): Promise<string[]> {
+    const baseUrl = await this.getSearcherBaseUrl();
+    if (!baseUrl) return [];
+    return getUrlVariants(baseUrl, SEARCHER_FALLBACK_TLDS);
+  }
+
+  /**
+   * Get all quick download URL variants (original + fallback TLDs)
+   * Returns empty array if no URL configured
+   */
+  async getQuickUrlVariants(): Promise<string[]> {
+    const baseUrl = await this.getQuickBaseUrl();
+    if (!baseUrl) return [];
+    return getUrlVariants(baseUrl, QUICK_FALLBACK_TLDS);
+  }
+
+  /**
+   * Update searcher base URL (used when fallback succeeds)
+   */
+  async updateSearcherBaseUrl(newUrl: string): Promise<void> {
+    const currentUrl = await this.getSearcherBaseUrl();
+    if (currentUrl !== newUrl) {
+      logger.info(
+        `[App Config] Updating searcher URL: ${currentUrl} -> ${newUrl}`,
+      );
+      await this.updateConfig({ searcherBaseUrl: newUrl });
+    }
+  }
+
+  /**
+   * Update quick download base URL (used when fallback succeeds)
+   */
+  async updateQuickBaseUrl(newUrl: string): Promise<void> {
+    const currentUrl = await this.getQuickBaseUrl();
+    if (currentUrl !== newUrl) {
+      logger.info(
+        `[App Config] Updating quick download URL: ${currentUrl} -> ${newUrl}`,
+      );
+      await this.updateConfig({ quickBaseUrl: newUrl });
+    }
   }
 }
 
