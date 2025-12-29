@@ -8,6 +8,8 @@ import {
   Stack,
   AspectRatio,
   Tooltip,
+  ActionIcon,
+  Menu,
 } from "@mantine/core";
 import {
   IconDownload,
@@ -15,13 +17,23 @@ import {
   IconClock,
   IconAlertCircle,
   IconBookmark,
+  IconMail,
+  IconCloudUpload,
 } from "@tabler/icons-react";
 import type { Book } from "@ephemera/shared";
-import { useQueueDownload } from "../hooks/useDownload";
+import { useQueueDownload, useDownloadFile } from "../hooks/useDownload";
 import { useCreateRequest, usePendingRequestMd5s } from "../hooks/useRequests";
 import { useBookStatus } from "../hooks/useBookStatus";
 import { useAuth, usePermissions } from "../hooks/useAuth";
-import { memo } from "react";
+import { useFrontendConfig } from "../hooks/useConfig";
+import { useEmailRecipients, useSendBookEmail } from "../hooks/useEmail";
+import { useTolinoSettings, useTolinoUpload } from "../hooks/useTolino";
+import { useCalibreStatus } from "../hooks/useCalibre";
+import { TolinoUploadDialog } from "./TolinoUploadDialog";
+import { memo, useState } from "react";
+
+// Tolino Cloud accepts EPUB and PDF directly
+const TOLINO_NATIVE_FORMATS = ["epub", "pdf"];
 
 interface BookCardProps {
   book: Book;
@@ -142,16 +154,39 @@ const getDownloadStatusBadge = (
 // Memoize BookCard to prevent re-renders when parent changes but book prop is stable
 export const BookCard = memo(function BookCard({ book }: BookCardProps) {
   const queueDownload = useQueueDownload();
+  const downloadFile = useDownloadFile();
   const createRequest = useCreateRequest();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { data: permissions } = usePermissions();
+  const { data: config } = useFrontendConfig();
+  const { data: emailRecipients } = useEmailRecipients();
+  const sendEmail = useSendBookEmail();
+  const { data: tolinoSettings } = useTolinoSettings();
+  const { data: calibreStatus } = useCalibreStatus();
+  const tolinoUpload = useTolinoUpload();
   const pendingRequestMd5s = usePendingRequestMd5s();
+
+  const [tolinoDialogOpened, setTolinoDialogOpened] = useState(false);
 
   // Check if user can start downloads directly
   const canStartDownloads = isAdmin || permissions?.canStartDownloads !== false;
 
   // Check if this book is already requested (pending approval or active)
   const isAlreadyRequested = pendingRequestMd5s.has(book.md5);
+
+  // Tolino format checks
+  const bookFormat = (book.format || "").toLowerCase();
+  const isNativeFormat = TOLINO_NATIVE_FORMATS.includes(bookFormat);
+  const canConvertToEpub = !isNativeFormat && calibreStatus?.available;
+  const canUploadToTolino = isNativeFormat || canConvertToEpub;
+  const needsConversion = !isNativeFormat && canConvertToEpub;
+
+  // File access requires keepInDownloads to be enabled
+  const keepInDownloads = config?.keepInDownloads ?? false;
+  const fileAccessDisabled = !keepInDownloads;
+  const fileAccessTooltip = fileAccessDisabled
+    ? 'Enable "Keep copy in downloads folder" in Settings to use browser downloads and email'
+    : undefined;
 
   // Get live status from queue (reactive to SSE updates)
   const {
@@ -181,6 +216,36 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
       lang: book.language ? [book.language] : undefined,
       targetBookMd5: book.md5,
     });
+  };
+
+  const handleFileDownload = () => {
+    downloadFile.mutate({
+      md5: book.md5,
+      title: book.title,
+      format: book.format,
+      authors: book.authors,
+      year: book.year,
+      language: book.language,
+    });
+  };
+
+  const handleTolinoUploadClick = () => {
+    if (tolinoSettings?.askCollectionOnUpload) {
+      setTolinoDialogOpened(true);
+    } else {
+      tolinoUpload.mutate({ md5: book.md5 });
+    }
+  };
+
+  const handleTolinoUploadWithCollection = (collection?: string) => {
+    tolinoUpload.mutate(
+      { md5: book.md5, collection },
+      {
+        onSuccess: () => {
+          setTolinoDialogOpened(false);
+        },
+      },
+    );
   };
 
   const isInQueue = isQueued || isDownloading || isDelayed;
@@ -256,32 +321,200 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
               progress={progress}
             />
           ) : (
+            // Don't show "Downloaded" badge here - it's shown with action buttons below
+            status !== "available" &&
             getDownloadStatusBadge(status, progress, remainingCountdown)
           )}
         </Group>
 
-        {canStartDownloads ? (
+        {isAvailable ? (
+          // Downloaded state: show "Downloaded" badge with action buttons
+          <Group mt="auto" gap="xs" justify="space-between" wrap="nowrap">
+            <Badge
+              size="lg"
+              variant="light"
+              color="green"
+              leftSection={<IconCheck size={14} />}
+            >
+              Downloaded
+            </Badge>
+            <Group gap={4} wrap="nowrap">
+              {/* Download file button */}
+              <Tooltip
+                label={fileAccessTooltip || "Download file"}
+                color={fileAccessDisabled ? "orange" : undefined}
+              >
+                <ActionIcon
+                  color={fileAccessDisabled ? "gray" : "green"}
+                  variant="subtle"
+                  onClick={handleFileDownload}
+                  loading={downloadFile.isPending}
+                  disabled={fileAccessDisabled}
+                  size="sm"
+                >
+                  <IconDownload size={16} />
+                </ActionIcon>
+              </Tooltip>
+
+              {/* Email button */}
+              {config?.emailEnabled &&
+                emailRecipients &&
+                emailRecipients.length > 0 &&
+                (fileAccessDisabled ? (
+                  <Tooltip label={fileAccessTooltip} color="orange">
+                    <ActionIcon
+                      color="gray"
+                      variant="subtle"
+                      disabled
+                      size="sm"
+                    >
+                      <IconMail size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : emailRecipients.length === 1 && emailRecipients[0] ? (
+                  <Tooltip
+                    label={`Send to ${emailRecipients[0].name || emailRecipients[0].email}`}
+                  >
+                    <ActionIcon
+                      color="blue"
+                      variant="subtle"
+                      loading={sendEmail.isPending}
+                      onClick={() =>
+                        sendEmail.mutate({
+                          recipientId: emailRecipients[0]!.id,
+                          md5: book.md5,
+                        })
+                      }
+                      size="sm"
+                    >
+                      <IconMail size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : (
+                  <Menu shadow="md" width={250}>
+                    <Menu.Target>
+                      <Tooltip label="Send via email">
+                        <ActionIcon
+                          color="blue"
+                          variant="subtle"
+                          loading={sendEmail.isPending}
+                          size="sm"
+                        >
+                          <IconMail size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Label>Send to:</Menu.Label>
+                      {isAdmin ? (
+                        <>
+                          {emailRecipients
+                            .filter((r) => r.userId === user?.id)
+                            .map((recipient) => (
+                              <Menu.Item
+                                key={recipient.id}
+                                onClick={() =>
+                                  sendEmail.mutate({
+                                    recipientId: recipient.id,
+                                    md5: book.md5,
+                                  })
+                                }
+                              >
+                                {recipient.name || recipient.email}
+                              </Menu.Item>
+                            ))}
+                          {emailRecipients.some((r) => r.userId !== user?.id) &&
+                            emailRecipients.some(
+                              (r) => r.userId === user?.id,
+                            ) && <Menu.Divider />}
+                          {emailRecipients
+                            .filter((r) => r.userId !== user?.id)
+                            .map((recipient) => (
+                              <Menu.Item
+                                key={recipient.id}
+                                onClick={() =>
+                                  sendEmail.mutate({
+                                    recipientId: recipient.id,
+                                    md5: book.md5,
+                                  })
+                                }
+                              >
+                                {recipient.name || recipient.email}
+                                {recipient.userName && (
+                                  <Text span size="xs" c="dimmed" ml={4}>
+                                    ({recipient.userName})
+                                  </Text>
+                                )}
+                              </Menu.Item>
+                            ))}
+                        </>
+                      ) : (
+                        emailRecipients.map((recipient) => (
+                          <Menu.Item
+                            key={recipient.id}
+                            onClick={() =>
+                              sendEmail.mutate({
+                                recipientId: recipient.id,
+                                md5: book.md5,
+                              })
+                            }
+                          >
+                            {recipient.name || recipient.email}
+                          </Menu.Item>
+                        ))
+                      )}
+                    </Menu.Dropdown>
+                  </Menu>
+                ))}
+
+              {/* Tolino Cloud upload button */}
+              {permissions?.canConfigureTolino &&
+                tolinoSettings?.configured &&
+                canUploadToTolino && (
+                  <Tooltip
+                    label={
+                      fileAccessDisabled
+                        ? fileAccessTooltip
+                        : needsConversion
+                          ? "Upload to Tolino Cloud (will convert to EPUB)"
+                          : "Upload to Tolino Cloud"
+                    }
+                    color={fileAccessDisabled ? "orange" : undefined}
+                  >
+                    <ActionIcon
+                      color={fileAccessDisabled ? "gray" : "cyan"}
+                      variant="subtle"
+                      onClick={handleTolinoUploadClick}
+                      loading={tolinoUpload.isPending}
+                      disabled={fileAccessDisabled}
+                      size="sm"
+                    >
+                      <IconCloudUpload size={16} />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
+            </Group>
+          </Group>
+        ) : canStartDownloads ? (
           <Button
             fullWidth
             mt="auto"
             leftSection={<IconDownload size={16} />}
             onClick={handleDownload}
             loading={queueDownload.isPending}
-            disabled={queueDownload.isPending || isAvailable || isInQueue}
-            variant={isAvailable ? "light" : isError ? "outline" : "filled"}
-            color={isAvailable ? "green" : isError ? "red" : undefined}
+            disabled={queueDownload.isPending || isInQueue}
+            variant={isError ? "outline" : "filled"}
+            color={isError ? "red" : undefined}
           >
-            {isAvailable
-              ? "Already Downloaded"
-              : isDownloading
-                ? `Downloading ${progress !== undefined ? `${Math.round(progress)}%` : "..."}`
-                : isQueued
-                  ? "In Queue"
-                  : isDelayed
-                    ? "Delayed"
-                    : isError
-                      ? "Retry Download"
-                      : "Download"}
+            {isDownloading
+              ? `Downloading ${progress !== undefined ? `${Math.round(progress)}%` : "..."}`
+              : isQueued
+                ? "In Queue"
+                : isDelayed
+                  ? "Delayed"
+                  : isError
+                    ? "Retry Download"
+                    : "Download"}
           </Button>
         ) : (
           <Tooltip
@@ -300,27 +533,30 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
               onClick={handleRequest}
               loading={createRequest.isPending}
               disabled={
-                createRequest.isPending ||
-                isAvailable ||
-                isInQueue ||
-                isAlreadyRequested
+                createRequest.isPending || isInQueue || isAlreadyRequested
               }
-              variant={isAvailable || isAlreadyRequested ? "light" : "filled"}
-              color={
-                isAvailable ? "green" : isAlreadyRequested ? "yellow" : "orange"
-              }
+              variant={isAlreadyRequested ? "light" : "filled"}
+              color={isAlreadyRequested ? "yellow" : "orange"}
             >
-              {isAvailable
-                ? "Already Downloaded"
-                : isInQueue
-                  ? "In Queue"
-                  : isAlreadyRequested
-                    ? "Already Requested"
-                    : "Request"}
+              {isInQueue
+                ? "In Queue"
+                : isAlreadyRequested
+                  ? "Already Requested"
+                  : "Request"}
             </Button>
           </Tooltip>
         )}
       </Stack>
+
+      {/* Tolino Upload Dialog */}
+      <TolinoUploadDialog
+        opened={tolinoDialogOpened}
+        onClose={() => setTolinoDialogOpened(false)}
+        onUpload={handleTolinoUploadWithCollection}
+        isUploading={tolinoUpload.isPending}
+        bookTitle={book.title}
+        needsConversion={needsConversion}
+      />
     </Card>
   );
 });
