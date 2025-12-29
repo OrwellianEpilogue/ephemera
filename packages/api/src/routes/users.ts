@@ -346,6 +346,246 @@ app.openapi(createUserRoute, async (c) => {
   }
 });
 
+// ============================================
+// Current User Endpoints (authenticated users)
+// These MUST be registered before /{id} routes to avoid path conflicts
+// ============================================
+
+// GET /users/me - Get current user info
+const getCurrentUserRoute = createRoute({
+  method: "get",
+  path: "/me",
+  summary: "Get current user",
+  description: "Get current user's profile including auth method availability",
+  responses: {
+    200: {
+      description: "Current user info",
+      content: {
+        "application/json": {
+          schema: CurrentUserSchema,
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    500: {
+      description: "Server error",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+});
+
+app.openapi(getCurrentUserRoute, async (c) => {
+  try {
+    const currentUser = c.get("user") as User;
+
+    if (!currentUser) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    // Fetch user with accounts to check auth methods
+    const userWithAccounts = await db.query.user.findFirst({
+      where: eq(user.id, currentUser.id),
+      with: {
+        accounts: true,
+      },
+    });
+
+    if (!userWithAccounts) {
+      return c.json({ error: "User not found" }, 401);
+    }
+
+    return c.json(
+      {
+        id: userWithAccounts.id,
+        name: userWithAccounts.name,
+        email: userWithAccounts.email,
+        role: (userWithAccounts.role || "user") as "admin" | "user",
+        hasPassword:
+          userWithAccounts.accounts?.some(
+            (a) => a.providerId === "credential",
+          ) ?? false,
+        hasOIDC:
+          userWithAccounts.accounts?.some(
+            (a) => a.providerId !== "credential",
+          ) ?? false,
+      },
+      200,
+    );
+  } catch (error) {
+    console.error("[Users] Error fetching current user:", error);
+    return c.json({ error: "Failed to fetch user info" }, 500);
+  }
+});
+
+// PATCH /users/me - Update current user profile
+const updateCurrentUserRoute = createRoute({
+  method: "patch",
+  path: "/me",
+  summary: "Update current user profile",
+  description: "Update own email and name",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: UpdateProfileSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Profile updated",
+      content: {
+        "application/json": {
+          schema: CurrentUserSchema,
+        },
+      },
+    },
+    400: {
+      description: "Bad request (e.g., email already in use)",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    404: {
+      description: "User not found",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+    500: {
+      description: "Server error",
+      content: {
+        "application/json": {
+          schema: z.object({ error: z.string() }),
+        },
+      },
+    },
+  },
+});
+
+app.openapi(updateCurrentUserRoute, async (c) => {
+  try {
+    const currentUser = c.get("user") as User;
+    const body = c.req.valid("json");
+
+    if (!currentUser) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    // Fetch user with accounts to check auth methods
+    const userWithAccounts = await db.query.user.findFirst({
+      where: eq(user.id, currentUser.id),
+      with: {
+        accounts: true,
+      },
+    });
+
+    if (!userWithAccounts) {
+      return c.json({ error: "User not found" }, 404);
+    }
+
+    const hasPassword = userWithAccounts.accounts?.some(
+      (a) => a.providerId === "credential",
+    );
+    const hasOIDC = userWithAccounts.accounts?.some(
+      (a) => a.providerId !== "credential",
+    );
+
+    // Prevent OIDC-only users from changing their email (would break account linking)
+    if (body.email && body.email !== currentUser.email) {
+      if (hasOIDC && !hasPassword) {
+        return c.json(
+          { error: "Email cannot be changed for SSO-only accounts" },
+          400,
+        );
+      }
+
+      // Check if email is already in use
+      const existingUser = await db.query.user.findFirst({
+        where: eq(user.email, body.email),
+      });
+      if (existingUser) {
+        return c.json({ error: "Email already in use" }, 400);
+      }
+    }
+
+    // Build update data
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.name) updateData.name = body.name;
+    if (body.email) updateData.email = body.email;
+
+    // Update user
+    await db.update(user).set(updateData).where(eq(user.id, currentUser.id));
+
+    // If email changed, also update the credential account email
+    if (body.email && body.email !== currentUser.email) {
+      await db
+        .update(account)
+        .set({ accountId: body.email })
+        .where(eq(account.userId, currentUser.id));
+    }
+
+    // Fetch updated user with accounts
+    const updatedUser = await db.query.user.findFirst({
+      where: eq(user.id, currentUser.id),
+      with: {
+        accounts: true,
+      },
+    });
+
+    if (!updatedUser) {
+      return c.json({ error: "User not found after update" }, 500);
+    }
+
+    return c.json(
+      {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: (updatedUser.role || "user") as "admin" | "user",
+        hasPassword:
+          updatedUser.accounts?.some((a) => a.providerId === "credential") ??
+          false,
+        hasOIDC:
+          updatedUser.accounts?.some((a) => a.providerId !== "credential") ??
+          false,
+      },
+      200,
+    );
+  } catch (error) {
+    console.error("[Users] Error updating current user:", error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
+// ============================================
+// Admin User Management Endpoints
+// ============================================
+
 // PATCH /users/:id - Update user
 const updateUserRoute = createRoute({
   method: "patch",
@@ -594,241 +834,6 @@ app.openapi(deleteUserRoute, async (c) => {
     return c.json({ success: true }, 200);
   } catch (error) {
     console.error("[Users] Error deleting user:", error);
-    return c.json({ error: String(error) }, 500);
-  }
-});
-
-// ============================================
-// Current User Endpoints (authenticated users)
-// ============================================
-
-// GET /users/me - Get current user info
-const getCurrentUserRoute = createRoute({
-  method: "get",
-  path: "/me",
-  summary: "Get current user",
-  description: "Get current user's profile including auth method availability",
-  responses: {
-    200: {
-      description: "Current user info",
-      content: {
-        "application/json": {
-          schema: CurrentUserSchema,
-        },
-      },
-    },
-    401: {
-      description: "Unauthorized",
-      content: {
-        "application/json": {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-    500: {
-      description: "Server error",
-      content: {
-        "application/json": {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-  },
-});
-
-app.openapi(getCurrentUserRoute, async (c) => {
-  try {
-    const currentUser = c.get("user") as User;
-
-    if (!currentUser) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
-    // Fetch user with accounts to check auth methods
-    const userWithAccounts = await db.query.user.findFirst({
-      where: eq(user.id, currentUser.id),
-      with: {
-        accounts: true,
-      },
-    });
-
-    if (!userWithAccounts) {
-      return c.json({ error: "User not found" }, 401);
-    }
-
-    return c.json(
-      {
-        id: userWithAccounts.id,
-        name: userWithAccounts.name,
-        email: userWithAccounts.email,
-        role: (userWithAccounts.role || "user") as "admin" | "user",
-        hasPassword:
-          userWithAccounts.accounts?.some(
-            (a) => a.providerId === "credential",
-          ) ?? false,
-        hasOIDC:
-          userWithAccounts.accounts?.some(
-            (a) => a.providerId !== "credential",
-          ) ?? false,
-      },
-      200,
-    );
-  } catch (error) {
-    console.error("[Users] Error fetching current user:", error);
-    return c.json({ error: "Failed to fetch user info" }, 500);
-  }
-});
-
-// PATCH /users/me - Update current user profile
-const updateCurrentUserRoute = createRoute({
-  method: "patch",
-  path: "/me",
-  summary: "Update current user profile",
-  description: "Update own email and name",
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: UpdateProfileSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: "Profile updated",
-      content: {
-        "application/json": {
-          schema: CurrentUserSchema,
-        },
-      },
-    },
-    400: {
-      description: "Bad request (e.g., email already in use)",
-      content: {
-        "application/json": {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-    401: {
-      description: "Unauthorized",
-      content: {
-        "application/json": {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-    404: {
-      description: "User not found",
-      content: {
-        "application/json": {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-    500: {
-      description: "Server error",
-      content: {
-        "application/json": {
-          schema: z.object({ error: z.string() }),
-        },
-      },
-    },
-  },
-});
-
-app.openapi(updateCurrentUserRoute, async (c) => {
-  try {
-    const currentUser = c.get("user") as User;
-    const body = c.req.valid("json");
-
-    if (!currentUser) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
-    // Fetch user with accounts to check auth methods
-    const userWithAccounts = await db.query.user.findFirst({
-      where: eq(user.id, currentUser.id),
-      with: {
-        accounts: true,
-      },
-    });
-
-    if (!userWithAccounts) {
-      return c.json({ error: "User not found" }, 404);
-    }
-
-    const hasPassword = userWithAccounts.accounts?.some(
-      (a) => a.providerId === "credential",
-    );
-    const hasOIDC = userWithAccounts.accounts?.some(
-      (a) => a.providerId !== "credential",
-    );
-
-    // Prevent OIDC-only users from changing their email (would break account linking)
-    if (body.email && body.email !== currentUser.email) {
-      if (hasOIDC && !hasPassword) {
-        return c.json(
-          { error: "Email cannot be changed for SSO-only accounts" },
-          400,
-        );
-      }
-
-      // Check if email is already in use
-      const existingUser = await db.query.user.findFirst({
-        where: eq(user.email, body.email),
-      });
-      if (existingUser) {
-        return c.json({ error: "Email already in use" }, 400);
-      }
-    }
-
-    // Build update data
-    const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (body.name) updateData.name = body.name;
-    if (body.email) updateData.email = body.email;
-
-    // Update user
-    await db.update(user).set(updateData).where(eq(user.id, currentUser.id));
-
-    // If email changed, also update the credential account email
-    if (body.email && body.email !== currentUser.email) {
-      await db
-        .update(account)
-        .set({ accountId: body.email })
-        .where(eq(account.userId, currentUser.id));
-    }
-
-    // Fetch updated user with accounts
-    const updatedUser = await db.query.user.findFirst({
-      where: eq(user.id, currentUser.id),
-      with: {
-        accounts: true,
-      },
-    });
-
-    if (!updatedUser) {
-      return c.json({ error: "User not found after update" }, 500);
-    }
-
-    return c.json(
-      {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: (updatedUser.role || "user") as "admin" | "user",
-        hasPassword:
-          updatedUser.accounts?.some((a) => a.providerId === "credential") ??
-          false,
-        hasOIDC:
-          updatedUser.accounts?.some((a) => a.providerId !== "credential") ??
-          false,
-      },
-      200,
-    );
-  } catch (error) {
-    console.error("[Users] Error updating current user:", error);
     return c.json({ error: String(error) }, 500);
   }
 });

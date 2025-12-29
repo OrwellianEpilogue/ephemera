@@ -429,7 +429,7 @@ function SearchPage() {
                 <Accordion.Panel>
                   <Stack gap="md">
                     <Grid gutter="md">
-                      <Grid.Col span={6}>
+                      <Grid.Col span={{ base: 12, xs: 6 }}>
                         <TextInput
                           label="Author"
                           placeholder="Author name"
@@ -450,7 +450,7 @@ function SearchPage() {
                           }
                         />
                       </Grid.Col>
-                      <Grid.Col span={6}>
+                      <Grid.Col span={{ base: 12, xs: 6 }}>
                         <TextInput
                           label="Title"
                           placeholder="Book title"
@@ -471,7 +471,7 @@ function SearchPage() {
                           }
                         />
                       </Grid.Col>
-                      <Grid.Col span={6}>
+                      <Grid.Col span={{ base: 12, xs: 6 }}>
                         <Select
                           label="Sort by"
                           placeholder="Most relevant"
@@ -483,7 +483,7 @@ function SearchPage() {
                         />
                       </Grid.Col>
 
-                      <Grid.Col span={6}>
+                      <Grid.Col span={{ base: 12, xs: 6 }}>
                         <MultiSelect
                           label="File Format"
                           placeholder="Any format"
@@ -497,7 +497,7 @@ function SearchPage() {
                         />
                       </Grid.Col>
 
-                      <Grid.Col span={6}>
+                      <Grid.Col span={{ base: 12, xs: 6 }}>
                         <MultiSelect
                           label="Language"
                           placeholder="Any language"
@@ -511,7 +511,7 @@ function SearchPage() {
                         />
                       </Grid.Col>
 
-                      <Grid.Col span={6}>
+                      <Grid.Col span={{ base: 12, xs: 6 }}>
                         <MultiSelect
                           label="Content Type"
                           placeholder="Any type"

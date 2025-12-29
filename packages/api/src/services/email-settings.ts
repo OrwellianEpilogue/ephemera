@@ -163,7 +163,7 @@ class EmailSettingsService {
       smtpHost: settings.smtpHost,
       smtpPort: settings.smtpPort,
       smtpUser: settings.smtpUser,
-      smtpPassword: settings.smtpPassword ? "********" : null, // Never expose actual password
+      smtpPassword: settings.smtpPassword ? "••••••••••••" : null, // Never expose actual password
       senderEmail: settings.senderEmail,
       senderName: settings.senderName,
       useTls: settings.useTls,

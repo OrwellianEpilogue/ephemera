@@ -10,6 +10,7 @@ import { configureClient, getApiBasePath } from "@ephemera/shared";
 // Import Mantine styles
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
+import "./styles.css";
 
 // Unregister any existing service workers from old PWA implementation
 // This ensures users who had the PWA version don't have stale cached content

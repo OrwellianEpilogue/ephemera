@@ -54,3 +54,4 @@ app-example
 packages/api/ingest
 packages/api/books
 .vite
+*.db

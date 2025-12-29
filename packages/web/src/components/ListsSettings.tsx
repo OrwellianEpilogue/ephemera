@@ -225,9 +225,7 @@ export default function ListsSettings() {
               )
             }
             placeholder={
-              settings?.hardcoverApiToken
-                ? "***configured***"
-                : "Enter token..."
+              settings?.hardcoverApiToken ? "••••••••••••" : "Enter token..."
             }
             value={hardcoverToken}
             onChange={(e) => {
@@ -261,80 +259,82 @@ export default function ListsSettings() {
               <Loader />
             </Center>
           ) : allLists && allLists.length > 0 ? (
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>Source</Table.Th>
-                  <Table.Th>User</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Books</Table.Th>
-                  <Table.Th>Last Checked</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {allLists.map((list) => (
-                  <Table.Tr key={list.id}>
-                    <Table.Td>{list.name}</Table.Td>
-                    <Table.Td>
-                      {(() => {
-                        const colors = sourceColors[list.source] || {
-                          bg: "#gray",
-                          text: "#000",
-                        };
-                        return (
-                          <Badge
-                            size="sm"
-                            style={{
-                              backgroundColor: colors.bg,
-                              color: colors.text,
-                            }}
-                          >
-                            {list.source}
-                          </Badge>
-                        );
-                      })()}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" c="dimmed">
-                        {list.userId.slice(0, 8)}...
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={4}>
-                        <Badge
-                          size="xs"
-                          color={list.enabled ? "green" : "gray"}
-                        >
-                          {list.enabled ? "Active" : "Disabled"}
-                        </Badge>
-                        {list.fetchError && (
-                          <Tooltip label={list.fetchError}>
-                            <Badge size="xs" color="red">
-                              Error
-                            </Badge>
-                          </Tooltip>
-                        )}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>{list.totalBooksImported}</Table.Td>
-                    <Table.Td>
-                      {list.lastFetchedAt ? (
-                        <Text size="sm">
-                          {formatDistanceToNow(new Date(list.lastFetchedAt), {
-                            addSuffix: true,
-                          })}
-                        </Text>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          Never
-                        </Text>
-                      )}
-                    </Table.Td>
+            <Table.ScrollContainer minWidth={700}>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Name</Table.Th>
+                    <Table.Th>Source</Table.Th>
+                    <Table.Th>User</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th>Books</Table.Th>
+                    <Table.Th>Last Checked</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {allLists.map((list) => (
+                    <Table.Tr key={list.id}>
+                      <Table.Td>{list.name}</Table.Td>
+                      <Table.Td>
+                        {(() => {
+                          const colors = sourceColors[list.source] || {
+                            bg: "#gray",
+                            text: "#000",
+                          };
+                          return (
+                            <Badge
+                              size="sm"
+                              style={{
+                                backgroundColor: colors.bg,
+                                color: colors.text,
+                              }}
+                            >
+                              {list.source}
+                            </Badge>
+                          );
+                        })()}
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">
+                          {list.userName || list.userId.slice(0, 8) + "..."}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap={4}>
+                          <Badge
+                            size="xs"
+                            color={list.enabled ? "green" : "gray"}
+                          >
+                            {list.enabled ? "Active" : "Disabled"}
+                          </Badge>
+                          {list.fetchError && (
+                            <Tooltip label={list.fetchError}>
+                              <Badge size="xs" color="red">
+                                Error
+                              </Badge>
+                            </Tooltip>
+                          )}
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>{list.totalBooksImported}</Table.Td>
+                      <Table.Td>
+                        {list.lastFetchedAt ? (
+                          <Text size="sm">
+                            {formatDistanceToNow(new Date(list.lastFetchedAt), {
+                              addSuffix: true,
+                            })}
+                          </Text>
+                        ) : (
+                          <Text size="sm" c="dimmed">
+                            Never
+                          </Text>
+                        )}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           ) : (
             <Alert color="blue" icon={<IconAlertCircle size={16} />}>
               No import lists have been created yet. Users can add lists from
