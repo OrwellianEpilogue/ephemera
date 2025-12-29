@@ -1,0 +1,17 @@
+@media (max-width: 47.99em) {
+  .mantine-Container-root {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .mantine-Accordion-content {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .mantine-Card-root:not([data-with-border]),
+  .mantine-Paper-root:not([data-with-border]) {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}

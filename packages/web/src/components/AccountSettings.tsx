@@ -35,6 +35,7 @@ import {
   IconTrash,
   IconCopy,
   IconApi,
+  IconBook,
 } from "@tabler/icons-react";
 import { apiFetch } from "@ephemera/shared";
 import { changePassword } from "../lib/auth-client";
@@ -412,13 +413,25 @@ export default function AccountSettings() {
                 <IconApi size={20} />
                 <Title order={4}>API Keys</Title>
               </Group>
-              <Button
-                size="xs"
-                leftSection={<IconPlus size={14} />}
-                onClick={() => setCreateKeyModalOpen(true)}
-              >
-                Create Key
-              </Button>
+              <Group gap="xs">
+                <Button
+                  size="xs"
+                  variant="default"
+                  leftSection={<IconBook size={14} />}
+                  component="a"
+                  href="/api/docs"
+                  target="_blank"
+                >
+                  Documentation
+                </Button>
+                <Button
+                  size="xs"
+                  leftSection={<IconPlus size={14} />}
+                  onClick={() => setCreateKeyModalOpen(true)}
+                >
+                  Create Key
+                </Button>
+              </Group>
             </Group>
             <Text size="sm" c="dimmed">
               API keys allow third-party tools to access the API on your behalf.

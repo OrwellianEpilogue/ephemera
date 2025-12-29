@@ -373,85 +373,93 @@ export default function UsersManagement() {
       )}
 
       <Card>
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>User</Table.Th>
-              <Table.Th>Email</Table.Th>
-              <Table.Th>Password</Table.Th>
-              <Table.Th>OIDC</Table.Th>
-              <Table.Th>Role</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Created</Table.Th>
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {users?.map((user) => (
-              <Table.Tr key={user.id}>
-                <Table.Td>
-                  <Group gap="sm">
-                    {user.role === "admin" ? (
-                      <IconShieldCheck size={16} />
-                    ) : (
-                      <IconUser size={16} />
-                    )}
-                    <Text fw={500}>{user.name}</Text>
-                  </Group>
-                </Table.Td>
-                <Table.Td>{user.email}</Table.Td>
-                <Table.Td>
-                  {user.hasPassword ? (
-                    <IconCheck size={16} color="var(--mantine-color-green-6)" />
-                  ) : (
-                    <IconX size={16} color="var(--mantine-color-gray-5)" />
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  {user.hasOIDC ? (
-                    <IconCheck size={16} color="var(--mantine-color-green-6)" />
-                  ) : (
-                    <IconX size={16} color="var(--mantine-color-gray-5)" />
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Badge color={user.role === "admin" ? "blue" : "gray"}>
-                    {user.role}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  {user.banned ? (
-                    <Badge color="red" leftSection={<IconUserX size={12} />}>
-                      Banned
-                    </Badge>
-                  ) : (
-                    <Badge color="green">Active</Badge>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    <ActionIcon
-                      variant="subtle"
-                      onClick={() => handleEditUser(user)}
-                    >
-                      <IconEdit size={16} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      onClick={() => handleDeleteUser(user.id)}
-                    >
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Group>
-                </Table.Td>
+        <Table.ScrollContainer minWidth={800}>
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>User</Table.Th>
+                <Table.Th>Email</Table.Th>
+                <Table.Th>Password</Table.Th>
+                <Table.Th>OIDC</Table.Th>
+                <Table.Th>Role</Table.Th>
+                <Table.Th>Status</Table.Th>
+                <Table.Th>Created</Table.Th>
+                <Table.Th>Actions</Table.Th>
               </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+            </Table.Thead>
+            <Table.Tbody>
+              {users?.map((user) => (
+                <Table.Tr key={user.id}>
+                  <Table.Td>
+                    <Group gap="sm">
+                      {user.role === "admin" ? (
+                        <IconShieldCheck size={16} />
+                      ) : (
+                        <IconUser size={16} />
+                      )}
+                      <Text fw={500}>{user.name}</Text>
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>{user.email}</Table.Td>
+                  <Table.Td>
+                    {user.hasPassword ? (
+                      <IconCheck
+                        size={16}
+                        color="var(--mantine-color-green-6)"
+                      />
+                    ) : (
+                      <IconX size={16} color="var(--mantine-color-gray-5)" />
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    {user.hasOIDC ? (
+                      <IconCheck
+                        size={16}
+                        color="var(--mantine-color-green-6)"
+                      />
+                    ) : (
+                      <IconX size={16} color="var(--mantine-color-gray-5)" />
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={user.role === "admin" ? "blue" : "gray"}>
+                      {user.role}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    {user.banned ? (
+                      <Badge color="red" leftSection={<IconUserX size={12} />}>
+                        Banned
+                      </Badge>
+                    ) : (
+                      <Badge color="green">Active</Badge>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap="xs">
+                      <ActionIcon
+                        variant="subtle"
+                        onClick={() => handleEditUser(user)}
+                      >
+                        <IconEdit size={16} />
+                      </ActionIcon>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        onClick={() => handleDeleteUser(user.id)}
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Card>
 
       {/* Create User Modal */}

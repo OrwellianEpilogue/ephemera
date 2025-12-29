@@ -1,5 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { importLists, user } from "../db/schema.js";
 import { listImportService } from "../services/list-import.js";
 import { listSettingsService } from "../services/list-settings.js";
 import {
@@ -79,21 +82,33 @@ const getAllListsRoute = createRoute({
 });
 
 app.openapi(getAllListsRoute, async (c) => {
-  const lists = await listImportService.getAllLists();
+  // Join with users table to get user names
+  const listsWithUsers = await db
+    .select({
+      list: importLists,
+      userName: user.name,
+      userEmail: user.email,
+    })
+    .from(importLists)
+    .leftJoin(user, eq(importLists.userId, user.id))
+    .orderBy(importLists.createdAt);
 
-  // Format for response (would need to join with users table for full info)
-  const formattedLists = lists.map((list) => ({
-    id: list.id,
-    userId: list.userId,
-    source: list.source,
-    name: list.name,
-    sourceConfig: list.sourceConfig,
-    enabled: list.enabled,
-    lastFetchedAt: list.lastFetchedAt?.getTime() || null,
-    fetchError: list.fetchError,
-    totalBooksImported: list.totalBooksImported,
-    createdAt: list.createdAt?.getTime() || 0,
-  }));
+  const formattedLists = listsWithUsers.map(
+    ({ list, userName, userEmail }) => ({
+      id: list.id,
+      userId: list.userId,
+      userName: userName ?? undefined,
+      userEmail: userEmail ?? undefined,
+      source: list.source,
+      name: list.name,
+      sourceConfig: list.sourceConfig,
+      enabled: list.enabled,
+      lastFetchedAt: list.lastFetchedAt?.getTime() || null,
+      fetchError: list.fetchError,
+      totalBooksImported: list.totalBooksImported,
+      createdAt: list.createdAt?.getTime() || 0,
+    }),
+  );
 
   return c.json(formattedLists);
 });
@@ -122,7 +137,7 @@ app.openapi(getSettingsRoute, async (c) => {
   return c.json({
     listFetchInterval: settings.listFetchInterval,
     // Don't expose full token, just whether it's set
-    hardcoverApiToken: settings.hardcoverApiToken ? "***configured***" : null,
+    hardcoverApiToken: settings.hardcoverApiToken ? "••••••••••••" : null,
     updatedAt: settings.updatedAt?.getTime() || 0,
   });
 });
@@ -176,9 +191,7 @@ app.openapi(updateSettingsRoute, async (c) => {
     return c.json(
       {
         listFetchInterval: settings.listFetchInterval,
-        hardcoverApiToken: settings.hardcoverApiToken
-          ? "***configured***"
-          : null,
+        hardcoverApiToken: settings.hardcoverApiToken ? "••••••••••••" : null,
         updatedAt: settings.updatedAt?.getTime() || 0,
       },
       200,

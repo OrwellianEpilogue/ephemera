@@ -36,7 +36,6 @@ import {
   IconServer,
   IconUsers,
   IconMail,
-  IconUser,
   IconUserShare,
   IconShieldCheck,
   IconAlertTriangle,
@@ -95,7 +94,6 @@ import {
 // Lazy load heavy components
 const UsersManagement = lazy(() => import("../components/UsersManagement"));
 const OIDCManagement = lazy(() => import("../components/OIDCManagement"));
-const AccountSettings = lazy(() => import("../components/AccountSettings"));
 const ProxyAuthSettings = lazy(() => import("../components/ProxyAuthSettings"));
 const TolinoSettings = lazy(() => import("../components/TolinoSettings"));
 const ListsSettings = lazy(() => import("../components/ListsSettings"));
@@ -103,20 +101,18 @@ const ListsSettings = lazy(() => import("../components/ListsSettings"));
 const settingsSearchSchema = z.object({
   tab: z
     .enum([
-      "account",
       "general",
+      "users",
+      "lists",
       "notifications",
+      "email",
+      "oidc",
+      "proxy-auth",
       "booklore",
       "indexer",
-      "users",
-      "oidc",
-      "email",
       "tolino",
-      "proxy-auth",
-      "lists",
     ])
-    .optional()
-    .default("account"),
+    .catch("general"),
 });
 
 function SettingsComponent() {
@@ -165,13 +161,13 @@ function SettingsComponent() {
 
     // Redirect non-admins trying to access admin tabs
     if (isAdminTab && !isAdmin) {
-      navigate({ search: { tab: "account" } });
+      navigate({ search: { tab: "general" } });
       return;
     }
 
     // Redirect users without proper permission trying to access settings tabs
-    if (!isAdminTab && tab !== "account" && !getTabPermission(tab)) {
-      navigate({ search: { tab: "account" } });
+    if (!isAdminTab && !getTabPermission(tab)) {
+      navigate({ search: { tab: "general" } });
       return;
     }
   }, [tab, isAdmin, loadingPermissions, navigate, permissions]);
@@ -617,9 +613,7 @@ function SettingsComponent() {
     (canConfigureNotifications && errorApprise) ||
     (canConfigureEmail && errorEmail);
 
-  // For Account tab, don't block on settings loading/error
-  // For other tabs, show loading/error states if user has access
-  if (tab !== "account" && loadingPermissions) {
+  if (loadingPermissions) {
     return (
       <Container size="md">
         <Center p="xl">
@@ -629,7 +623,7 @@ function SettingsComponent() {
     );
   }
 
-  if (tab !== "account" && isSettingsLoading) {
+  if (isSettingsLoading) {
     return (
       <Container size="md">
         <Center p="xl">
@@ -639,7 +633,7 @@ function SettingsComponent() {
     );
   }
 
-  if (tab !== "account" && isSettingsError) {
+  if (isSettingsError) {
     return (
       <Container size="md">
         <Alert icon={<IconInfoCircle size={16} />} title="Error" color="red">
@@ -660,25 +654,21 @@ function SettingsComponent() {
             navigate({
               search: {
                 tab: value as
-                  | "account"
                   | "general"
+                  | "users"
+                  | "lists"
                   | "notifications"
+                  | "email"
+                  | "oidc"
+                  | "proxy-auth"
                   | "booklore"
                   | "indexer"
-                  | "users"
-                  | "oidc"
-                  | "email"
-                  | "tolino"
-                  | "proxy-auth"
-                  | "lists",
+                  | "tolino",
               },
             })
           }
         >
           <Tabs.List>
-            <Tabs.Tab value="account" leftSection={<IconUser size={16} />}>
-              Account
-            </Tabs.Tab>
             {canConfigureApp && (
               <Tabs.Tab
                 value="general"
@@ -687,6 +677,16 @@ function SettingsComponent() {
                 General
               </Tabs.Tab>
             )}
+            {isAdmin && (
+              <>
+                <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
+                  Users
+                </Tabs.Tab>
+                <Tabs.Tab value="lists" leftSection={<IconList size={16} />}>
+                  Lists
+                </Tabs.Tab>
+              </>
+            )}
             {canConfigureNotifications && (
               <Tabs.Tab
                 value="notifications"
@@ -694,6 +694,26 @@ function SettingsComponent() {
               >
                 Notifications
               </Tabs.Tab>
+            )}
+            {/* Email tab accessible to all users for managing their own recipients */}
+            <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
+              Email
+            </Tabs.Tab>
+            {isAdmin && (
+              <>
+                <Tabs.Tab
+                  value="oidc"
+                  leftSection={<IconPlugConnected size={16} />}
+                >
+                  OIDC
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="proxy-auth"
+                  leftSection={<IconShieldCheck size={16} />}
+                >
+                  Proxy Auth
+                </Tabs.Tab>
+              </>
             )}
             {canConfigureIntegrations && (
               <>
@@ -711,52 +731,13 @@ function SettingsComponent() {
                 </Tabs.Tab>
               </>
             )}
-            {/* Email tab accessible to all users for managing their own recipients */}
-            <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
-              Email
-            </Tabs.Tab>
             {/* Tolino tab for users with canConfigureTolino permission */}
             {canConfigureTolino && (
               <Tabs.Tab value="tolino" leftSection={<IconCloud size={16} />}>
                 Tolino
               </Tabs.Tab>
             )}
-            {isAdmin && (
-              <>
-                <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
-                  Users
-                </Tabs.Tab>
-                <Tabs.Tab
-                  value="oidc"
-                  leftSection={<IconPlugConnected size={16} />}
-                >
-                  OIDC
-                </Tabs.Tab>
-                <Tabs.Tab
-                  value="proxy-auth"
-                  leftSection={<IconShieldCheck size={16} />}
-                >
-                  Proxy Auth
-                </Tabs.Tab>
-                <Tabs.Tab value="lists" leftSection={<IconList size={16} />}>
-                  Lists
-                </Tabs.Tab>
-              </>
-            )}
           </Tabs.List>
-
-          {/* Account Tab - Available to all authenticated users */}
-          <Tabs.Panel value="account" pt="md">
-            <Suspense
-              fallback={
-                <Center p="xl">
-                  <Loader size="lg" />
-                </Center>
-              }
-            >
-              <AccountSettings />
-            </Suspense>
-          </Tabs.Panel>
 
           <Tabs.Panel value="general" pt="md">
             <Stack gap="lg">

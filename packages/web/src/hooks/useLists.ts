@@ -10,6 +10,8 @@ export type ListFetchInterval = "15min" | "30min" | "1h" | "6h" | "12h" | "24h";
 export interface ImportList {
   id: number;
   userId: string;
+  userName?: string;
+  userEmail?: string;
   source: ListSource;
   name: string;
   sourceConfig: Record<string, unknown>;

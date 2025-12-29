@@ -311,90 +311,94 @@ function OIDCProvidersPage() {
       )}
 
       <Card>
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Provider</Table.Th>
-              <Table.Th>Issuer</Table.Th>
-              <Table.Th>Domain</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {providers?.length === 0 ? (
+        <Table.ScrollContainer minWidth={600}>
+          <Table>
+            <Table.Thead>
               <Table.Tr>
-                <Table.Td colSpan={5}>
-                  <Text ta="center" c="dimmed" py="xl">
-                    No OIDC providers configured. Click "Add Provider" to get
-                    started.
-                  </Text>
-                </Table.Td>
+                <Table.Th>Provider</Table.Th>
+                <Table.Th>Issuer</Table.Th>
+                <Table.Th>Domain</Table.Th>
+                <Table.Th>Status</Table.Th>
+                <Table.Th>Actions</Table.Th>
               </Table.Tr>
-            ) : (
-              providers?.map((provider) => (
-                <Table.Tr key={provider.id}>
-                  <Table.Td>
-                    <Text fw={500}>{provider.name || provider.providerId}</Text>
-                    <Text size="xs" c="dimmed">
-                      {provider.providerId}
+            </Table.Thead>
+            <Table.Tbody>
+              {providers?.length === 0 ? (
+                <Table.Tr>
+                  <Table.Td colSpan={5}>
+                    <Text ta="center" c="dimmed" py="xl">
+                      No OIDC providers configured. Click "Add Provider" to get
+                      started.
                     </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" style={{ wordBreak: "break-all" }}>
-                      {provider.issuer}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    {provider.domain ? (
-                      <Text size="sm">{provider.domain}</Text>
-                    ) : (
-                      <Text size="sm" c="dimmed">
-                        None
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge color={provider.enabled ? "green" : "gray"}>
-                      {provider.enabled ? "Enabled" : "Disabled"}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs">
-                      <Tooltip label="Test connection">
-                        <ActionIcon
-                          variant="subtle"
-                          color="blue"
-                          onClick={() => handleTestConnection(provider.id)}
-                          loading={testing}
-                        >
-                          <IconPlugConnected size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Edit provider">
-                        <ActionIcon
-                          variant="subtle"
-                          onClick={() => handleEditProvider(provider)}
-                        >
-                          <IconEdit size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label="Delete provider">
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          onClick={() => handleDeleteProvider(provider.id)}
-                        >
-                          <IconTrash size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
                   </Table.Td>
                 </Table.Tr>
-              ))
-            )}
-          </Table.Tbody>
-        </Table>
+              ) : (
+                providers?.map((provider) => (
+                  <Table.Tr key={provider.id}>
+                    <Table.Td>
+                      <Text fw={500}>
+                        {provider.name || provider.providerId}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {provider.providerId}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" style={{ wordBreak: "break-all" }}>
+                        {provider.issuer}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      {provider.domain ? (
+                        <Text size="sm">{provider.domain}</Text>
+                      ) : (
+                        <Text size="sm" c="dimmed">
+                          None
+                        </Text>
+                      )}
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge color={provider.enabled ? "green" : "gray"}>
+                        {provider.enabled ? "Enabled" : "Disabled"}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap="xs">
+                        <Tooltip label="Test connection">
+                          <ActionIcon
+                            variant="subtle"
+                            color="blue"
+                            onClick={() => handleTestConnection(provider.id)}
+                            loading={testing}
+                          >
+                            <IconPlugConnected size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Edit provider">
+                          <ActionIcon
+                            variant="subtle"
+                            onClick={() => handleEditProvider(provider)}
+                          >
+                            <IconEdit size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Delete provider">
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            onClick={() => handleDeleteProvider(provider.id)}
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))
+              )}
+            </Table.Tbody>
+          </Table>
+        </Table.ScrollContainer>
       </Card>
 
       {/* Create Provider Modal */}

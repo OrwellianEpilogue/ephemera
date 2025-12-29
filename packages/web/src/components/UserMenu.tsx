@@ -5,14 +5,14 @@ import {
   Avatar,
   Text,
   Badge,
+  Box,
   rem,
 } from "@mantine/core";
 import {
   IconChevronDown,
   IconLogout,
   IconSettings,
-  IconUsers,
-  IconPlugConnected,
+  IconUser,
 } from "@tabler/icons-react";
 import { useAuth } from "../hooks/useAuth";
 import { signOut } from "../lib/auth-client";
@@ -76,7 +76,7 @@ export function UserMenu() {
             <Avatar radius="xl" size={32} color="custom-primary">
               {initials}
             </Avatar>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <Box visibleFrom="sm" style={{ flex: 1, minWidth: 0 }}>
               <Text size="sm" fw={500} truncate>
                 {user.name || user.email}
               </Text>
@@ -85,7 +85,7 @@ export function UserMenu() {
                   Admin
                 </Badge>
               )}
-            </div>
+            </Box>
             <IconChevronDown
               style={{ width: rem(12), height: rem(12) }}
               stroke={1.5}
@@ -116,6 +116,12 @@ export function UserMenu() {
 
         <Menu.Label>Actions</Menu.Label>
         <Menu.Item
+          leftSection={<IconUser style={{ width: rem(16), height: rem(16) }} />}
+          onClick={() => navigate({ to: "/account" })}
+        >
+          Account
+        </Menu.Item>
+        <Menu.Item
           leftSection={
             <IconSettings style={{ width: rem(16), height: rem(16) }} />
           }
@@ -123,33 +129,6 @@ export function UserMenu() {
         >
           Settings
         </Menu.Item>
-
-        {isAdmin && (
-          <>
-            <Menu.Item
-              leftSection={
-                <IconUsers style={{ width: rem(16), height: rem(16) }} />
-              }
-              onClick={() =>
-                navigate({ to: "/settings", search: { tab: "users" } })
-              }
-            >
-              Manage Users
-            </Menu.Item>
-            <Menu.Item
-              leftSection={
-                <IconPlugConnected
-                  style={{ width: rem(16), height: rem(16) }}
-                />
-              }
-              onClick={() =>
-                navigate({ to: "/settings", search: { tab: "oidc" } })
-              }
-            >
-              OIDC Providers
-            </Menu.Item>
-          </>
-        )}
 
         <Menu.Divider />
 
