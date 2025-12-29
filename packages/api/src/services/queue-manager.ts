@@ -659,9 +659,10 @@ export class QueueManager extends EventEmitter {
       });
 
       // Auto-send to the downloader's recipients with auto-send enabled
+      // Only send if keepInDownloads is enabled (file must be accessible)
       try {
         const isEmailEnabled = await emailSettingsService.isEnabled();
-        if (isEmailEnabled && download.userId) {
+        if (isEmailEnabled && download.userId && postDownloadKeepInDownloads) {
           // Only send to the downloader's own email recipients with auto-send enabled
           const autoSendRecipients =
             await emailSettingsService.getAutoSendRecipients(download.userId);
@@ -698,8 +699,9 @@ export class QueueManager extends EventEmitter {
       }
 
       // Auto-upload to Tolino Cloud if user has auto-upload enabled
+      // Only upload if keepInDownloads is enabled (file must be accessible)
       try {
-        if (download.userId) {
+        if (download.userId && postDownloadKeepInDownloads) {
           const tolinoSettings = await tolinoSettingsService.getSettings(
             download.userId,
           );
