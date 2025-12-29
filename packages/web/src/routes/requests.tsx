@@ -20,6 +20,7 @@ import {
   Textarea,
   Image,
   Box,
+  TextInput,
 } from "@mantine/core";
 import {
   IconBookmark,
@@ -32,8 +33,9 @@ import {
   IconExternalLink,
   IconBook,
   IconStar,
+  IconSearch,
 } from "@tabler/icons-react";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -497,6 +499,7 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
 function RequestsPage() {
   usePageTitle("Requests");
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const { isAdmin } = useAuth();
   const { data: permissions } = usePermissions();
   const canManageRequests = isAdmin || permissions?.canManageRequests;
@@ -514,6 +517,49 @@ function RequestsPage() {
   const { data: requests, isLoading, isError } = useRequests(statusFilter);
   const { data: stats } = useRequestStats();
   const { data: settings } = useAppSettings();
+
+  // Filter requests by search query
+  const filterRequests = useCallback(
+    (items: SavedRequestWithMetadata[]) => {
+      if (!searchQuery.trim()) return items;
+      const query = searchQuery.toLowerCase();
+      return items.filter((item) => {
+        const params = item.queryParams || {};
+        const metadata = item.metadata;
+
+        // Search in query params
+        const matchesParams =
+          params.q?.toLowerCase().includes(query) ||
+          params.title?.toLowerCase().includes(query) ||
+          params.author?.toLowerCase().includes(query);
+
+        // Search in metadata
+        const matchesMetadata =
+          metadata?.title?.toLowerCase().includes(query) ||
+          metadata?.author?.toLowerCase().includes(query) ||
+          metadata?.isbn?.toLowerCase().includes(query) ||
+          metadata?.seriesName?.toLowerCase().includes(query) ||
+          metadata?.publishedYear?.toString().includes(query) ||
+          metadata?.description?.toLowerCase().includes(query);
+
+        // Search in MD5 (target or fulfilled)
+        const matchesMd5 =
+          item.targetBookMd5?.toLowerCase().includes(query) ||
+          item.fulfilledBookMd5?.toLowerCase().includes(query);
+
+        // Search in user name (for admins)
+        const matchesUser = item.userName?.toLowerCase().includes(query);
+
+        return matchesParams || matchesMetadata || matchesMd5 || matchesUser;
+      });
+    },
+    [searchQuery],
+  );
+
+  const filteredRequests = useMemo(
+    () => filterRequests(requests || []),
+    [requests, filterRequests],
+  );
 
   if (isLoading) {
     return (
@@ -575,6 +621,14 @@ function RequestsPage() {
             Change check interval in settings
           </Anchor>
         </Text>
+
+        <TextInput
+          placeholder="Search by title, author, ISBN, series, year, MD5..."
+          leftSection={<IconSearch size={16} />}
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.currentTarget.value)}
+          size="md"
+        />
 
         <Tabs
           value={activeTab}
@@ -671,9 +725,9 @@ function RequestsPage() {
           </Tabs.List>
 
           <Tabs.Panel value={activeTab} pt="md">
-            {requests && requests.length > 0 ? (
+            {filteredRequests.length > 0 ? (
               <Stack gap="md">
-                {requests.map((request) => (
+                {filteredRequests.map((request) => (
                   <RequestCard key={request.id} request={request} />
                 ))}
               </Stack>
@@ -681,13 +735,17 @@ function RequestsPage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconBookmark size={48} opacity={0.3} />
-                  <Text c="dimmed">No requests found</Text>
+                  <Text c="dimmed">
+                    {searchQuery ? "No matching requests" : "No requests found"}
+                  </Text>
                   <Text size="sm" c="dimmed">
-                    {activeTab === "all"
-                      ? "Search for a book and save it as a request when no results are found"
-                      : activeTab === "pending_approval"
-                        ? "No requests pending approval"
-                        : `No ${activeTab} requests`}
+                    {searchQuery
+                      ? "Try a different search term"
+                      : activeTab === "all"
+                        ? "Search for a book and save it as a request when no results are found"
+                        : activeTab === "pending_approval"
+                          ? "No requests pending approval"
+                          : `No ${activeTab} requests`}
                   </Text>
                 </Stack>
               </Center>
