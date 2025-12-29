@@ -1,6 +1,7 @@
 import {
   type ListFetcher,
   type FetchResult,
+  type ListBook,
   type AvailableList,
   type HardcoverConfig,
   normalizeTitle,
@@ -23,12 +24,33 @@ interface HardcoverLanguage {
 
 interface HardcoverEdition {
   language?: HardcoverLanguage | null;
+  isbn_13?: string | null;
+}
+
+interface HardcoverImage {
+  url?: string;
+}
+
+interface HardcoverSeries {
+  name?: string;
+}
+
+interface HardcoverBookSeries {
+  series?: HardcoverSeries;
+  position?: number;
 }
 
 interface HardcoverBook {
   id: number;
+  slug: string;
   title: string;
+  description?: string | null;
+  pages?: number | null;
+  release_date?: string | null;
   cached_contributors: HardcoverContributor[] | null;
+  cached_tags?: string[] | null;
+  image?: HardcoverImage | null;
+  book_series?: HardcoverBookSeries[] | null;
   default_ebook_edition?: HardcoverEdition | null;
   default_physical_edition?: HardcoverEdition | null;
 }
@@ -36,6 +58,7 @@ interface HardcoverBook {
 interface HardcoverUserBook {
   id: number;
   date_added: string;
+  rating?: number | null;
   book: HardcoverBook;
 }
 
@@ -229,15 +252,28 @@ export class HardcoverFetcher implements ListFetcher {
         ) {
           id
           date_added
+          rating
           book {
             id
+            slug
             title
+            description
+            pages
+            release_date
             cached_contributors
+            cached_tags
+            image { url }
+            book_series {
+              series { name }
+              position
+            }
             default_ebook_edition {
               language { code2 }
+              isbn_13
             }
             default_physical_edition {
               language { code2 }
+              isbn_13
             }
           }
         }
@@ -255,24 +291,12 @@ export class HardcoverFetcher implements ListFetcher {
       };
     }
 
-    const books = userBooks.map((ub) => {
-      const rawTitle = ub.book.title || "";
-      const rawAuthor = this.extractAuthor(ub.book.cached_contributors);
-      const title = normalizeTitle(rawTitle);
-      const author = normalizeAuthor(rawAuthor);
-
-      return {
-        title,
-        author,
-        // Use Hardcover's book ID as stable identifier
-        hash: `hardcover:${ub.book.id}`,
+    const books = userBooks.map((ub) =>
+      this.mapBookToListBook(ub.book, {
         addedAt: ub.date_added ? new Date(ub.date_added) : undefined,
-        language:
-          ub.book.default_ebook_edition?.language?.code2 ||
-          ub.book.default_physical_edition?.language?.code2 ||
-          undefined,
-      };
-    });
+        rating: ub.rating ?? undefined,
+      }),
+    );
 
     const hasMore = userBooks.length >= limit;
 
@@ -313,13 +337,25 @@ export class HardcoverFetcher implements ListFetcher {
           created_at
           book {
             id
+            slug
             title
+            description
+            pages
+            release_date
             cached_contributors
+            cached_tags
+            image { url }
+            book_series {
+              series { name }
+              position
+            }
             default_ebook_edition {
               language { code2 }
+              isbn_13
             }
             default_physical_edition {
               language { code2 }
+              isbn_13
             }
           }
         }
@@ -341,24 +377,11 @@ export class HardcoverFetcher implements ListFetcher {
       };
     }
 
-    const books = listBooks.map((lb) => {
-      const rawTitle = lb.book.title || "";
-      const rawAuthor = this.extractAuthor(lb.book.cached_contributors);
-      const title = normalizeTitle(rawTitle);
-      const author = normalizeAuthor(rawAuthor);
-
-      return {
-        title,
-        author,
-        // Use Hardcover's book ID as stable identifier
-        hash: `hardcover:${lb.book.id}`,
+    const books = listBooks.map((lb) =>
+      this.mapBookToListBook(lb.book, {
         addedAt: lb.created_at ? new Date(lb.created_at) : undefined,
-        language:
-          lb.book.default_ebook_edition?.language?.code2 ||
-          lb.book.default_physical_edition?.language?.code2 ||
-          undefined,
-      };
-    });
+      }),
+    );
 
     const hasMore = listBooks.length >= limit;
 
@@ -419,6 +442,83 @@ export class HardcoverFetcher implements ListFetcher {
     }
 
     return "Unknown Author";
+  }
+
+  /**
+   * Map a HardcoverBook to a ListBook with all metadata
+   */
+  private mapBookToListBook(
+    book: HardcoverBook,
+    extra: { addedAt?: Date; rating?: number },
+  ): ListBook {
+    const rawTitle = book.title || "";
+    const rawAuthor = this.extractAuthor(book.cached_contributors);
+    const title = normalizeTitle(rawTitle);
+    const author = normalizeAuthor(rawAuthor);
+
+    // Extract series info
+    const firstSeries = book.book_series?.[0];
+    const seriesName = firstSeries?.series?.name || undefined;
+    const seriesPosition = firstSeries?.position ?? undefined;
+
+    // Extract publication year from release_date (format: "2024-01-15" or "2024")
+    let publishedYear: number | undefined;
+    if (book.release_date) {
+      const yearMatch = book.release_date.match(/^(\d{4})/);
+      if (yearMatch) {
+        publishedYear = parseInt(yearMatch[1], 10);
+      }
+    }
+
+    // Get ISBN from edition
+    const isbn =
+      book.default_ebook_edition?.isbn_13 ||
+      book.default_physical_edition?.isbn_13 ||
+      undefined;
+
+    // Get language from edition
+    const language =
+      book.default_ebook_edition?.language?.code2 ||
+      book.default_physical_edition?.language?.code2 ||
+      undefined;
+
+    // Cover image URL
+    const coverUrl = book.image?.url || undefined;
+
+    // Genres from cached_tags
+    const genres =
+      book.cached_tags && book.cached_tags.length > 0
+        ? book.cached_tags
+        : undefined;
+
+    return {
+      title,
+      author,
+      hash: `hardcover:${book.id}`,
+      addedAt: extra.addedAt,
+      language,
+      isbn: isbn || undefined,
+
+      // Source identification
+      sourceBookId: String(book.id),
+      sourceUrl: `https://hardcover.app/books/${book.slug}`,
+
+      // Extended metadata
+      description: book.description || undefined,
+      pages: book.pages ?? undefined,
+      publishedYear,
+      rating: extra.rating,
+
+      // Series info
+      seriesName,
+      seriesPosition,
+
+      // Cover
+      coverUrl,
+
+      // Genres
+      genres,
+    };
   }
 
   /**

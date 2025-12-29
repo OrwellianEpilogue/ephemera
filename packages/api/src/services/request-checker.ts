@@ -7,6 +7,7 @@ import { aaScraper } from "./scraper.js";
 import { queueManager } from "./queue-manager.js";
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
+import { listSettingsService } from "./list-settings.js";
 import { getErrorMessage } from "../utils/logger.js";
 import type { SearchQuery } from "@ephemera/shared";
 
@@ -14,7 +15,10 @@ import type { SearchQuery } from "@ephemera/shared";
  * Convert RequestQueryParams to SearchQuery
  * Handles type conversions for array fields
  */
-function convertToSearchQuery(params: RequestQueryParams): SearchQuery {
+function convertToSearchQuery(
+  params: RequestQueryParams,
+  options?: { includeYear?: boolean },
+): SearchQuery {
   // Helper to ensure array format
   const toArray = (
     val: string | string[] | undefined,
@@ -27,7 +31,34 @@ function convertToSearchQuery(params: RequestQueryParams): SearchQuery {
     q: params.q || "",
     author: params.author,
     title: params.title,
+    year: options?.includeYear ? params.year : undefined,
     page: 1, // Always check first page for requests
+    sort: params.sort as SearchQuery["sort"],
+    content: toArray(params.content),
+    ext: toArray(params.ext),
+    lang: toArray(params.lang),
+    desc: params.desc,
+  };
+}
+
+/**
+ * Create an ISBN-only search query
+ * ISBN search is done by using the ISBN as the main query string
+ */
+function createIsbnSearchQuery(params: RequestQueryParams): SearchQuery | null {
+  if (!params.isbn) return null;
+
+  // Helper to ensure array format
+  const toArray = (
+    val: string | string[] | undefined,
+  ): string[] | undefined => {
+    if (val === undefined) return undefined;
+    return Array.isArray(val) ? val : [val];
+  };
+
+  return {
+    q: params.isbn, // Use ISBN as the main search query
+    page: 1,
     sort: params.sort as SearchQuery["sort"],
     content: toArray(params.content),
     ext: toArray(params.ext),
@@ -144,11 +175,40 @@ class RequestCheckerService {
           }
 
           // No target MD5, perform search
-          // Prepare search query
-          const searchQuery = convertToSearchQuery(request.queryParams);
+          // Get search settings
+          const listSettings = await listSettingsService.getSettings();
+          const { searchByIsbnFirst, includeYearInSearch } = listSettings;
 
-          // Run search
-          const searchResult = await aaScraper.search(searchQuery);
+          let searchResult;
+
+          // Try ISBN search first if enabled and ISBN is available
+          if (searchByIsbnFirst && request.queryParams.isbn) {
+            const isbnQuery = createIsbnSearchQuery(request.queryParams);
+            if (isbnQuery) {
+              console.log(
+                `[Request Checker] Request #${request.id}: Trying ISBN search first: ${request.queryParams.isbn}`,
+              );
+              searchResult = await aaScraper.search(isbnQuery);
+
+              if (searchResult.results.length > 0) {
+                console.log(
+                  `[Request Checker] Request #${request.id}: ISBN search found ${searchResult.results.length} results`,
+                );
+              } else {
+                console.log(
+                  `[Request Checker] Request #${request.id}: ISBN search returned no results, falling back to title/author`,
+                );
+              }
+            }
+          }
+
+          // Fall back to title/author search if ISBN didn't find anything
+          if (!searchResult || searchResult.results.length === 0) {
+            const searchQuery = convertToSearchQuery(request.queryParams, {
+              includeYear: includeYearInSearch,
+            });
+            searchResult = await aaScraper.search(searchQuery);
+          }
 
           if (searchResult.results.length > 0) {
             // Cache search results so queue has book metadata
@@ -156,9 +216,16 @@ class RequestCheckerService {
 
             // Filter results by requested formats if specified
             let filteredResults = searchResult.results;
-            const requestedFormats = searchQuery.ext;
-            if (requestedFormats && requestedFormats.length > 0) {
-              const formatsUpper = requestedFormats.map((f) => f.toUpperCase());
+            const requestedFormats = request.queryParams.ext;
+            const formatsArray = requestedFormats
+              ? Array.isArray(requestedFormats)
+                ? requestedFormats
+                : [requestedFormats]
+              : [];
+            if (formatsArray.length > 0) {
+              const formatsUpper = formatsArray.map((f: string) =>
+                f.toUpperCase(),
+              );
               filteredResults = searchResult.results.filter(
                 (book) =>
                   book.format &&
@@ -323,11 +390,36 @@ class RequestCheckerService {
       }
 
       // No target MD5, perform search
-      // Prepare search query
-      const searchQuery = convertToSearchQuery(request.queryParams);
+      // Get search settings
+      const listSettings = await listSettingsService.getSettings();
+      const { searchByIsbnFirst, includeYearInSearch } = listSettings;
 
-      // Run search
-      const searchResult = await aaScraper.search(searchQuery);
+      let searchResult;
+
+      // Try ISBN search first if enabled and ISBN is available
+      if (searchByIsbnFirst && request.queryParams.isbn) {
+        const isbnQuery = createIsbnSearchQuery(request.queryParams);
+        if (isbnQuery) {
+          console.log(
+            `[Request Checker] Single check: Request #${requestId}: Trying ISBN search first: ${request.queryParams.isbn}`,
+          );
+          searchResult = await aaScraper.search(isbnQuery);
+
+          if (searchResult.results.length === 0) {
+            console.log(
+              `[Request Checker] Single check: Request #${requestId}: ISBN search returned no results, falling back to title/author`,
+            );
+          }
+        }
+      }
+
+      // Fall back to title/author search if ISBN didn't find anything
+      if (!searchResult || searchResult.results.length === 0) {
+        const searchQuery = convertToSearchQuery(request.queryParams, {
+          includeYear: includeYearInSearch,
+        });
+        searchResult = await aaScraper.search(searchQuery);
+      }
 
       if (searchResult.results.length > 0) {
         // Cache search results so queue has book metadata
@@ -335,9 +427,14 @@ class RequestCheckerService {
 
         // Filter results by requested formats if specified
         let filteredResults = searchResult.results;
-        const requestedFormats = searchQuery.ext;
-        if (requestedFormats && requestedFormats.length > 0) {
-          const formatsUpper = requestedFormats.map((f) => f.toUpperCase());
+        const requestedFormats = request.queryParams.ext;
+        const formatsArray = requestedFormats
+          ? Array.isArray(requestedFormats)
+            ? requestedFormats
+            : [requestedFormats]
+          : [];
+        if (formatsArray.length > 0) {
+          const formatsUpper = formatsArray.map((f: string) => f.toUpperCase());
           filteredResults = searchResult.results.filter(
             (book) =>
               book.format && formatsUpper.includes(book.format.toUpperCase()),

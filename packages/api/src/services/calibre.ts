@@ -44,6 +44,23 @@ const CALIBRE_OUTPUT_FORMATS = ["epub", "pdf", "mobi", "azw3"] as const;
 export type CalibreInputFormat = (typeof CALIBRE_INPUT_FORMATS)[number];
 export type CalibreOutputFormat = (typeof CALIBRE_OUTPUT_FORMATS)[number];
 
+/**
+ * Metadata to embed into an ebook file
+ */
+export interface BookMetadataInput {
+  title?: string;
+  authors?: string[];
+  series?: string;
+  seriesIndex?: number;
+  description?: string;
+  isbn?: string;
+  tags?: string[];
+  coverPath?: string;
+  publisher?: string;
+  publishedDate?: string; // YYYY-MM-DD or YYYY
+  language?: string;
+}
+
 // Calibre folder path from environment (e.g., /Applications/calibre.app/Contents/MacOS)
 const CALIBRE_PATH = process.env.CALIBRE_PATH;
 
@@ -295,6 +312,112 @@ class CalibreService {
       proc.on("error", (error) => {
         logger.debug(`[Calibre] Cover extraction error: ${error.message}`);
         resolve(null);
+      });
+    });
+  }
+
+  /**
+   * Embed metadata into an ebook file using ebook-meta
+   * @param filePath Path to the ebook file
+   * @param metadata Metadata to embed
+   */
+  async embedMetadata(
+    filePath: string,
+    metadata: BookMetadataInput,
+  ): Promise<void> {
+    if (!existsSync(filePath)) {
+      throw new Error(`File does not exist: ${filePath}`);
+    }
+
+    // Build arguments for ebook-meta
+    const args: string[] = [filePath];
+
+    if (metadata.title) {
+      args.push("--title", metadata.title);
+    }
+
+    if (metadata.authors && metadata.authors.length > 0) {
+      // ebook-meta expects authors separated by " & "
+      args.push("--authors", metadata.authors.join(" & "));
+    }
+
+    if (metadata.series) {
+      args.push("--series", metadata.series);
+      if (metadata.seriesIndex !== undefined) {
+        args.push("--index", metadata.seriesIndex.toString());
+      }
+    }
+
+    if (metadata.description) {
+      // ebook-meta uses --comments for description
+      args.push("--comments", metadata.description);
+    }
+
+    if (metadata.isbn) {
+      args.push("--isbn", metadata.isbn);
+    }
+
+    if (metadata.tags && metadata.tags.length > 0) {
+      // ebook-meta expects comma-separated tags
+      args.push("--tags", metadata.tags.join(","));
+    }
+
+    if (metadata.coverPath && existsSync(metadata.coverPath)) {
+      args.push("--cover", metadata.coverPath);
+    }
+
+    if (metadata.publisher) {
+      args.push("--publisher", metadata.publisher);
+    }
+
+    if (metadata.publishedDate) {
+      args.push("--date", metadata.publishedDate);
+    }
+
+    if (metadata.language) {
+      args.push("--language", metadata.language);
+    }
+
+    // If no metadata fields were provided, nothing to do
+    if (args.length === 1) {
+      logger.debug(`[Calibre] No metadata to embed for: ${filePath}`);
+      return;
+    }
+
+    logger.info(
+      `[Calibre] Embedding metadata into: ${basename(filePath)} (${args.length - 1} fields)`,
+    );
+
+    return new Promise((resolve, reject) => {
+      const proc = spawn(getCalibreBinary("ebook-meta"), args, {
+        timeout: 60 * 1000, // 60 second timeout
+      });
+
+      let stdout = "";
+      let stderr = "";
+
+      proc.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on("close", (code) => {
+        if (code === 0) {
+          logger.info(`[Calibre] Metadata embedded successfully: ${filePath}`);
+          logger.debug(`[Calibre] ebook-meta output: ${stdout}`);
+          resolve();
+        } else {
+          const errorMsg = `ebook-meta failed with code ${code}: ${stderr || stdout}`;
+          logger.error(`[Calibre] ${errorMsg}`);
+          reject(new Error(errorMsg));
+        }
+      });
+
+      proc.on("error", (error) => {
+        reject(new Error(`Failed to start ebook-meta: ${error.message}`));
       });
     });
   }

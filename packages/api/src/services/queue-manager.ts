@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import { eq } from "drizzle-orm";
 import { downloadTracker } from "./download-tracker.js";
 import { downloader } from "./downloader.js";
 import { fileManager } from "../utils/file-manager.js";
@@ -14,8 +15,9 @@ import { emailSettingsService } from "./email-settings.js";
 import { emailService } from "./email.js";
 import { tolinoSettingsService } from "./tolino-settings.js";
 import { tolinoUploadService } from "./tolino/uploader.js";
+import { listSettingsService } from "./list-settings.js";
 import { calibreService } from "./calibre.js";
-import type { CalibreOutputFormat } from "./calibre.js";
+import type { CalibreOutputFormat, BookMetadataInput } from "./calibre.js";
 import { unlink } from "fs/promises";
 import type {
   QueueResponse,
@@ -23,7 +25,13 @@ import type {
   DownloadStatus,
 } from "@ephemera/shared";
 import { getErrorMessage } from "@ephemera/shared";
-import type { Download } from "../db/schema.js";
+import { db } from "../db/index.js";
+import {
+  downloadRequests,
+  bookMetadata,
+  type Download,
+  type BookMetadata,
+} from "../db/schema.js";
 const MAX_DELAYED_RETRY_ATTEMPTS = 24; // 24 hours of hourly retries
 const DELAYED_RETRY_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
 
@@ -510,6 +518,37 @@ export class QueueManager extends EventEmitter {
       }
     }
 
+    // Embed metadata from import list (if available and enabled)
+    try {
+      const listSettings = await listSettingsService.getSettings();
+      if (listSettings.embedMetadataInBooks) {
+        const metadata = await this.getMetadataForDownload(md5);
+        if (metadata && (await calibreService.isAvailable())) {
+          logger.info(`[Post-Download] Embedding metadata: ${title}`);
+
+          const metadataInput: BookMetadataInput = {
+            title: metadata.title,
+            authors: [metadata.author],
+            series: metadata.seriesName || undefined,
+            seriesIndex: metadata.seriesPosition ?? undefined,
+            description: metadata.description || undefined,
+            isbn: metadata.isbn || undefined,
+            tags: metadata.genres || undefined,
+            coverPath: metadata.coverPath || undefined,
+            publishedDate: metadata.publishedYear?.toString() || undefined,
+          };
+
+          await calibreService.embedMetadata(result.filePath, metadataInput);
+          logger.success(`[Post-Download] Metadata embedded: ${title}`);
+        }
+      }
+    } catch (err) {
+      // Non-blocking: continue with original file
+      logger.warn(
+        `[Post-Download] Metadata embedding failed: ${getErrorMessage(err)}`,
+      );
+    }
+
     logger.info(
       `[Post-Download] Settings: moveToIngest=${postDownloadMoveToIngest}, keepInDownloads=${postDownloadKeepInDownloads}, uploadToBooklore=${postDownloadUploadToBooklore}, moveToIndexer=${postDownloadMoveToIndexer}`,
     );
@@ -665,10 +704,25 @@ export class QueueManager extends EventEmitter {
             download.userId,
           );
           if (tolinoSettings?.autoUpload) {
+            // Determine collection name: series name (if enabled) or default collection
+            let collectionName: string | undefined =
+              tolinoSettings.autoUploadCollection || undefined;
+
+            if (tolinoSettings.useSeriesAsCollection) {
+              const bookMetadata = await this.getMetadataForDownload(md5);
+              if (bookMetadata?.seriesName) {
+                collectionName = bookMetadata.seriesName;
+                logger.info(
+                  `[Auto-Tolino] Using series "${collectionName}" as collection`,
+                );
+              }
+            }
+
             logger.info(`[Auto-Tolino] Uploading "${title}" to Tolino Cloud`);
             const uploadResult = await tolinoUploadService.uploadBook(
               download.userId,
               md5,
+              { collectionName },
             );
             if (uploadResult.success) {
               logger.success(
@@ -679,8 +733,7 @@ export class QueueManager extends EventEmitter {
               await appriseService.send("tolino_uploaded", {
                 bookTitle: title,
                 bookAuthors: book?.authors,
-                collectionName:
-                  tolinoSettings.autoUploadCollection || undefined,
+                collectionName,
               });
             } else {
               logger.error(
@@ -1059,6 +1112,42 @@ export class QueueManager extends EventEmitter {
     if (index !== -1) {
       this.queue.splice(index, 1);
       this.emitQueueUpdate();
+    }
+  }
+
+  /**
+   * Get book metadata from import list for a download (by MD5)
+   * Returns null if no metadata is associated with this download
+   */
+  private async getMetadataForDownload(
+    md5: string,
+  ): Promise<BookMetadata | null> {
+    try {
+      // Find the request that resulted in this download
+      const [request] = await db
+        .select()
+        .from(downloadRequests)
+        .where(eq(downloadRequests.fulfilledBookMd5, md5))
+        .limit(1);
+
+      if (!request) {
+        return null;
+      }
+
+      // Get metadata associated with this request
+      const [metadata] = await db
+        .select()
+        .from(bookMetadata)
+        .where(eq(bookMetadata.requestId, request.id))
+        .limit(1);
+
+      return metadata || null;
+    } catch (error) {
+      logger.warn(
+        `[QueueManager] Failed to get metadata for download ${md5}:`,
+        error,
+      );
+      return null;
     }
   }
 }

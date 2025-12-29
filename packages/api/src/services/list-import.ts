@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import {
   importLists,
   downloadRequests,
+  bookMetadata,
   user,
   type ImportList,
   type NewImportList,
@@ -11,6 +12,7 @@ import { logger } from "../utils/logger.js";
 import { permissionsService } from "./permissions.js";
 import { requestCheckerService } from "./request-checker.js";
 import { appriseService } from "./apprise.js";
+import { coverDownloader } from "./cover-downloader.js";
 import {
   getFetcher,
   type ListSource,
@@ -432,6 +434,9 @@ class ListImportService {
     const queryParams = {
       author: book.author,
       title: book.title,
+      // Include ISBN and year from book metadata for enhanced search
+      ...(book.isbn && { isbn: book.isbn }),
+      ...(book.publishedYear && { year: book.publishedYear }),
       ...(langFilter && { lang: langFilter }),
       ...(list.searchDefaults?.ext && { ext: list.searchDefaults.ext }),
       ...(list.searchDefaults?.content && {
@@ -494,9 +499,67 @@ class ListImportService {
       })
       .returning();
 
+    const requestId = result[0].id;
+
     logger.info(
       `[ListImport] Created ${status} request for "${book.title}" by ${book.author}`,
     );
+
+    // Store enriched metadata if available
+    const hasMetadata =
+      book.description ||
+      book.coverUrl ||
+      book.seriesName ||
+      book.pages ||
+      book.publishedYear ||
+      book.rating ||
+      book.averageRating ||
+      book.genres?.length ||
+      book.sourceBookId;
+
+    if (hasMetadata) {
+      try {
+        // Download cover image if available
+        let coverPath: string | null = null;
+        if (book.coverUrl) {
+          coverPath = await coverDownloader.downloadCover(
+            book.coverUrl,
+            book.hash,
+          );
+        }
+
+        await db.insert(bookMetadata).values({
+          requestId,
+          source: list.source,
+          sourceBookId: book.sourceBookId || null,
+          sourceUrl: book.sourceUrl || null,
+          title: book.title,
+          author: book.author,
+          description: book.description || null,
+          isbn: book.isbn || null,
+          seriesName: book.seriesName || null,
+          seriesPosition: book.seriesPosition ?? null,
+          publishedYear: book.publishedYear ?? null,
+          pages: book.pages ?? null,
+          rating: book.rating ?? null,
+          averageRating: book.averageRating ?? null,
+          genres: book.genres || null,
+          coverUrl: book.coverUrl || null,
+          coverPath,
+          fetchedAt: Date.now(),
+        });
+
+        logger.debug(
+          `[ListImport] Stored metadata for "${book.title}" (cover: ${coverPath ? "yes" : "no"})`,
+        );
+      } catch (metadataError) {
+        // Non-blocking: continue even if metadata storage fails
+        logger.warn(
+          `[ListImport] Failed to store metadata for "${book.title}":`,
+          metadataError,
+        );
+      }
+    }
 
     // Send notification for new request with list context
     const userResult = await db
@@ -516,10 +579,10 @@ class ListImportService {
     });
 
     // If active, trigger an immediate check
-    if (status === "active" && result[0]) {
-      requestCheckerService.checkSingleRequest(result[0].id).catch((error) => {
+    if (status === "active") {
+      requestCheckerService.checkSingleRequest(requestId).catch((error) => {
         logger.error(
-          `[ListImport] Failed to check request ${result[0].id}:`,
+          `[ListImport] Failed to check request ${requestId}:`,
           error,
         );
       });

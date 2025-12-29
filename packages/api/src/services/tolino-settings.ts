@@ -72,6 +72,7 @@ export interface TolinoSettingsInput {
   autoUpload: boolean;
   askCollectionOnUpload?: boolean;
   autoUploadCollection?: string | null;
+  useSeriesAsCollection?: boolean;
 }
 
 export interface TolinoSettingsResponse {
@@ -80,6 +81,7 @@ export interface TolinoSettingsResponse {
   autoUpload: boolean;
   askCollectionOnUpload: boolean;
   autoUploadCollection: string | null;
+  useSeriesAsCollection: boolean;
   isConnected: boolean;
   tokenExpiresAt: number | null;
   createdAt: string;
@@ -113,6 +115,7 @@ class TolinoSettingsService {
       autoUpload: settings.autoUpload,
       askCollectionOnUpload: settings.askCollectionOnUpload,
       autoUploadCollection: settings.autoUploadCollection,
+      useSeriesAsCollection: settings.useSeriesAsCollection,
       isConnected: this.isConnected(settings),
       tokenExpiresAt: settings.tokenExpiresAt,
       createdAt: settings.createdAt.toISOString(),
@@ -204,6 +207,7 @@ class TolinoSettingsService {
           autoUpload: input.autoUpload,
           askCollectionOnUpload: input.askCollectionOnUpload ?? false,
           autoUploadCollection: input.autoUploadCollection ?? null,
+          useSeriesAsCollection: input.useSeriesAsCollection ?? false,
           updatedAt: now,
         })
         .where(eq(tolinoSettings.userId, userId));
@@ -221,6 +225,7 @@ class TolinoSettingsService {
         autoUpload: input.autoUpload,
         askCollectionOnUpload: input.askCollectionOnUpload ?? false,
         autoUploadCollection: input.autoUploadCollection ?? null,
+        useSeriesAsCollection: input.useSeriesAsCollection ?? false,
         createdAt: now,
         updatedAt: now,
       });
@@ -248,6 +253,7 @@ class TolinoSettingsService {
       autoUpload: input.autoUpload,
       askCollectionOnUpload: input.askCollectionOnUpload ?? false,
       autoUploadCollection: input.autoUploadCollection ?? null,
+      useSeriesAsCollection: input.useSeriesAsCollection ?? false,
       isConnected: true,
       tokenExpiresAt: tokens.expiresAt,
       createdAt: now.toISOString(),
@@ -275,14 +281,19 @@ class TolinoSettingsService {
     userId: string,
     askCollectionOnUpload: boolean,
     autoUploadCollection: string | null,
+    useSeriesAsCollection?: boolean,
   ): Promise<void> {
+    const updateData: Record<string, unknown> = {
+      askCollectionOnUpload,
+      autoUploadCollection,
+      updatedAt: new Date(),
+    };
+    if (useSeriesAsCollection !== undefined) {
+      updateData.useSeriesAsCollection = useSeriesAsCollection;
+    }
     await db
       .update(tolinoSettings)
-      .set({
-        askCollectionOnUpload,
-        autoUploadCollection,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(tolinoSettings.userId, userId));
   }
 

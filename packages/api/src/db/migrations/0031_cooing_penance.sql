@@ -1,0 +1,1 @@
+ALTER TABLE `tolino_settings` ADD `use_series_as_collection` integer DEFAULT false NOT NULL;

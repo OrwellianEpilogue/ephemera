@@ -14,6 +14,9 @@ import { permissionsService } from "../services/permissions.js";
 import { appriseService } from "../services/apprise.js";
 import type { User } from "../db/schema.js";
 import { logger } from "../utils/logger.js";
+import { db } from "../db/index.js";
+import { downloadRequests, bookMetadata } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 
 // Helper to check if user is admin
 const isAdmin = (user: User): boolean => user.role === "admin";
@@ -73,6 +76,7 @@ const settingsSchema = z.object({
   autoUpload: z.boolean(),
   askCollectionOnUpload: z.boolean().optional(),
   autoUploadCollection: z.string().nullable().optional(),
+  useSeriesAsCollection: z.boolean().optional(),
 });
 
 tolino.put("/settings", zValidator("json", settingsSchema), async (c) => {
@@ -87,6 +91,7 @@ tolino.put("/settings", zValidator("json", settingsSchema), async (c) => {
       autoUpload: body.autoUpload,
       askCollectionOnUpload: body.askCollectionOnUpload,
       autoUploadCollection: body.autoUploadCollection,
+      useSeriesAsCollection: body.useSeriesAsCollection,
     });
 
     return c.json({
@@ -146,6 +151,7 @@ tolino.delete("/settings", async (c) => {
 const collectionSettingsSchema = z.object({
   askCollectionOnUpload: z.boolean(),
   autoUploadCollection: z.string().nullable(),
+  useSeriesAsCollection: z.boolean().optional(),
 });
 
 tolino.patch(
@@ -153,7 +159,11 @@ tolino.patch(
   zValidator("json", collectionSettingsSchema),
   async (c) => {
     const user = c.get("user")!;
-    const { askCollectionOnUpload, autoUploadCollection } = c.req.valid("json");
+    const {
+      askCollectionOnUpload,
+      autoUploadCollection,
+      useSeriesAsCollection,
+    } = c.req.valid("json");
 
     const hasSettings = await tolinoSettingsService.hasSettings(user.id);
     if (!hasSettings) {
@@ -164,12 +174,14 @@ tolino.patch(
       user.id,
       askCollectionOnUpload,
       autoUploadCollection,
+      useSeriesAsCollection,
     );
 
     return c.json({
       success: true,
       askCollectionOnUpload,
       autoUploadCollection,
+      useSeriesAsCollection,
     });
   },
 );
@@ -299,6 +311,42 @@ tolino.get("/can-upload/:md5", async (c) => {
   const result = await tolinoUploadService.canUpload(md5);
 
   return c.json(result);
+});
+
+/**
+ * GET /tolino/suggested-collection/:md5
+ * Get suggested collection (series name) for a book
+ * Always returns series name if available - the setting only controls auto-upload behavior
+ */
+tolino.get("/suggested-collection/:md5", async (c) => {
+  const md5 = c.req.param("md5");
+
+  try {
+    // Find request that was fulfilled with this book
+    const [request] = await db
+      .select()
+      .from(downloadRequests)
+      .where(eq(downloadRequests.fulfilledBookMd5, md5))
+      .limit(1);
+
+    if (!request) {
+      return c.json({ suggestedCollection: null });
+    }
+
+    // Get metadata for this request
+    const [metadata] = await db
+      .select()
+      .from(bookMetadata)
+      .where(eq(bookMetadata.requestId, request.id))
+      .limit(1);
+
+    return c.json({
+      suggestedCollection: metadata?.seriesName || null,
+    });
+  } catch (error) {
+    logger.warn(`[Tolino Routes] Error getting suggested collection:`, error);
+    return c.json({ suggestedCollection: null });
+  }
 });
 
 /**

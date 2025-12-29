@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useEffect, useState, useMemo } from "react";
 import { apiFetch, getErrorMessage } from "@ephemera/shared";
 import type {
-  SavedRequestWithBook,
+  SavedRequestWithMetadata,
   RequestStats,
   CreateRequestInput,
 } from "@ephemera/shared";
@@ -13,7 +13,7 @@ interface UseRequestsOptions {
 }
 
 interface RequestsUpdate {
-  requests: SavedRequestWithBook[];
+  requests: SavedRequestWithMetadata[];
   stats: RequestStats;
 }
 
@@ -38,7 +38,7 @@ export const useRequests = (
     queryKey: ["requests", status],
     queryFn: async () => {
       const url = status ? `/requests?status=${status}` : "/requests";
-      return apiFetch<SavedRequestWithBook[]>(url);
+      return apiFetch<SavedRequestWithMetadata[]>(url);
     },
     // Only poll if SSE is enabled but not yet connected (fallback)
     // If SSE is disabled, don't poll (rely on cache from root component)
@@ -142,7 +142,7 @@ export const useRequestStats = () => {
 export const useCreateRequest = () => {
   return useMutation({
     mutationFn: async (input: CreateRequestInput) => {
-      return apiFetch<SavedRequestWithBook>("/requests", {
+      return apiFetch<SavedRequestWithMetadata>("/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),

@@ -27,7 +27,11 @@ import { useBookStatus } from "../hooks/useBookStatus";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { useFrontendConfig } from "../hooks/useConfig";
 import { useEmailRecipients, useSendBookEmail } from "../hooks/useEmail";
-import { useTolinoSettings, useTolinoUpload } from "../hooks/useTolino";
+import {
+  useTolinoSettings,
+  useTolinoUpload,
+  useTolinoSuggestedCollection,
+} from "../hooks/useTolino";
 import { useCalibreStatus } from "../hooks/useCalibre";
 import { TolinoUploadDialog } from "./TolinoUploadDialog";
 import { memo, useState } from "react";
@@ -199,6 +203,12 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
     isError,
     remainingCountdown,
   } = useBookStatus(book.md5, book.downloadStatus);
+
+  // Fetch suggested collection when dialog is open
+  const { data: suggestedCollectionData } = useTolinoSuggestedCollection(
+    book.md5,
+    tolinoDialogOpened,
+  );
 
   const handleDownload = () => {
     queueDownload.mutate({
@@ -556,6 +566,7 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
         isUploading={tolinoUpload.isPending}
         bookTitle={book.title}
         needsConversion={needsConversion}
+        suggestedCollection={suggestedCollectionData?.suggestedCollection}
       />
     </Card>
   );

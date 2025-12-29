@@ -489,6 +489,11 @@ export class AAScraper {
         params.append(`termval_${termIndex}`, query.title);
         termIndex++;
       }
+      if (query.year) {
+        params.append(`termtype_${termIndex}`, "year");
+        params.append(`termval_${termIndex}`, query.year.toString());
+        termIndex++;
+      }
 
       params.append("display", "");
       params.append("q", query.q || "");

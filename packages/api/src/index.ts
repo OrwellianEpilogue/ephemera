@@ -69,6 +69,7 @@ import tolinoRoutes from "./routes/tolino.js";
 import configRoutes from "./routes/config.js";
 import listsRoutes from "./routes/lists.js";
 import listsAdminRoutes from "./routes/lists-admin.js";
+import coversRoutes from "./routes/covers.js";
 import { setupSecurityService } from "./services/setup-security.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -441,6 +442,7 @@ app.route(API_BASE_PATH, apiKeysRoutes); // Protected by canManageApiKeys
 app.route(`${API_BASE_PATH}/settings/proxy-auth`, proxyAuthRoutes); // Admin only
 app.route(API_BASE_PATH, listsRoutes); // Protected by canManageLists
 app.route(`${API_BASE_PATH}/admin/lists`, listsAdminRoutes); // Admin only
+app.route(API_BASE_PATH, coversRoutes); // Public (cover images)
 app.route("/newznab", newznabRoutes); // Public (has API key auth)
 app.route("/sabnzbd", sabnzbdRoutes); // Public (has API key auth)
 

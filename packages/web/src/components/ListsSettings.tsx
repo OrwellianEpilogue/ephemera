@@ -13,6 +13,7 @@ import {
   Table,
   Tooltip,
   Alert,
+  Switch,
 } from "@mantine/core";
 import { IconRefresh, IconCheck, IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -55,11 +56,17 @@ export default function ListsSettings() {
   const [interval, setInterval] = useState<ListFetchInterval>("6h");
   const [hardcoverToken, setHardcoverToken] = useState("");
   const [tokenChanged, setTokenChanged] = useState(false);
+  const [searchByIsbnFirst, setSearchByIsbnFirst] = useState(true);
+  const [includeYearInSearch, setIncludeYearInSearch] = useState(true);
+  const [embedMetadataInBooks, setEmbedMetadataInBooks] = useState(true);
 
   // Initialize form state from settings
   useEffect(() => {
     if (settings) {
       setInterval(settings.listFetchInterval);
+      setSearchByIsbnFirst(settings.searchByIsbnFirst);
+      setIncludeYearInSearch(settings.includeYearInSearch);
+      setEmbedMetadataInBooks(settings.embedMetadataInBooks);
       // Don't set token - it's masked on server
     }
   }, [settings]);
@@ -68,6 +75,9 @@ export default function ListsSettings() {
     const updates: {
       listFetchInterval?: ListFetchInterval;
       hardcoverApiToken?: string;
+      searchByIsbnFirst?: boolean;
+      includeYearInSearch?: boolean;
+      embedMetadataInBooks?: boolean;
     } = {};
 
     if (settings?.listFetchInterval !== interval) {
@@ -76,6 +86,18 @@ export default function ListsSettings() {
 
     if (tokenChanged && hardcoverToken) {
       updates.hardcoverApiToken = hardcoverToken;
+    }
+
+    if (settings?.searchByIsbnFirst !== searchByIsbnFirst) {
+      updates.searchByIsbnFirst = searchByIsbnFirst;
+    }
+
+    if (settings?.includeYearInSearch !== includeYearInSearch) {
+      updates.includeYearInSearch = includeYearInSearch;
+    }
+
+    if (settings?.embedMetadataInBooks !== embedMetadataInBooks) {
+      updates.embedMetadataInBooks = embedMetadataInBooks;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -232,6 +254,35 @@ export default function ListsSettings() {
               setHardcoverToken(e.currentTarget.value);
               setTokenChanged(true);
             }}
+          />
+
+          <Title order={4} mt="md">
+            Search Enhancement
+          </Title>
+
+          <Switch
+            label="Search by ISBN first"
+            description="When enabled, searches by ISBN first (if available from import source), then falls back to title/author if no results are found. Applies to import list requests and manual search."
+            checked={searchByIsbnFirst}
+            onChange={(e) => setSearchByIsbnFirst(e.currentTarget.checked)}
+          />
+
+          <Switch
+            label="Include year in search"
+            description="When enabled, includes the publication year in title/author searches (if available). This can improve result accuracy but may exclude re-releases."
+            checked={includeYearInSearch}
+            onChange={(e) => setIncludeYearInSearch(e.currentTarget.checked)}
+          />
+
+          <Title order={4} mt="md">
+            Post-Download Processing
+          </Title>
+
+          <Switch
+            label="Embed metadata in books"
+            description="When enabled, embeds enriched metadata from Goodreads, Hardcover or Storygraph (cover, series, description, etc.) into downloaded ebooks using Calibre. Requires Calibre to be installed. Supported formats: EPUB, MOBI, AZW, AZW3 (full); PDF (limited)."
+            checked={embedMetadataInBooks}
+            onChange={(e) => setEmbedMetadataInBooks(e.currentTarget.checked)}
           />
 
           <Group justify="flex-end">
