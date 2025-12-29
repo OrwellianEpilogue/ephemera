@@ -153,6 +153,15 @@ function SettingsComponent() {
     }
   };
 
+  // Find the first tab the user has permission to access
+  const getDefaultTab = (): string => {
+    if (isAdmin) return "general";
+    if (canConfigureApp) return "general";
+    if (canConfigureNotifications) return "notifications";
+    // Email is always accessible
+    return "email";
+  };
+
   // Redirect users who try to access tabs they don't have permission for
   useEffect(() => {
     if (loadingPermissions) return; // Wait for permissions to load
@@ -161,13 +170,13 @@ function SettingsComponent() {
 
     // Redirect non-admins trying to access admin tabs
     if (isAdminTab && !isAdmin) {
-      navigate({ search: { tab: "general" } });
+      navigate({ search: { tab: getDefaultTab() } });
       return;
     }
 
     // Redirect users without proper permission trying to access settings tabs
     if (!isAdminTab && !getTabPermission(tab)) {
-      navigate({ search: { tab: "general" } });
+      navigate({ search: { tab: getDefaultTab() } });
       return;
     }
   }, [tab, isAdmin, loadingPermissions, navigate, permissions]);
@@ -739,416 +748,422 @@ function SettingsComponent() {
             )}
           </Tabs.List>
 
-          <Tabs.Panel value="general" pt="md">
-            <Stack gap="lg">
-              {/* Post-Download Actions */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>Post-Download Actions</Title>
-                  <Text size="sm" c="dimmed">
-                    Configure what happens after a book is successfully
-                    downloaded
-                  </Text>
-
+          {canConfigureApp && (
+            <Tabs.Panel value="general" pt="md">
+              <Stack gap="lg">
+                {/* Post-Download Actions */}
+                <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Checkbox
-                      checked={postDownloadMoveToIngest}
-                      onChange={(event) =>
-                        setPostDownloadMoveToIngest(event.currentTarget.checked)
-                      }
-                      label="Move to Ingest"
-                      description="Move downloaded files to your configured ingest folder"
-                    />
+                    <Title order={3}>Post-Download Actions</Title>
+                    <Text size="sm" c="dimmed">
+                      Configure what happens after a book is successfully
+                      downloaded
+                    </Text>
 
-                    <Checkbox
-                      checked={postDownloadKeepInDownloads}
-                      onChange={(event) =>
-                        setPostDownloadKeepInDownloads(
-                          event.currentTarget.checked,
-                        )
-                      }
-                      label="Keep copy in downloads folder"
-                      description="Keep the original file in the downloads folder for email/browser downloads (copies instead of moves)"
-                      disabled={!postDownloadMoveToIngest}
-                    />
+                    <Stack gap="md">
+                      <Checkbox
+                        checked={postDownloadMoveToIngest}
+                        onChange={(event) =>
+                          setPostDownloadMoveToIngest(
+                            event.currentTarget.checked,
+                          )
+                        }
+                        label="Move to Ingest"
+                        description="Move downloaded files to your configured ingest folder"
+                      />
 
-                    <Checkbox
-                      checked={postDownloadUploadToBooklore}
-                      onChange={(event) =>
-                        setPostDownloadUploadToBooklore(
-                          event.currentTarget.checked,
-                        )
-                      }
-                      label="Upload to Booklore"
-                      description="Upload to Booklore library (requires Booklore configuration)"
-                      disabled={
-                        !bookloreSettings?.enabled ||
-                        !bookloreSettings?.connected
-                      }
-                    />
+                      <Checkbox
+                        checked={postDownloadKeepInDownloads}
+                        onChange={(event) =>
+                          setPostDownloadKeepInDownloads(
+                            event.currentTarget.checked,
+                          )
+                        }
+                        label="Keep copy in downloads folder"
+                        description="Keep the original file in the downloads folder for email/browser downloads (copies instead of moves)"
+                        disabled={!postDownloadMoveToIngest}
+                      />
 
-                    <Checkbox
-                      checked={postDownloadMoveToIndexer}
-                      onChange={(event) =>
-                        setPostDownloadMoveToIndexer(
-                          event.currentTarget.checked,
-                        )
-                      }
-                      label="Move to Indexer Directory"
-                      description="Move to separate directory for indexer downloads (SABnzbd/Readarr)"
-                      disabled={
-                        !indexerSettings?.newznabEnabled &&
-                        !indexerSettings?.sabnzbdEnabled
-                      }
-                    />
+                      <Checkbox
+                        checked={postDownloadUploadToBooklore}
+                        onChange={(event) =>
+                          setPostDownloadUploadToBooklore(
+                            event.currentTarget.checked,
+                          )
+                        }
+                        label="Upload to Booklore"
+                        description="Upload to Booklore library (requires Booklore configuration)"
+                        disabled={
+                          !bookloreSettings?.enabled ||
+                          !bookloreSettings?.connected
+                        }
+                      />
 
-                    <Checkbox
-                      checked={postDownloadNormalizeEpub}
-                      onChange={(event) =>
-                        setPostDownloadNormalizeEpub(
-                          event.currentTarget.checked,
-                        )
-                      }
-                      label="Normalize EPUBs for Kindle"
-                      description="Run EPUBs through Calibre to fix encoding issues (requires Calibre)"
-                    />
+                      <Checkbox
+                        checked={postDownloadMoveToIndexer}
+                        onChange={(event) =>
+                          setPostDownloadMoveToIndexer(
+                            event.currentTarget.checked,
+                          )
+                        }
+                        label="Move to Indexer Directory"
+                        description="Move to separate directory for indexer downloads (SABnzbd/Readarr)"
+                        disabled={
+                          !indexerSettings?.newznabEnabled &&
+                          !indexerSettings?.sabnzbdEnabled
+                        }
+                      />
+
+                      <Checkbox
+                        checked={postDownloadNormalizeEpub}
+                        onChange={(event) =>
+                          setPostDownloadNormalizeEpub(
+                            event.currentTarget.checked,
+                          )
+                        }
+                        label="Normalize EPUBs for Kindle"
+                        description="Run EPUBs through Calibre to fix encoding issues (requires Calibre)"
+                      />
+
+                      <Select
+                        label="Convert to Format"
+                        description="Automatically convert all downloads to this format (requires Calibre)"
+                        placeholder="No conversion"
+                        value={postDownloadConvertFormat}
+                        onChange={(value) =>
+                          setPostDownloadConvertFormat(
+                            value as "epub" | "pdf" | "mobi" | "azw3" | null,
+                          )
+                        }
+                        data={[
+                          { value: "epub", label: "EPUB" },
+                          { value: "pdf", label: "PDF" },
+                          { value: "mobi", label: "MOBI" },
+                          { value: "azw3", label: "AZW3" },
+                        ]}
+                        clearable
+                      />
+                    </Stack>
+
+                    {(!bookloreSettings?.enabled ||
+                      !bookloreSettings?.connected) && (
+                      <Alert icon={<IconInfoCircle size={16} />} color="blue">
+                        <Text size="sm">
+                          <strong>Note:</strong>{" "}
+                          {!bookloreSettings?.enabled
+                            ? "Enable and configure Booklore to use upload options."
+                            : "Authenticate with Booklore below to enable upload options."}
+                        </Text>
+                      </Alert>
+                    )}
+                  </Stack>
+                </Paper>
+
+                {/* Requests */}
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Title order={3}>Requests</Title>
+                    <Text size="sm" c="dimmed">
+                      Configure how saved book requests are checked
+                    </Text>
 
                     <Select
-                      label="Convert to Format"
-                      description="Automatically convert all downloads to this format (requires Calibre)"
-                      placeholder="No conversion"
-                      value={postDownloadConvertFormat}
+                      label="Request Check Interval"
+                      description="How often to automatically check saved book requests for new results"
+                      placeholder="Select interval"
+                      value={requestCheckInterval}
                       onChange={(value) =>
-                        setPostDownloadConvertFormat(
-                          value as "epub" | "pdf" | "mobi" | "azw3" | null,
-                        )
+                        setRequestCheckInterval(value as RequestCheckInterval)
                       }
                       data={[
-                        { value: "epub", label: "EPUB" },
-                        { value: "pdf", label: "PDF" },
-                        { value: "mobi", label: "MOBI" },
-                        { value: "azw3", label: "AZW3" },
+                        {
+                          value: "1min",
+                          label: "Every minute (Not recommended)",
+                        },
+                        { value: "15min", label: "Every 15 minutes" },
+                        { value: "30min", label: "Every 30 minutes" },
+                        { value: "1h", label: "Every hour" },
+                        { value: "6h", label: "Every 6 hours" },
+                        { value: "12h", label: "Every 12 hours" },
+                        { value: "24h", label: "Every 24 hours" },
+                        { value: "weekly", label: "Weekly" },
                       ]}
-                      clearable
+                      required
+                    />
+
+                    {requestCheckInterval === "1min" && (
+                      <Alert icon={<IconInfoCircle size={16} />} color="red">
+                        <Text size="sm">
+                          <strong>Warning:</strong> Checking every minute may
+                          result in excessive requests and could get you banned
+                          from the service. Use at your own risk.
+                        </Text>
+                      </Alert>
+                    )}
+                  </Stack>
+                </Paper>
+
+                {/* Display Preferences */}
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Title order={3}>Display Preferences</Title>
+                    <Text size="sm" c="dimmed">
+                      Customize how dates and times are displayed throughout the
+                      application
+                    </Text>
+
+                    <Radio.Group
+                      label="Time Format"
+                      description="Choose how times are displayed"
+                      value={timeFormat}
+                      onChange={(value) => setTimeFormat(value as TimeFormat)}
+                    >
+                      <Stack gap="sm" mt="xs">
+                        <Radio
+                          value="24h"
+                          label="24 Hours"
+                          description="Display times in 24 hours format (e.g., 14:30)"
+                        />
+                        <Radio
+                          value="ampm"
+                          label="12 Hours (AM/PM)"
+                          description="Display times in 12 hours format with AM/PM (e.g., 2:30 PM)"
+                        />
+                      </Stack>
+                    </Radio.Group>
+
+                    <Radio.Group
+                      label="Date Format"
+                      description="Choose how dates are displayed"
+                      value={dateFormat}
+                      onChange={(value) => setDateFormat(value as DateFormat)}
+                    >
+                      <Stack gap="sm" mt="xs">
+                        <Radio
+                          value="eur"
+                          label="EUR Format"
+                          description="DD.MM.YYYY (e.g., 31.12.2023)"
+                        />
+                        <Radio
+                          value="us"
+                          label="US Format"
+                          description="MM/DD/YYYY (e.g., 12/31/2023)"
+                        />
+                      </Stack>
+                    </Radio.Group>
+                  </Stack>
+                </Paper>
+
+                {/* Library Link */}
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Title order={3}>Library Link</Title>
+                    <Text size="sm" c="dimmed">
+                      Add a link to your external library (e.g., BookLore,
+                      Calibre-Web-Automated or other book management system)
+                    </Text>
+
+                    <TextInput
+                      label="Library URL"
+                      placeholder="https://booklore.example.com"
+                      value={libraryUrl}
+                      onChange={(e) => setLibraryUrl(e.target.value)}
+                      description="Enter the full URL to your library"
+                    />
+
+                    <Radio.Group
+                      label="Link Location"
+                      description="Choose where to display the library link"
+                      value={libraryLinkLocation}
+                      onChange={(value) =>
+                        setLibraryLinkLocation(value as LibraryLinkLocation)
+                      }
+                    >
+                      <Stack gap="sm" mt="xs">
+                        <Radio
+                          value="sidebar"
+                          label="Sidebar"
+                          description="Display the link in the sidebar navigation"
+                        />
+                        <Radio
+                          value="header"
+                          label="Header"
+                          description="Display the link in the header next to the theme toggle"
+                        />
+                        <Radio
+                          value="both"
+                          label="Sidebar & Header"
+                          description="Display the link in both the sidebar and header"
+                        />
+                      </Stack>
+                    </Radio.Group>
+                  </Stack>
+                </Paper>
+
+                {/* Cache */}
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Title order={3}>Cache</Title>
+                    <Text size="sm" c="dimmed">
+                      Configure cache retention settings
+                    </Text>
+
+                    <NumberInput
+                      label="Book Cache Retention Period"
+                      description="Number of days to keep book search and download cache before auto-deleting them (0 = never delete, cleanup runs daily)"
+                      placeholder="30"
+                      value={bookRetentionDays}
+                      onChange={(value) =>
+                        setBookRetentionDays(Number(value) || 0)
+                      }
+                      min={0}
+                      max={365}
+                      required
+                    />
+
+                    <NumberInput
+                      label="Book Search Cache Days"
+                      description="Number of days to keep books from search results in cache before auto-deleting them (0 = never delete, cleanup runs daily)"
+                      placeholder="7"
+                      value={bookSearchCacheDays}
+                      onChange={(value) =>
+                        setUndownloadedBookRetentionDays(Number(value) || 0)
+                      }
+                      min={0}
+                      max={365}
+                      required
                     />
                   </Stack>
+                </Paper>
 
-                  {(!bookloreSettings?.enabled ||
-                    !bookloreSettings?.connected) && (
-                    <Alert icon={<IconInfoCircle size={16} />} color="blue">
-                      <Text size="sm">
-                        <strong>Note:</strong>{" "}
-                        {!bookloreSettings?.enabled
-                          ? "Enable and configure Booklore to use upload options."
-                          : "Authenticate with Booklore below to enable upload options."}
-                      </Text>
-                    </Alert>
-                  )}
-                </Stack>
-              </Paper>
+                {/* Archive/Searcher Settings */}
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Title order={3}>Archive Settings</Title>
+                    <Text size="sm" c="dimmed">
+                      Configure the archive service for book searches and
+                      downloads
+                    </Text>
 
-              {/* Requests */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>Requests</Title>
-                  <Text size="sm" c="dimmed">
-                    Configure how saved book requests are checked
-                  </Text>
+                    <TextInput
+                      label="Searcher Base URL"
+                      description="Base URL for the archive/searcher service (e.g., Anna's Archive)"
+                      value={searcherBaseUrl}
+                      onChange={(e) => setSearcherBaseUrl(e.target.value)}
+                      placeholder="https://archive.org"
+                      required
+                    />
 
-                  <Select
-                    label="Request Check Interval"
-                    description="How often to automatically check saved book requests for new results"
-                    placeholder="Select interval"
-                    value={requestCheckInterval}
-                    onChange={(value) =>
-                      setRequestCheckInterval(value as RequestCheckInterval)
-                    }
-                    data={[
-                      {
-                        value: "1min",
-                        label: "Every minute (Not recommended)",
-                      },
-                      { value: "15min", label: "Every 15 minutes" },
-                      { value: "30min", label: "Every 30 minutes" },
-                      { value: "1h", label: "Every hour" },
-                      { value: "6h", label: "Every 6 hours" },
-                      { value: "12h", label: "Every 12 hours" },
-                      { value: "24h", label: "Every 24 hours" },
-                      { value: "weekly", label: "Weekly" },
-                    ]}
-                    required
-                  />
+                    <PasswordInput
+                      label="Searcher API Key"
+                      description="API key for authenticated downloads (optional, for faster downloads)"
+                      value={searcherApiKey}
+                      onChange={(e) => setSearcherApiKey(e.target.value)}
+                      placeholder="Optional API key"
+                    />
 
-                  {requestCheckInterval === "1min" && (
-                    <Alert icon={<IconInfoCircle size={16} />} color="red">
-                      <Text size="sm">
-                        <strong>Warning:</strong> Checking every minute may
-                        result in excessive requests and could get you banned
-                        from the service. Use at your own risk.
-                      </Text>
-                    </Alert>
-                  )}
-                </Stack>
-              </Paper>
+                    <TextInput
+                      label="Quick Download URL"
+                      description="Alternative fast download source (optional)"
+                      value={quickBaseUrl}
+                      onChange={(e) => setQuickBaseUrl(e.target.value)}
+                      placeholder="Optional alternative source"
+                    />
+                  </Stack>
+                </Paper>
 
-              {/* Display Preferences */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>Display Preferences</Title>
-                  <Text size="sm" c="dimmed">
-                    Customize how dates and times are displayed throughout the
-                    application
-                  </Text>
+                {/* Folder Paths */}
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Title order={3}>Folder Paths</Title>
+                    <Text size="sm" c="dimmed">
+                      Configure where downloaded files are stored
+                    </Text>
 
-                  <Radio.Group
-                    label="Time Format"
-                    description="Choose how times are displayed"
-                    value={timeFormat}
-                    onChange={(value) => setTimeFormat(value as TimeFormat)}
-                  >
-                    <Stack gap="sm" mt="xs">
-                      <Radio
-                        value="24h"
-                        label="24 Hours"
-                        description="Display times in 24 hours format (e.g., 14:30)"
-                      />
-                      <Radio
-                        value="ampm"
-                        label="12 Hours (AM/PM)"
-                        description="Display times in 12 hours format with AM/PM (e.g., 2:30 PM)"
-                      />
-                    </Stack>
-                  </Radio.Group>
+                    <TextInput
+                      label="Download Folder"
+                      description="Temporary folder for downloads in progress"
+                      value={downloadFolder}
+                      onChange={(e) => setDownloadFolder(e.target.value)}
+                      placeholder="./downloads"
+                    />
 
-                  <Radio.Group
-                    label="Date Format"
-                    description="Choose how dates are displayed"
-                    value={dateFormat}
-                    onChange={(value) => setDateFormat(value as DateFormat)}
-                  >
-                    <Stack gap="sm" mt="xs">
-                      <Radio
-                        value="eur"
-                        label="EUR Format"
-                        description="DD.MM.YYYY (e.g., 31.12.2023)"
-                      />
-                      <Radio
-                        value="us"
-                        label="US Format"
-                        description="MM/DD/YYYY (e.g., 12/31/2023)"
-                      />
-                    </Stack>
-                  </Radio.Group>
-                </Stack>
-              </Paper>
+                    <TextInput
+                      label="Ingest Folder"
+                      description="Final destination for completed downloads"
+                      value={ingestFolder}
+                      onChange={(e) => setIngestFolder(e.target.value)}
+                      placeholder="/path/to/final/books"
+                    />
+                  </Stack>
+                </Paper>
 
-              {/* Library Link */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>Library Link</Title>
-                  <Text size="sm" c="dimmed">
-                    Add a link to your external library (e.g., BookLore,
-                    Calibre-Web-Automated or other book management system)
-                  </Text>
+                {/* Download Settings */}
+                <Paper p="md" withBorder>
+                  <Stack gap="md">
+                    <Title order={3}>Download Settings</Title>
+                    <Text size="sm" c="dimmed">
+                      Configure download behavior and retry settings
+                    </Text>
 
-                  <TextInput
-                    label="Library URL"
-                    placeholder="https://booklore.example.com"
-                    value={libraryUrl}
-                    onChange={(e) => setLibraryUrl(e.target.value)}
-                    description="Enter the full URL to your library"
-                  />
+                    <NumberInput
+                      label="Max Concurrent Downloads"
+                      description="Maximum number of downloads that can run simultaneously (1-5)"
+                      value={maxConcurrentDownloads}
+                      onChange={(val) =>
+                        setMaxConcurrentDownloads(Number(val) || 1)
+                      }
+                      min={1}
+                      max={5}
+                    />
 
-                  <Radio.Group
-                    label="Link Location"
-                    description="Choose where to display the library link"
-                    value={libraryLinkLocation}
-                    onChange={(value) =>
-                      setLibraryLinkLocation(value as LibraryLinkLocation)
+                    <NumberInput
+                      label="Retry Attempts"
+                      description="Number of times to retry a failed download (1-10)"
+                      value={retryAttempts}
+                      onChange={(val) => setRetryAttempts(Number(val) || 3)}
+                      min={1}
+                      max={10}
+                    />
+
+                    <NumberInput
+                      label="Request Timeout (ms)"
+                      description="Timeout for API requests in milliseconds (5000-300000)"
+                      value={requestTimeout}
+                      onChange={(val) =>
+                        setRequestTimeout(Number(val) || 30000)
+                      }
+                      min={5000}
+                      max={300000}
+                      step={1000}
+                    />
+
+                    <NumberInput
+                      label="Search Cache TTL (seconds)"
+                      description="How long to cache search results (60-86400)"
+                      value={searchCacheTtl}
+                      onChange={(val) => setSearchCacheTtl(Number(val) || 300)}
+                      min={60}
+                      max={86400}
+                      step={60}
+                    />
+                  </Stack>
+                </Paper>
+
+                <Group justify="flex-end">
+                  <Button
+                    onClick={handleSaveApp}
+                    disabled={!hasAppChanges}
+                    loading={
+                      updateSettings.isPending || updateSystemConfig.isPending
                     }
                   >
-                    <Stack gap="sm" mt="xs">
-                      <Radio
-                        value="sidebar"
-                        label="Sidebar"
-                        description="Display the link in the sidebar navigation"
-                      />
-                      <Radio
-                        value="header"
-                        label="Header"
-                        description="Display the link in the header next to the theme toggle"
-                      />
-                      <Radio
-                        value="both"
-                        label="Sidebar & Header"
-                        description="Display the link in both the sidebar and header"
-                      />
-                    </Stack>
-                  </Radio.Group>
-                </Stack>
-              </Paper>
-
-              {/* Cache */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>Cache</Title>
-                  <Text size="sm" c="dimmed">
-                    Configure cache retention settings
-                  </Text>
-
-                  <NumberInput
-                    label="Book Cache Retention Period"
-                    description="Number of days to keep book search and download cache before auto-deleting them (0 = never delete, cleanup runs daily)"
-                    placeholder="30"
-                    value={bookRetentionDays}
-                    onChange={(value) =>
-                      setBookRetentionDays(Number(value) || 0)
-                    }
-                    min={0}
-                    max={365}
-                    required
-                  />
-
-                  <NumberInput
-                    label="Book Search Cache Days"
-                    description="Number of days to keep books from search results in cache before auto-deleting them (0 = never delete, cleanup runs daily)"
-                    placeholder="7"
-                    value={bookSearchCacheDays}
-                    onChange={(value) =>
-                      setUndownloadedBookRetentionDays(Number(value) || 0)
-                    }
-                    min={0}
-                    max={365}
-                    required
-                  />
-                </Stack>
-              </Paper>
-
-              {/* Archive/Searcher Settings */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>Archive Settings</Title>
-                  <Text size="sm" c="dimmed">
-                    Configure the archive service for book searches and
-                    downloads
-                  </Text>
-
-                  <TextInput
-                    label="Searcher Base URL"
-                    description="Base URL for the archive/searcher service (e.g., Anna's Archive)"
-                    value={searcherBaseUrl}
-                    onChange={(e) => setSearcherBaseUrl(e.target.value)}
-                    placeholder="https://archive.org"
-                    required
-                  />
-
-                  <PasswordInput
-                    label="Searcher API Key"
-                    description="API key for authenticated downloads (optional, for faster downloads)"
-                    value={searcherApiKey}
-                    onChange={(e) => setSearcherApiKey(e.target.value)}
-                    placeholder="Optional API key"
-                  />
-
-                  <TextInput
-                    label="Quick Download URL"
-                    description="Alternative fast download source (optional)"
-                    value={quickBaseUrl}
-                    onChange={(e) => setQuickBaseUrl(e.target.value)}
-                    placeholder="Optional alternative source"
-                  />
-                </Stack>
-              </Paper>
-
-              {/* Folder Paths */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>Folder Paths</Title>
-                  <Text size="sm" c="dimmed">
-                    Configure where downloaded files are stored
-                  </Text>
-
-                  <TextInput
-                    label="Download Folder"
-                    description="Temporary folder for downloads in progress"
-                    value={downloadFolder}
-                    onChange={(e) => setDownloadFolder(e.target.value)}
-                    placeholder="./downloads"
-                  />
-
-                  <TextInput
-                    label="Ingest Folder"
-                    description="Final destination for completed downloads"
-                    value={ingestFolder}
-                    onChange={(e) => setIngestFolder(e.target.value)}
-                    placeholder="/path/to/final/books"
-                  />
-                </Stack>
-              </Paper>
-
-              {/* Download Settings */}
-              <Paper p="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>Download Settings</Title>
-                  <Text size="sm" c="dimmed">
-                    Configure download behavior and retry settings
-                  </Text>
-
-                  <NumberInput
-                    label="Max Concurrent Downloads"
-                    description="Maximum number of downloads that can run simultaneously (1-5)"
-                    value={maxConcurrentDownloads}
-                    onChange={(val) =>
-                      setMaxConcurrentDownloads(Number(val) || 1)
-                    }
-                    min={1}
-                    max={5}
-                  />
-
-                  <NumberInput
-                    label="Retry Attempts"
-                    description="Number of times to retry a failed download (1-10)"
-                    value={retryAttempts}
-                    onChange={(val) => setRetryAttempts(Number(val) || 3)}
-                    min={1}
-                    max={10}
-                  />
-
-                  <NumberInput
-                    label="Request Timeout (ms)"
-                    description="Timeout for API requests in milliseconds (5000-300000)"
-                    value={requestTimeout}
-                    onChange={(val) => setRequestTimeout(Number(val) || 30000)}
-                    min={5000}
-                    max={300000}
-                    step={1000}
-                  />
-
-                  <NumberInput
-                    label="Search Cache TTL (seconds)"
-                    description="How long to cache search results (60-86400)"
-                    value={searchCacheTtl}
-                    onChange={(val) => setSearchCacheTtl(Number(val) || 300)}
-                    min={60}
-                    max={86400}
-                    step={60}
-                  />
-                </Stack>
-              </Paper>
-
-              <Group justify="flex-end">
-                <Button
-                  onClick={handleSaveApp}
-                  disabled={!hasAppChanges}
-                  loading={
-                    updateSettings.isPending || updateSystemConfig.isPending
-                  }
-                >
-                  Save Settings
-                </Button>
-              </Group>
-            </Stack>
-          </Tabs.Panel>
+                    Save Settings
+                  </Button>
+                </Group>
+              </Stack>
+            </Tabs.Panel>
+          )}
 
           <Tabs.Panel value="notifications" pt="md">
             <Stack gap="lg">

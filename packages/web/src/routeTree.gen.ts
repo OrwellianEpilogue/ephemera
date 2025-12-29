@@ -18,7 +18,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ListsRouteImport } from './routes/lists'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SettingsOidcRouteImport } from './routes/settings.oidc'
 import { Route as LoginErrorRouteImport } from './routes/login_.error'
 
 const SetupRoute = SetupRouteImport.update({
@@ -66,11 +65,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsOidcRoute = SettingsOidcRouteImport.update({
-  id: '/oidc',
-  path: '/oidc',
-  getParentRoute: () => SettingsRoute,
-} as any)
 const LoginErrorRoute = LoginErrorRouteImport.update({
   id: '/login_/error',
   path: '/login/error',
@@ -85,10 +79,9 @@ export interface FileRoutesByFullPath {
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
   '/search': typeof SearchRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/login/error': typeof LoginErrorRoute
-  '/settings/oidc': typeof SettingsOidcRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -98,10 +91,9 @@ export interface FileRoutesByTo {
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
   '/search': typeof SearchRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/login/error': typeof LoginErrorRoute
-  '/settings/oidc': typeof SettingsOidcRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -112,10 +104,9 @@ export interface FileRoutesById {
   '/queue': typeof QueueRoute
   '/requests': typeof RequestsRoute
   '/search': typeof SearchRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/login_/error': typeof LoginErrorRoute
-  '/settings/oidc': typeof SettingsOidcRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -130,7 +121,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/login/error'
-    | '/settings/oidc'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -143,7 +133,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/login/error'
-    | '/settings/oidc'
   id:
     | '__root__'
     | '/'
@@ -156,7 +145,6 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/login_/error'
-    | '/settings/oidc'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -167,7 +155,7 @@ export interface RootRouteChildren {
   QueueRoute: typeof QueueRoute
   RequestsRoute: typeof RequestsRoute
   SearchRoute: typeof SearchRoute
-  SettingsRoute: typeof SettingsRouteWithChildren
+  SettingsRoute: typeof SettingsRoute
   SetupRoute: typeof SetupRoute
   LoginErrorRoute: typeof LoginErrorRoute
 }
@@ -237,13 +225,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/oidc': {
-      id: '/settings/oidc'
-      path: '/oidc'
-      fullPath: '/settings/oidc'
-      preLoaderRoute: typeof SettingsOidcRouteImport
-      parentRoute: typeof SettingsRoute
-    }
     '/login_/error': {
       id: '/login_/error'
       path: '/login/error'
@@ -254,18 +235,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface SettingsRouteChildren {
-  SettingsOidcRoute: typeof SettingsOidcRoute
-}
-
-const SettingsRouteChildren: SettingsRouteChildren = {
-  SettingsOidcRoute: SettingsOidcRoute,
-}
-
-const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
-  SettingsRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
@@ -274,7 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   QueueRoute: QueueRoute,
   RequestsRoute: RequestsRoute,
   SearchRoute: SearchRoute,
-  SettingsRoute: SettingsRouteWithChildren,
+  SettingsRoute: SettingsRoute,
   SetupRoute: SetupRoute,
   LoginErrorRoute: LoginErrorRoute,
 }

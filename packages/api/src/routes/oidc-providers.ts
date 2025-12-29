@@ -6,6 +6,12 @@ import { eq } from "drizzle-orm";
 
 const app = new OpenAPIHono();
 
+// Normalize issuer URL by removing trailing slash
+// Fixes compatibility with Authentik and other IdPs that return issuer with trailing slash
+function normalizeIssuerUrl(url: string): string {
+  return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
 // Schemas
 const OIDCConfigSchema = z.object({
   clientId: z.string().min(1),
@@ -27,6 +33,23 @@ const OIDCConfigSchema = z.object({
     .optional(),
 });
 
+// Schema for default permissions (JSON stored in DB)
+const DefaultPermissionsSchema = z
+  .object({
+    canDeleteDownloads: z.boolean().optional(),
+    canConfigureNotifications: z.boolean().optional(),
+    canManageRequests: z.boolean().optional(),
+    canStartDownloads: z.boolean().optional(),
+    canConfigureApp: z.boolean().optional(),
+    canConfigureIntegrations: z.boolean().optional(),
+    canConfigureEmail: z.boolean().optional(),
+    canSeeDownloadOwner: z.boolean().optional(),
+    canManageApiKeys: z.boolean().optional(),
+    canConfigureTolino: z.boolean().optional(),
+    canManageLists: z.boolean().optional(),
+  })
+  .optional();
+
 const OIDCProviderSchema = z.object({
   id: z.string(),
   providerId: z.string(),
@@ -35,6 +58,11 @@ const OIDCProviderSchema = z.object({
   domain: z.string().nullable(),
   allowAutoProvision: z.boolean(),
   enabled: z.boolean(),
+  // Group claims for auto-admin
+  groupClaimName: z.string().nullable(),
+  adminGroupValue: z.string().nullable(),
+  // Default permissions for new users
+  defaultPermissions: DefaultPermissionsSchema.nullable(),
   oidcConfig: OIDCConfigSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -57,6 +85,11 @@ const CreateOIDCProviderSchema = z.object({
   scopes: z.array(z.string()).default(["openid", "email", "profile"]),
   allowAutoProvision: z.boolean().default(false),
   enabled: z.boolean().default(true),
+  // Group claims for auto-admin
+  groupClaimName: z.string().optional(),
+  adminGroupValue: z.string().optional(),
+  // Default permissions for new users
+  defaultPermissions: DefaultPermissionsSchema,
 });
 
 const UpdateOIDCProviderSchema = z.object({
@@ -69,6 +102,11 @@ const UpdateOIDCProviderSchema = z.object({
   scopes: z.array(z.string()).optional(),
   allowAutoProvision: z.boolean().optional(),
   enabled: z.boolean().optional(),
+  // Group claims for auto-admin
+  groupClaimName: z.string().nullable().optional(),
+  adminGroupValue: z.string().nullable().optional(),
+  // Default permissions for new users
+  defaultPermissions: DefaultPermissionsSchema.nullable(),
 });
 
 // GET /oidc-providers - List all providers
@@ -110,6 +148,11 @@ app.openapi(getProvidersRoute, async (c) => {
         domain: p.domain,
         allowAutoProvision: p.allowAutoProvision,
         enabled: p.enabled,
+        groupClaimName: p.groupClaimName,
+        adminGroupValue: p.adminGroupValue,
+        defaultPermissions: p.defaultPermissions
+          ? JSON.parse(p.defaultPermissions)
+          : null,
         oidcConfig: p.oidcConfig ? JSON.parse(p.oidcConfig) : null,
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString(),
@@ -238,9 +281,14 @@ app.openapi(createProviderRoute, async (c) => {
       id,
       providerId: body.providerId,
       name: body.name || null,
-      issuer: body.issuer,
+      issuer: normalizeIssuerUrl(body.issuer),
       domain: body.domain || "",
       allowAutoProvision: body.allowAutoProvision ?? false,
+      groupClaimName: body.groupClaimName || null,
+      adminGroupValue: body.adminGroupValue || null,
+      defaultPermissions: body.defaultPermissions
+        ? JSON.stringify(body.defaultPermissions)
+        : null,
       oidcConfig: JSON.stringify(oidcConfig),
       enabled: body.enabled,
       createdAt: new Date(),
@@ -265,6 +313,11 @@ app.openapi(createProviderRoute, async (c) => {
         domain: provider.domain,
         allowAutoProvision: provider.allowAutoProvision,
         enabled: provider.enabled,
+        groupClaimName: provider.groupClaimName,
+        adminGroupValue: provider.adminGroupValue,
+        defaultPermissions: provider.defaultPermissions
+          ? JSON.parse(provider.defaultPermissions)
+          : null,
         oidcConfig: provider.oidcConfig
           ? JSON.parse(provider.oidcConfig)
           : null,
@@ -360,12 +413,23 @@ app.openapi(updateProviderRoute, async (c) => {
       .update(ssoProvider)
       .set({
         ...(body.name !== undefined && { name: body.name }),
-        ...(body.issuer && { issuer: body.issuer }),
+        ...(body.issuer && { issuer: normalizeIssuerUrl(body.issuer) }),
         ...(body.domain !== undefined && { domain: body.domain || "" }),
         ...(body.allowAutoProvision !== undefined && {
           allowAutoProvision: body.allowAutoProvision,
         }),
         ...(body.enabled !== undefined && { enabled: body.enabled }),
+        ...(body.groupClaimName !== undefined && {
+          groupClaimName: body.groupClaimName,
+        }),
+        ...(body.adminGroupValue !== undefined && {
+          adminGroupValue: body.adminGroupValue,
+        }),
+        ...(body.defaultPermissions !== undefined && {
+          defaultPermissions: body.defaultPermissions
+            ? JSON.stringify(body.defaultPermissions)
+            : null,
+        }),
         oidcConfig: JSON.stringify(updatedConfig),
         updatedAt: new Date(),
       })
@@ -389,6 +453,11 @@ app.openapi(updateProviderRoute, async (c) => {
         domain: updatedProvider.domain,
         allowAutoProvision: updatedProvider.allowAutoProvision,
         enabled: updatedProvider.enabled,
+        groupClaimName: updatedProvider.groupClaimName,
+        adminGroupValue: updatedProvider.adminGroupValue,
+        defaultPermissions: updatedProvider.defaultPermissions
+          ? JSON.parse(updatedProvider.defaultPermissions)
+          : null,
         oidcConfig: updatedProvider.oidcConfig
           ? JSON.parse(updatedProvider.oidcConfig)
           : null,
