@@ -3,7 +3,11 @@ import { apiFetch } from "@ephemera/shared";
 
 // ========== Types ==========
 
-export type ListSource = "goodreads" | "storygraph" | "hardcover";
+export type ListSource =
+  | "goodreads"
+  | "storygraph"
+  | "hardcover"
+  | "openlibrary";
 export type ListImportMode = "all" | "future";
 export type ListFetchInterval = "15min" | "30min" | "1h" | "6h" | "12h" | "24h";
 
@@ -266,6 +270,21 @@ export function useHardcoverLists(username: string | undefined) {
     queryKey: ["hardcover-lists", username],
     queryFn: () =>
       apiFetch<AvailableList[]>(`/lists/hardcover/lists?username=${username}`),
+    enabled: !!username,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+/**
+ * Hook for fetching OpenLibrary lists for a user
+ */
+export function useOpenLibraryLists(username: string | undefined) {
+  return useQuery<AvailableList[]>({
+    queryKey: ["openlibrary-lists", username],
+    queryFn: () =>
+      apiFetch<AvailableList[]>(
+        `/lists/openlibrary/lists?username=${username}`,
+      ),
     enabled: !!username,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });

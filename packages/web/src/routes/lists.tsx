@@ -50,36 +50,13 @@ import {
   useValidateConfig,
   useGoodreadsShelves,
   useHardcoverLists,
+  useOpenLibraryLists,
   type ImportList,
   type ListSource,
   type CreateListInput,
 } from "../hooks/useLists";
 import { notifications } from "@mantine/notifications";
-
-// Source icons and colors (brand colors)
-const sourceConfig: Record<
-  ListSource,
-  { color: string; textColor: string; label: string; icon: string }
-> = {
-  goodreads: {
-    color: "#B7AD98",
-    textColor: "#000",
-    label: "Goodreads",
-    icon: "GR",
-  },
-  storygraph: {
-    color: "#14919B",
-    textColor: "#fff",
-    label: "StoryGraph",
-    icon: "SG",
-  },
-  hardcover: {
-    color: "#6466F1",
-    textColor: "#fff",
-    label: "Hardcover",
-    icon: "HC",
-  },
-};
+import { SOURCE_CONFIG } from "@ephemera/shared";
 
 // List card component
 function ListCard({
@@ -158,7 +135,7 @@ function ListCard({
     });
   };
 
-  const source = sourceConfig[list.source];
+  const source = SOURCE_CONFIG[list.source];
   const config = list.sourceConfig as Record<string, string>;
 
   return (
@@ -395,6 +372,10 @@ function AddListModal({
   } = useHardcoverLists(
     selectedSource === "hardcover" ? debouncedUsername : undefined,
   );
+  const { data: openlibraryLists, isLoading: olListsLoading } =
+    useOpenLibraryLists(
+      selectedSource === "openlibrary" ? debouncedUsername : undefined,
+    );
 
   // Auto-parse Goodreads URL when entered (using debounced value)
   useEffect(() => {
@@ -472,6 +453,23 @@ function AddListModal({
       } else {
         name = "Want to Read";
       }
+    } else if (selectedSource === "openlibrary") {
+      sourceConfig.username = username;
+      // Parse the selectedList format: "reading-log:shelf" or "custom:listId"
+      if (selectedList?.startsWith("reading-log:")) {
+        sourceConfig.listType = "reading-log";
+        const shelf = selectedList.replace("reading-log:", "");
+        sourceConfig.shelf = shelf;
+        // Get display name from list data
+        const listData = openlibraryLists?.find((l) => l.id === selectedList);
+        name = listData?.name || shelf;
+      } else if (selectedList?.startsWith("custom:")) {
+        sourceConfig.listType = "custom-list";
+        sourceConfig.listId = selectedList.replace("custom:", "");
+        // Get list name from openlibraryLists data
+        const listData = openlibraryLists?.find((l) => l.id === selectedList);
+        name = listData?.name || "List";
+      }
     }
 
     const data: CreateListInput = {
@@ -531,6 +529,7 @@ function AddListModal({
       if (selectedSource === "storygraph")
         return !!username && sgValidation?.valid === true;
       if (selectedSource === "hardcover") return !!username;
+      if (selectedSource === "openlibrary") return !!username && !!selectedList;
     }
     return true;
   };
@@ -558,53 +557,58 @@ function AddListModal({
               Select the platform you want to import books from:
             </Text>
             <Stack gap="xs">
-              {(["hardcover", "goodreads", "storygraph"] as ListSource[]).map(
-                (source) => {
-                  const config = sourceConfig[source];
-                  const status = getSourceStatus(source);
-                  const isDisabled = !!status;
+              {(
+                [
+                  "hardcover",
+                  "goodreads",
+                  "storygraph",
+                  "openlibrary",
+                ] as ListSource[]
+              ).map((source) => {
+                const config = SOURCE_CONFIG[source];
+                const status = getSourceStatus(source);
+                const isDisabled = !!status;
 
-                  return (
-                    <Card
-                      key={source}
-                      withBorder
-                      padding="sm"
-                      style={{
-                        cursor: isDisabled ? "not-allowed" : "pointer",
-                        opacity: isDisabled ? 0.5 : 1,
-                        borderColor:
-                          selectedSource === source ? config.color : undefined,
-                        borderWidth: selectedSource === source ? 2 : 1,
-                      }}
-                      onClick={() => !isDisabled && setSelectedSource(source)}
-                    >
-                      <Group justify="space-between">
-                        <Group gap="sm">
-                          <Badge
-                            style={{
-                              backgroundColor: config.color,
-                              color: config.textColor,
-                            }}
-                          >
-                            {config.icon}
-                          </Badge>
-                          <div>
-                            <Text fw={500}>{config.label}</Text>
-                            {status && (
-                              <Text size="xs" c="red">
-                                {status}
-                              </Text>
-                            )}
-                          </div>
-                        </Group>
-                        {selectedSource === source && (
-                          <IconCheck size={20} color="green" />
-                        )}
+                return (
+                  <Card
+                    key={source}
+                    withBorder
+                    padding="sm"
+                    style={{
+                      cursor: isDisabled ? "not-allowed" : "pointer",
+                      opacity: isDisabled ? 0.5 : 1,
+                      borderColor:
+                        selectedSource === source ? config.color : undefined,
+                      borderWidth: selectedSource === source ? 2 : 1,
+                    }}
+                    onClick={() => !isDisabled && setSelectedSource(source)}
+                  >
+                    <Group justify="space-between">
+                      <Group gap="sm">
+                        <Badge
+                          style={{
+                            backgroundColor: config.color,
+                            color: config.textColor,
+                          }}
+                        >
+                          {config.icon}
+                        </Badge>
+                        <div>
+                          <Text fw={500}>{config.label}</Text>
+                          {status && (
+                            <Text size="xs" c="red">
+                              {status}
+                            </Text>
+                          )}
+                        </div>
                       </Group>
-                    </Card>
-                  );
-                },
-              )}
+                      {selectedSource === source && (
+                        <IconCheck size={20} color="green" />
+                      )}
+                    </Group>
+                  </Card>
+                );
+              })}
             </Stack>
           </>
         )}
@@ -732,6 +736,44 @@ function AddListModal({
                   label="List"
                   placeholder="Select list"
                   data={hardcoverLists.map((l) => ({
+                    value: l.id,
+                    label: l.name,
+                  }))}
+                  value={selectedList}
+                  onChange={setSelectedList}
+                />
+              )}
+          </>
+        )}
+
+        {step === "config" && selectedSource === "openlibrary" && (
+          <>
+            <TextInput
+              label="Username"
+              placeholder="your_username"
+              value={username}
+              onChange={(e) => setUsername(e.currentTarget.value)}
+              description={
+                username && olListsLoading ? "Verifying username..." : undefined
+              }
+              required
+            />
+            {username && olListsLoading && (
+              <Group gap="xs">
+                <Loader size="xs" />
+                <Text size="sm" c="dimmed">
+                  Loading lists for {username}...
+                </Text>
+              </Group>
+            )}
+            {username &&
+              !olListsLoading &&
+              openlibraryLists &&
+              openlibraryLists.length > 0 && (
+                <Select
+                  label="List"
+                  placeholder="Select list or shelf"
+                  data={openlibraryLists.map((l) => ({
                     value: l.id,
                     label: l.name,
                   }))}

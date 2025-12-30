@@ -27,6 +27,7 @@ import {
   useAllLists,
   type ListFetchInterval,
 } from "../hooks/useLists";
+import { SOURCE_COLORS } from "@ephemera/shared";
 
 // Interval options
 const intervalOptions: { value: ListFetchInterval; label: string }[] = [
@@ -37,13 +38,6 @@ const intervalOptions: { value: ListFetchInterval; label: string }[] = [
   { value: "12h", label: "Every 12 hours" },
   { value: "24h", label: "Every 24 hours" },
 ];
-
-// Source colors (brand colors)
-const sourceColors: Record<string, { bg: string; text: string }> = {
-  goodreads: { bg: "#B7AD98", text: "#000" },
-  storygraph: { bg: "#14919B", text: "#fff" },
-  hardcover: { bg: "#6466F1", text: "#fff" },
-};
 
 export default function ListsSettings() {
   const { data: settings, isLoading: settingsLoading } = useListSettings();
@@ -193,7 +187,7 @@ export default function ListsSettings() {
                   By source:
                 </Text>
                 {Object.entries(stats.listsBySource).map(([source, count]) => {
-                  const colors = sourceColors[source] || {
+                  const colors = SOURCE_COLORS[source] || {
                     bg: "#gray",
                     text: "#000",
                   };
@@ -328,7 +322,7 @@ export default function ListsSettings() {
                       <Table.Td>{list.name}</Table.Td>
                       <Table.Td>
                         {(() => {
-                          const colors = sourceColors[list.source] || {
+                          const colors = SOURCE_COLORS[list.source] || {
                             bg: "#gray",
                             text: "#000",
                           };

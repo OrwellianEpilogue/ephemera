@@ -48,14 +48,7 @@ import {
 import { useAppSettings } from "../hooks/useSettings";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { UserBadge } from "../components/UserBadge";
-import type { SavedRequestWithMetadata } from "@ephemera/shared";
-
-// Source colors (brand colors for list platforms)
-const sourceColors: Record<string, { bg: string; text: string }> = {
-  goodreads: { bg: "#B7AD98", text: "#000" },
-  storygraph: { bg: "#14919B", text: "#fff" },
-  hardcover: { bg: "#6466F1", text: "#fff" },
-};
+import { SOURCE_COLORS, type SavedRequestWithMetadata } from "@ephemera/shared";
 
 // Helper function to format check interval for display
 function formatCheckInterval(interval: string): string {
@@ -286,9 +279,9 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
                           style={{
                             cursor: "pointer",
                             backgroundColor:
-                              sourceColors[metadata.source]?.bg || "#868e96",
+                              SOURCE_COLORS[metadata.source]?.bg || "#868e96",
                             color:
-                              sourceColors[metadata.source]?.text || "#fff",
+                              SOURCE_COLORS[metadata.source]?.text || "#fff",
                           }}
                         >
                           {metadata.source}

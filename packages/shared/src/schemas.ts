@@ -1568,6 +1568,7 @@ export const listSourceSchema = z.enum([
   "goodreads",
   "storygraph",
   "hardcover",
+  "openlibrary",
 ]);
 
 export type ListSource = z.infer<typeof listSourceSchema>;
@@ -1577,7 +1578,7 @@ export const bookMetadataSchema = z.object({
   id: z.number().describe("Metadata ID"),
   requestId: z.number().nullable().describe("Associated request ID"),
   source: listSourceSchema.describe(
-    "Source platform (goodreads, storygraph, hardcover)",
+    "Source platform (goodreads, storygraph, hardcover, openlibrary)",
   ),
   sourceBookId: z.string().nullable().describe("Platform-specific book ID"),
   sourceUrl: z

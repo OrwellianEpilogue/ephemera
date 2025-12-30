@@ -11,11 +11,11 @@ import {
   Text,
   Badge,
   Group,
-  Card,
   TextInput,
   Box,
   Button,
   Modal,
+  Alert,
 } from "@mantine/core";
 import {
   IconDownload,
@@ -318,15 +318,14 @@ function QueuePage() {
         />
 
         {queue?.paused && (
-          <Card withBorder bg="orange.0" p="sm">
-            <Group gap="xs">
-              <IconPlayerPause size={16} />
-              <Text size="sm" fw={500}>
-                Downloads are paused. New items can be added but won&apos;t
-                start downloading until resumed.
-              </Text>
-            </Group>
-          </Card>
+          <Alert
+            icon={<IconPlayerPause size={16} />}
+            color="orange"
+            variant="light"
+          >
+            Downloads are paused. New items can be added but won&apos;t start
+            downloading until resumed.
+          </Alert>
         )}
 
         {/* Clear Queue Confirmation Modal */}
@@ -622,15 +621,15 @@ function QueuePage() {
           <Tabs.Panel value="delayed" pt="md">
             {filteredDelayed.length > 0 ? (
               <>
-                <Card withBorder mb="md" bg="yellow.0">
-                  <Group gap="xs">
-                    <IconClock size={16} />
-                    <Text size="sm">
-                      These downloads are delayed due to quota limits. They will
-                      retry automatically.
-                    </Text>
-                  </Group>
-                </Card>
+                <Alert
+                  icon={<IconClock size={16} />}
+                  color="yellow"
+                  variant="light"
+                  mb="md"
+                >
+                  These downloads are delayed due to quota limits. They will
+                  retry automatically.
+                </Alert>
                 <VirtualizedDownloadList items={filteredDelayed} />
               </>
             ) : (
@@ -651,15 +650,14 @@ function QueuePage() {
           <Tabs.Panel value="error" pt="md">
             {filteredError.length > 0 ? (
               <>
-                <Card withBorder mb="md" bg="red.0">
-                  <Group gap="xs">
-                    <IconAlertCircle size={16} />
-                    <Text size="sm">
-                      These downloads failed. Check the error messages for
-                      details.
-                    </Text>
-                  </Group>
-                </Card>
+                <Alert
+                  icon={<IconAlertCircle size={16} />}
+                  color="red"
+                  variant="light"
+                  mb="md"
+                >
+                  These downloads failed. Check the error messages for details.
+                </Alert>
                 <VirtualizedDownloadList items={filteredError} />
               </>
             ) : (

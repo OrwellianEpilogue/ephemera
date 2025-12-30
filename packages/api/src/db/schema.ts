@@ -797,7 +797,7 @@ export const bookMetadata = sqliteTable(
 
     // Source tracking
     source: text("source", {
-      enum: ["goodreads", "storygraph", "hardcover"],
+      enum: ["goodreads", "storygraph", "hardcover", "openlibrary"],
     }).notNull(),
     sourceBookId: text("source_book_id"), // Platform-specific ID (e.g., "43685219")
     sourceUrl: text("source_url"), // Link to book on platform
@@ -854,7 +854,7 @@ export const importLists = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     source: text("source", {
-      enum: ["goodreads", "storygraph", "hardcover"],
+      enum: ["goodreads", "storygraph", "hardcover", "openlibrary"],
     }).notNull(),
     name: text("name").notNull(),
 
@@ -862,11 +862,15 @@ export const importLists = sqliteTable(
     // Goodreads: { userId: string, shelfName: string }
     // StoryGraph: { username: string }
     // Hardcover: { username: string, listId: string, listSlug: string }
+    // OpenLibrary: { username: string, listType: string, shelf?: string, listId?: string, listName?: string }
     sourceConfig: text("source_config", { mode: "json" }).notNull().$type<{
       userId?: string;
       username?: string;
       shelfName?: string;
       listId?: string;
+      listType?: string;
+      shelf?: string;
+      listName?: string;
       listSlug?: string;
     }>(),
 

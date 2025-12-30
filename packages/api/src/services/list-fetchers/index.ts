@@ -1,7 +1,9 @@
 import { GoodreadsFetcher } from "./goodreads.js";
 import { StoryGraphFetcher } from "./storygraph.js";
 import { HardcoverFetcher } from "./hardcover.js";
+import { OpenLibraryFetcher } from "./openlibrary.js";
 import type { ListFetcher, ListSource } from "./types.js";
+import { LIST_SOURCES } from "@ephemera/shared";
 
 // Export types
 export * from "./types.js";
@@ -10,6 +12,7 @@ export * from "./types.js";
 const goodreadsFetcher = new GoodreadsFetcher();
 const storyGraphFetcher = new StoryGraphFetcher();
 const hardcoverFetcher = new HardcoverFetcher();
+const openLibraryFetcher = new OpenLibraryFetcher();
 
 /**
  * Registry of all list fetchers
@@ -18,6 +21,7 @@ export const listFetchers: Record<ListSource, ListFetcher> = {
   goodreads: goodreadsFetcher,
   storygraph: storyGraphFetcher,
   hardcover: hardcoverFetcher,
+  openlibrary: openLibraryFetcher,
 };
 
 /**
@@ -35,34 +39,6 @@ export function getHardcoverFetcher(): HardcoverFetcher {
 }
 
 /**
- * Available sources with metadata
+ * Available sources with metadata (re-exported from shared)
  */
-export const listSources: Array<{
-  id: ListSource;
-  name: string;
-  description: string;
-  requiresApiKey: boolean;
-  requiresFlareSolverr: boolean;
-}> = [
-  {
-    id: "goodreads",
-    name: "Goodreads",
-    description: "Import from Goodreads shelves via RSS",
-    requiresApiKey: false,
-    requiresFlareSolverr: false,
-  },
-  {
-    id: "storygraph",
-    name: "StoryGraph",
-    description: "Import from StoryGraph to-read list",
-    requiresApiKey: false,
-    requiresFlareSolverr: true,
-  },
-  {
-    id: "hardcover",
-    name: "Hardcover",
-    description: "Import from Hardcover lists via API",
-    requiresApiKey: true,
-    requiresFlareSolverr: false,
-  },
-];
+export const listSources = LIST_SOURCES;

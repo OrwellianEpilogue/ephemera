@@ -3,7 +3,11 @@ import { createHash } from "crypto";
 /**
  * List Sources
  */
-export type ListSource = "goodreads" | "storygraph" | "hardcover";
+export type ListSource =
+  | "goodreads"
+  | "storygraph"
+  | "hardcover"
+  | "openlibrary";
 
 /**
  * A book from a reading list with enriched metadata
@@ -94,7 +98,19 @@ export interface HardcoverConfig {
   listSlug?: string;
 }
 
-export type SourceConfig = GoodreadsConfig | StoryGraphConfig | HardcoverConfig;
+export interface OpenLibraryConfig {
+  username: string;
+  listType: "reading-log" | "custom-list";
+  shelf?: "want-to-read" | "currently-reading" | "already-read";
+  listId?: string;
+  listName?: string;
+}
+
+export type SourceConfig =
+  | GoodreadsConfig
+  | StoryGraphConfig
+  | HardcoverConfig
+  | OpenLibraryConfig;
 
 /**
  * List Fetcher Interface

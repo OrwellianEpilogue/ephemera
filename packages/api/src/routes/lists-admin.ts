@@ -42,7 +42,12 @@ const updateListSettingsSchema = z.object({
   embedMetadataInBooks: z.boolean().optional(),
 });
 
-const listSourceSchema = z.enum(["goodreads", "storygraph", "hardcover"]);
+const listSourceSchema = z.enum([
+  "goodreads",
+  "storygraph",
+  "hardcover",
+  "openlibrary",
+]);
 
 const importListWithUserSchema = z.object({
   id: z.number(),

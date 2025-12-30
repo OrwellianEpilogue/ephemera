@@ -106,3 +106,69 @@ export const LANGUAGES = [
   { value: "yue", label: "Cantonese (粵語)" },
   { value: "zh", label: "Chinese (中文)" },
 ] as const;
+
+// List import sources configuration
+export const LIST_SOURCES = [
+  {
+    id: "goodreads",
+    name: "Goodreads",
+    icon: "GR",
+    color: "#B7AD98",
+    textColor: "#000",
+    description: "Import from Goodreads shelves via RSS",
+    requiresApiKey: false,
+    requiresFlareSolverr: false,
+  },
+  {
+    id: "storygraph",
+    name: "StoryGraph",
+    icon: "SG",
+    color: "#14919B",
+    textColor: "#fff",
+    description: "Import from StoryGraph to-read list",
+    requiresApiKey: false,
+    requiresFlareSolverr: true,
+  },
+  {
+    id: "hardcover",
+    name: "Hardcover",
+    icon: "HC",
+    color: "#6466F1",
+    textColor: "#fff",
+    description: "Import from Hardcover lists via API",
+    requiresApiKey: true,
+    requiresFlareSolverr: false,
+  },
+  {
+    id: "openlibrary",
+    name: "Open Library",
+    icon: "OL",
+    color: "#E1DCC5",
+    textColor: "#5189BE",
+    description: "Import from Open Library reading lists",
+    requiresApiKey: false,
+    requiresFlareSolverr: false,
+  },
+] as const;
+
+export type ListSourceId = (typeof LIST_SOURCES)[number]["id"];
+
+// Derived color lookup for components
+export const SOURCE_COLORS: Record<string, { bg: string; text: string }> =
+  Object.fromEntries(
+    LIST_SOURCES.map((s) => [s.id, { bg: s.color, text: s.textColor }]),
+  ) as Record<string, { bg: string; text: string }>;
+
+// Full source config for UI components
+export const SOURCE_CONFIG: Record<
+  ListSourceId,
+  { color: string; textColor: string; label: string; icon: string }
+> = Object.fromEntries(
+  LIST_SOURCES.map((s) => [
+    s.id,
+    { color: s.color, textColor: s.textColor, label: s.name, icon: s.icon },
+  ]),
+) as Record<
+  ListSourceId,
+  { color: string; textColor: string; label: string; icon: string }
+>;

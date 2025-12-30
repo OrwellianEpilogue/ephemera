@@ -15,7 +15,12 @@ const app = new OpenAPIHono();
 
 // ========== Schemas ==========
 
-const listSourceSchema = z.enum(["goodreads", "storygraph", "hardcover"]);
+const listSourceSchema = z.enum([
+  "goodreads",
+  "storygraph",
+  "hardcover",
+  "openlibrary",
+]);
 const listImportModeSchema = z.enum(["all", "future"]);
 
 const importListSchema = z.object({
@@ -370,6 +375,41 @@ const getHardcoverListsRoute = createRoute({
 app.openapi(getHardcoverListsRoute, async (c) => {
   const { username } = c.req.query();
   const fetcher = getFetcher("hardcover");
+
+  if (!fetcher.getAvailableLists) {
+    return c.json([]);
+  }
+
+  const lists = await fetcher.getAvailableLists({ username });
+  return c.json(lists);
+});
+
+// GET /lists/openlibrary/lists - Get OpenLibrary lists
+const getOpenLibraryListsRoute = createRoute({
+  method: "get",
+  path: "/lists/openlibrary/lists",
+  tags: ["Lists"],
+  summary: "Get available OpenLibrary lists for a user",
+  request: {
+    query: z.object({
+      username: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Available lists",
+      content: {
+        "application/json": {
+          schema: z.array(availableListSchema),
+        },
+      },
+    },
+  },
+});
+
+app.openapi(getOpenLibraryListsRoute, async (c) => {
+  const { username } = c.req.query();
+  const fetcher = getFetcher("openlibrary");
 
   if (!fetcher.getAvailableLists) {
     return c.json([]);
