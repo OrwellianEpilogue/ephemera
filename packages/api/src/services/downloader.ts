@@ -22,7 +22,7 @@ export interface DownloadResult {
   isQuotaError?: boolean;
 }
 
-export interface AAResponse {
+export interface SearcherResponse {
   download_url: string | null;
   error?: string;
   account_fast_download_info?: {
@@ -37,7 +37,7 @@ export class Downloader {
     md5: string,
     pathIndex?: number,
     domainIndex?: number,
-  ): Promise<AAResponse> {
+  ): Promise<SearcherResponse> {
     const apiKey = await appConfigService.getSearcherApiKey();
     if (!apiKey) {
       throw new Error("AA_API_KEY is not set");
@@ -91,7 +91,7 @@ export class Downloader {
           continue;
         }
 
-        const data = (await response.json()) as AAResponse;
+        const data = (await response.json()) as SearcherResponse;
 
         // If we got a valid response, save the working URL if it's a fallback
         if (data.download_url || data.account_fast_download_info) {
@@ -149,7 +149,7 @@ export class Downloader {
         return await this.downloadViaSlowServer(md5, onProgress);
       }
 
-      // Get download URL from AA API
+      // Get download URL from searcher API
       logger.info(`Getting download URL for ${md5}...`);
       const apiResponse = await this.getDownloadUrl(
         md5,
@@ -239,7 +239,7 @@ export class Downloader {
 
       let filename = `${md5}.bin`;
 
-      // Try to extract filename from URL path (AA includes it there)
+      // Try to extract filename from URL path (searcher includes it there)
       try {
         const url = new URL(downloadUrl);
         const pathname = decodeURIComponent(url.pathname);
@@ -255,7 +255,7 @@ export class Downloader {
           // Get base filename without extension
           let baseName = lastSegment.substring(0, lastSegment.lastIndexOf("."));
 
-          // Clean up AA format: "Title -- Author -- Publisher -- ISBN -- MD5 -- AA"
+          // Clean up searcher format: "Title -- Author -- Publisher -- ISBN -- MD5 -- Searcher"
           // We only want the title and author (first 2 parts)
           const parts = baseName.split(" -- ").map((p) => p.trim());
           if (parts.length >= 2) {

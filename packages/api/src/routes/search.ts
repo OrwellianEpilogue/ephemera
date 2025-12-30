@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { aaScraper } from "../services/scraper.js";
+import { searcherScraper } from "../services/scraper.js";
 import {
   searchQuerySchema,
   searchResponseSchema,
@@ -17,7 +17,7 @@ const searchRoute = createRoute({
   method: "get",
   path: "/search",
   tags: ["Search"],
-  summary: "Search for books on AA",
+  summary: "Search for books on searcher",
   description:
     "Search for books with various filters including content type, file format, language, and more",
   request: {
@@ -65,7 +65,7 @@ app.openapi(searchRoute, async (c) => {
     // Scraping phase
     const scrapeStart = Date.now();
     logger.info(`[${requestId}] 🔍 Starting scrape...`);
-    const results = await aaScraper.search(query);
+    const results = await searcherScraper.search(query);
     const scrapeDuration = Date.now() - scrapeStart;
     logger.info(
       `[${requestId}] ✅ Scrape complete (${scrapeDuration}ms) - found ${results.results.length} results`,

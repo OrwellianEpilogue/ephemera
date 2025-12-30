@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../hooks/use-page-title";
 import { requireAuth } from "../lib/route-auth";
 import {
@@ -56,6 +57,7 @@ type SearchParams = {
 function SearchPage() {
   usePageTitle("Search");
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const urlParams = Route.useSearch();
   const { data: config } = useFrontendConfig();
 
@@ -268,6 +270,28 @@ function SearchPage() {
   const allBooks = data?.pages.flatMap((page) => page.results) ?? [];
   const totalResults = data?.pages[0]?.pagination.estimated_total_results;
 
+  // Invalidate config when search returns no results to detect maintenance mode
+  // This ensures the maintenance banner shows immediately after all variants are blocked
+  useEffect(() => {
+    const hasSearchQuery = urlParams.q || urlParams.author || urlParams.title;
+    const searchCompleted = !isLoading && data !== undefined;
+    const noResults = allBooks.length === 0 && totalResults === null;
+
+    if (hasSearchQuery && searchCompleted && noResults) {
+      // Invalidate config to refetch and check for maintenance mode
+      queryClient.invalidateQueries({ queryKey: ["frontendConfig"] });
+    }
+  }, [
+    isLoading,
+    data,
+    allBooks.length,
+    totalResults,
+    urlParams.q,
+    urlParams.author,
+    urlParams.title,
+    queryClient,
+  ]);
+
   // Check for existing active request with same params
   useEffect(() => {
     const checkForExistingRequest = async () => {
@@ -392,13 +416,17 @@ function SearchPage() {
     // Use urlParams.q as key to force recreation on new search
   }, [urlParams.q, urlParams.author, urlParams.title, allBooks.length]);
 
-  // Show maintenance banner when FlareSolverr is unavailable and no API key is configured
+  // Show maintenance banner when services are unavailable
   if (config?.maintenanceMode) {
     return (
       <Container size="xl">
         <Stack gap="lg">
           <Title order={1}>Search Books</Title>
-          <MaintenanceBanner reason={config.maintenanceReason} />
+          <MaintenanceBanner
+            flareSolverrDown={config.flareSolverrDown}
+            searcherBlocked={config.searcherBlocked}
+            reason={config.maintenanceReason}
+          />
         </Stack>
       </Container>
     );

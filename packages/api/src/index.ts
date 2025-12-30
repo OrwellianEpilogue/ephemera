@@ -94,7 +94,7 @@ process.stderr.write = ((
   callback?: (err?: Error | null) => void,
 ): boolean => {
   const output = chunk.toString();
-  // Filter out known network errors from AA
+  // Filter out known network errors from searcher
   if (
     output.includes("TypeError: terminated") ||
     output.includes("SocketError: other side closed") ||
@@ -259,7 +259,7 @@ app.get(API_BASE_PATH, (c) => {
   return c.json({
     name: "Ephemera API",
     version: "1.1.0",
-    description: "API for searching and downloading books from AA",
+    description: "API for searching and downloading books from searcher",
     apiBasePath: API_BASE_PATH,
     endpoints: {
       auth: `${API_BASE_PATH}/auth/*`,
@@ -452,7 +452,7 @@ app.doc(`${API_BASE_PATH}/openapi.json`, {
   info: {
     title: "Ephemera API",
     version: "1.1.0",
-    description: "API for searching and downloading books from AA",
+    description: "API for searching and downloading books from searcher",
     contact: {
       name: "API Support",
     },
@@ -496,7 +496,7 @@ app.doc(`${API_BASE_PATH}/openapi.json`, {
     },
     {
       name: "Image Proxy",
-      description: "Proxy images from AA to protect client IP addresses",
+      description: "Proxy images from searcher to protect client IP addresses",
     },
     {
       name: "Version",
@@ -762,7 +762,7 @@ const shutdown = async (signal: string) => {
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
-// Handle unhandled promise rejections (e.g., socket errors from AA)
+// Handle unhandled promise rejections (e.g., socket errors from searcher)
 process.on("unhandledRejection", (reason, _promise) => {
   // Only log non-network errors
   const errorMessage = String(reason);

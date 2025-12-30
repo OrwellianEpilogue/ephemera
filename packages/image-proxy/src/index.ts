@@ -124,7 +124,7 @@ app.get("/api/proxy", async (c) => {
     // Acquire semaphore to limit concurrent fetches
     await imageFetchSemaphore.acquire();
 
-    // Fetch the image from AA with timeout
+    // Fetch the image
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 

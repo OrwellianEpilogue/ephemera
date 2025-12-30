@@ -418,7 +418,7 @@ function SetupWizard() {
                   <TextInput
                     label="Searcher Base URL"
                     placeholder="https://archive.org"
-                    description="Base URL for AA or similar"
+                    description="Base URL for your main searcher instance"
                     required
                     value={step1.searcherBaseUrl}
                     onChange={(e) =>

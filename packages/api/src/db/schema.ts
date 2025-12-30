@@ -318,7 +318,7 @@ export const downloads = sqliteTable(
     delayedRetryCount: integer("delayed_retry_count").default(0),
     nextRetryAt: integer("next_retry_at"), // milliseconds timestamp for next retry attempt
 
-    // AA quota tracking
+    // searcher quota tracking
     downloadsLeft: integer("downloads_left"),
     downloadsPerDay: integer("downloads_per_day"),
     quotaCheckedAt: integer("quota_checked_at"), // milliseconds timestamp
@@ -328,7 +328,7 @@ export const downloads = sqliteTable(
     startedAt: integer("started_at"),
     completedAt: integer("completed_at"),
 
-    // AA specific
+    // searcher specific
     pathIndex: integer("path_index"),
     domainIndex: integer("domain_index"),
 
@@ -473,7 +473,7 @@ export const books = sqliteTable("books", {
   contentType: text("content_type"),
   source: text("source"),
 
-  // AA metadata
+  // searcher metadata
   saves: integer("saves"),
   lists: integer("lists"),
   issues: integer("issues"),

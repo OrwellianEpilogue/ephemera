@@ -1,4 +1,4 @@
-// Filter constants for AA search
+// Filter constants for search
 
 export const SORT_OPTIONS = [
   { value: "relevant", label: "Most relevant" },

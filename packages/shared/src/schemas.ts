@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Sort options from AA
+// Sort options from searcher
 export const sortOptions = [
   "relevant",
   "newest",
@@ -33,7 +33,9 @@ export const searchQuerySchema = z.object({
     .describe("File extension filters (e.g., pdf, epub)"),
   acc: coerceArray
     .optional()
-    .describe("Access type filters (e.g., aa_download, external_download)"),
+    .describe(
+      "Access type filters (e.g., searcher_download, external_download)",
+    ),
   src: coerceArray.optional().describe("Source filters"),
   lang: coerceArray.optional().describe("Language filters (e.g., en, ru, zh)"),
   desc: z.coerce
@@ -1549,16 +1551,22 @@ export const frontendConfigSchema = z.object({
     .boolean()
     .describe("Whether email sending is configured and enabled"),
 
-  // Maintenance mode status
+  // Maintenance mode status (combined)
   maintenanceMode: z
     .boolean()
     .describe(
-      "Whether the app is in maintenance mode (FlareSolverr unavailable)",
+      "Whether the app is in maintenance mode (FlareSolverr down or searcher blocked)",
     ),
   maintenanceReason: z
     .string()
     .nullable()
-    .describe("Reason for maintenance mode, if active"),
+    .describe("Primary reason for maintenance mode, if active"),
+
+  // Granular status fields
+  flareSolverrDown: z.boolean().describe("Whether FlareSolverr is unavailable"),
+  searcherBlocked: z
+    .boolean()
+    .describe("Whether all searcher TLD variants are blocked/unreachable"),
 });
 
 export type FrontendConfig = z.infer<typeof frontendConfigSchema>;

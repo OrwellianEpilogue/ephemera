@@ -47,16 +47,16 @@ class Semaphore {
   }
 }
 
-// Limit concurrent image fetches to AA (prevent overwhelming their server)
+// Limit concurrent image fetches to searcher (prevent overwhelming their server)
 const imageFetchSemaphore = new Semaphore(3);
 
 const imageProxyRoute = createRoute({
   method: "get",
   path: "/proxy/image",
   tags: ["Image Proxy"],
-  summary: "Proxy images from AA",
+  summary: "Proxy images from searcher",
   description:
-    "Fetches images from AA through the backend to protect client IP addresses",
+    "Fetches images from searcher through the backend to protect client IP addresses",
   request: {
     query: z.object({
       url: z.string().describe("Base64-encoded image URL to proxy"),
@@ -154,7 +154,7 @@ app.openapi(imageProxyRoute, async (c) => {
     // Acquire semaphore to limit concurrent fetches
     await imageFetchSemaphore.acquire();
 
-    // Fetch the image from AA with timeout
+    // Fetch the image from searcher with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 

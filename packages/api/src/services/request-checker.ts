@@ -3,7 +3,7 @@ import {
   type RequestQueryParams,
 } from "./download-requests.js";
 import { requestsManager } from "./requests-manager.js";
-import { aaScraper } from "./scraper.js";
+import { searcherScraper } from "./scraper.js";
 import { queueManager } from "./queue-manager.js";
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
@@ -188,7 +188,7 @@ class RequestCheckerService {
               console.log(
                 `[Request Checker] Request #${request.id}: Trying ISBN search first: ${request.queryParams.isbn}`,
               );
-              searchResult = await aaScraper.search(isbnQuery);
+              searchResult = await searcherScraper.search(isbnQuery);
 
               if (searchResult.results.length > 0) {
                 console.log(
@@ -207,7 +207,7 @@ class RequestCheckerService {
             const searchQuery = convertToSearchQuery(request.queryParams, {
               includeYear: includeYearInSearch,
             });
-            searchResult = await aaScraper.search(searchQuery);
+            searchResult = await searcherScraper.search(searchQuery);
           }
 
           if (searchResult.results.length > 0) {
@@ -301,7 +301,7 @@ class RequestCheckerService {
             );
           }
 
-          // Add delay between requests to avoid overloading AA
+          // Add delay between requests to avoid overloading searcher
           await this.delay(2000); // 2 second delay between requests
         } catch (error: unknown) {
           console.error(
@@ -403,7 +403,7 @@ class RequestCheckerService {
           console.log(
             `[Request Checker] Single check: Request #${requestId}: Trying ISBN search first: ${request.queryParams.isbn}`,
           );
-          searchResult = await aaScraper.search(isbnQuery);
+          searchResult = await searcherScraper.search(isbnQuery);
 
           if (searchResult.results.length === 0) {
             console.log(
@@ -418,7 +418,7 @@ class RequestCheckerService {
         const searchQuery = convertToSearchQuery(request.queryParams, {
           includeYear: includeYearInSearch,
         });
-        searchResult = await aaScraper.search(searchQuery);
+        searchResult = await searcherScraper.search(searchQuery);
       }
 
       if (searchResult.results.length > 0) {

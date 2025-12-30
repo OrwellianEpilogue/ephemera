@@ -138,16 +138,16 @@ docker pull ghcr.io/orwellianepilogue/ephemera:dev-sha-7aa9d68
 
 Most settings are now configured via the **web UI setup wizard** and stored in the database. Only infrastructure-level settings need environment variables.
 
-| Variable           | Default                 | Description                                  |
-| ------------------ | ----------------------- | -------------------------------------------- |
+| Variable           | Default                 | Description                                    |
+| ------------------ | ----------------------- | ---------------------------------------------- |
 | `FLARESOLVERR_URL` | `http://127.0.0.1:8191` | FlareSolverr URL (required for slow downloads) |
-| `PORT`             | `8286`                  | Application port                             |
-| `DB_PATH`          | `/app/data/database.db` | Database location                            |
-| `NODE_ENV`         | `production`            | Node environment                             |
-| `API_BASE_PATH`    | `/api`                  | API base path                                |
-| `HTML_BASE_HREF`   | `empty`                 | HTML base href (for iframes/subpaths)        |
-| `BASE_URL`         | `http://localhost:8286` | Public URL (for CORS/auth in production)     |
-| `ALLOWED_ORIGINS`  | `empty`                 | Additional CORS origins (comma-separated)    |
+| `PORT`             | `8286`                  | Application port                               |
+| `DB_PATH`          | `/app/data/database.db` | Database location                              |
+| `NODE_ENV`         | `production`            | Node environment                               |
+| `API_BASE_PATH`    | `/api`                  | API base path                                  |
+| `HTML_BASE_HREF`   | `empty`                 | HTML base href (for iframes/subpaths)          |
+| `BASE_URL`         | `http://localhost:8286` | Public URL (for CORS/auth in production)       |
+| `ALLOWED_ORIGINS`  | `empty`                 | Additional CORS origins (comma-separated)      |
 
 > **Note:** Archive URLs, API keys, download folders, and other app settings are configured in the setup wizard on first run.
 
@@ -156,6 +156,7 @@ Most settings are now configured via the **web UI setup wizard** and stored in t
 Ephemera supports hosting behind a proxy or at a subpath by configuring the API base path:
 
 **Use Cases:**
+
 - Hosting behind a reverse proxy with a custom path
 - Embedding in an iframe with a different base path
 - Running multiple instances with different API paths
@@ -174,14 +175,15 @@ environment:
 
 **Examples:**
 
-| Scenario | API_BASE_PATH | HTML_BASE_HREF | Result |
-|----------|---------------|----------------|--------|
-| Default | `/api` | (empty) | Standard setup |
-| Subpath hosting | `/ephemera/api` | `/ephemera/` | Hosting at `/ephemera/` |
-| Versioned API | `/api/v1` | (empty) | API at `/api/v1/*` |
-| Iframe embed | `/api` | `/app/` | UI embedded at `/app/` |
+| Scenario        | API_BASE_PATH   | HTML_BASE_HREF | Result                  |
+| --------------- | --------------- | -------------- | ----------------------- |
+| Default         | `/api`          | (empty)        | Standard setup          |
+| Subpath hosting | `/ephemera/api` | `/ephemera/`   | Hosting at `/ephemera/` |
+| Versioned API   | `/api/v1`       | (empty)        | API at `/api/v1/*`      |
+| Iframe embed    | `/api`          | `/app/`        | UI embedded at `/app/`  |
 
 **Notes:**
+
 - The frontend automatically detects the API base path from the backend
 - Backward compatible - existing deployments continue working with default `/api`
 - Both development and production environments support custom paths
@@ -217,7 +219,7 @@ pnpm approve-builds
 # Copy environment template
 cp packages/api/.env.example packages/api/.env
 
-# Edit with your AA API key and url
+# Edit with your searcher API key and url
 nano packages/api/.env
 
 # Run migrations

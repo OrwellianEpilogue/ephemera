@@ -12,8 +12,8 @@ const SLOW_DOWNLOAD_TIMEOUT = parseInt(
   process.env.SLOW_DOWNLOAD_TIMEOUT || "300000",
   10,
 ); // 5 minutes
-const MAX_PATHS = 2; // AA has paths 0-1
-const MAX_SERVERS = 7; // AA has servers 0-6 per path
+const MAX_PATHS = 2; // searcher has paths 0-1
+const MAX_SERVERS = 7; // searcher has servers 0-6 per path
 
 // FlareSolverr API types
 interface FlareSolverrRequest {
@@ -244,7 +244,7 @@ export class SlowDownloader {
   }
 
   /**
-   * Download a file using AA slow download links
+   * Download a file using searcher slow download links
    * Automatically tries servers 0-5 until one succeeds
    */
   async downloadWithRetry(
@@ -274,7 +274,7 @@ export class SlowDownloader {
 
     // If failed or returned null, continue to slow servers
     if (lgResult === null) {
-      // LG not configured, just continue to AA slow
+      // LG not configured, just continue to searcher slow
       logger.info(`[${downloadId}] LG not configured, trying slow servers...`);
     } else {
       logger.info(
@@ -283,8 +283,8 @@ export class SlowDownloader {
     }
 
     // Get searcher URL variants with fallbacks
-    const aaUrlVariants = await appConfigService.getSearcherUrlVariants();
-    if (aaUrlVariants.length === 0) {
+    const searcherUrlVariants = await appConfigService.getSearcherUrlVariants();
+    if (searcherUrlVariants.length === 0) {
       return {
         success: false,
         error: "Searcher base URL is not configured",
@@ -294,13 +294,15 @@ export class SlowDownloader {
     // Try each domain variant, then all paths/servers for that domain
     for (
       let domainIndex = 0;
-      domainIndex < aaUrlVariants.length;
+      domainIndex < searcherUrlVariants.length;
       domainIndex++
     ) {
-      const aaBaseUrl = aaUrlVariants[domainIndex];
+      const archiveBaseUrl = searcherUrlVariants[domainIndex];
 
       if (domainIndex > 0) {
-        logger.info(`[${downloadId}] Trying fallback AA domain: ${aaBaseUrl}`);
+        logger.info(
+          `[${downloadId}] Trying fallback searcher domain: ${archiveBaseUrl}`,
+        );
       }
 
       // Try each path and server in sequence for this domain
@@ -335,7 +337,7 @@ export class SlowDownloader {
               pathIndex,
               serverIndex,
               downloadId,
-              aaBaseUrl,
+              archiveBaseUrl,
               onProgress,
             });
 
@@ -343,9 +345,9 @@ export class SlowDownloader {
               // If a fallback domain worked, save it
               if (domainIndex > 0) {
                 logger.info(
-                  `[${downloadId}] AA fallback domain worked, saving: ${aaBaseUrl}`,
+                  `[${downloadId}] searcher fallback domain worked, saving: ${archiveBaseUrl}`,
                 );
-                await appConfigService.updateSearcherBaseUrl(aaBaseUrl);
+                await appConfigService.updateSearcherBaseUrl(archiveBaseUrl);
               }
               logger.success(
                 `[${downloadId}] Successfully downloaded from path ${pathIndex}, server ${serverIndex}`,
@@ -365,11 +367,13 @@ export class SlowDownloader {
         }
       }
 
-      logger.warn(`[${downloadId}] All servers failed for domain ${aaBaseUrl}`);
+      logger.warn(
+        `[${downloadId}] All servers failed for domain ${archiveBaseUrl}`,
+      );
     }
 
-    const totalAttempts = MAX_PATHS * MAX_SERVERS * aaUrlVariants.length;
-    const error = `All ${totalAttempts} slow download attempts failed (${aaUrlVariants.length} domains × ${MAX_PATHS} paths × ${MAX_SERVERS} servers)`;
+    const totalAttempts = MAX_PATHS * MAX_SERVERS * searcherUrlVariants.length;
+    const error = `All ${totalAttempts} slow download attempts failed (${searcherUrlVariants.length} domains × ${MAX_PATHS} paths × ${MAX_SERVERS} servers)`;
     logger.error(`[${downloadId}] ${error}`);
     return { success: false, error };
   }
@@ -382,11 +386,17 @@ export class SlowDownloader {
     pathIndex: number;
     serverIndex: number;
     downloadId: string;
-    aaBaseUrl: string;
+    archiveBaseUrl: string;
     onProgress?: (info: ProgressInfo) => void;
   }): Promise<SlowDownloadResult> {
-    const { md5, pathIndex, serverIndex, downloadId, aaBaseUrl, onProgress } =
-      options;
+    const {
+      md5,
+      pathIndex,
+      serverIndex,
+      downloadId,
+      archiveBaseUrl,
+      onProgress,
+    } = options;
     let sessionId: string | null = null;
 
     try {
@@ -395,7 +405,7 @@ export class SlowDownloader {
       logger.info(`[${downloadId}] Created FlareSolverr session: ${sessionId}`);
 
       // Build slow download URL
-      const slowDownloadUrl = `${aaBaseUrl}/slow_download/${md5}/${pathIndex}/${serverIndex}`;
+      const slowDownloadUrl = `${archiveBaseUrl}/slow_download/${md5}/${pathIndex}/${serverIndex}`;
       logger.info(`[${downloadId}] Requesting: ${slowDownloadUrl}`);
 
       onProgress?.({
@@ -579,7 +589,7 @@ export class SlowDownloader {
    * Extract download URL from the slow download page HTML
    */
   private extractDownloadUrl(html: string, downloadId: string): string | null {
-    // AA shows the download URL in several places after countdown completes:
+    // Shows the download URL in several places after countdown completes:
     // 1. In a button's onclick with navigator.clipboard.writeText('URL')
     // 2. In a span with the URL as text content
 
@@ -627,7 +637,7 @@ export class SlowDownloader {
    * Returns the number of seconds to wait, or 0 if not found
    */
   private extractCountdownTime(html: string, downloadId: string): number {
-    // AA uses: <span class="js-partner-countdown">45</span>
+    // uses: <span class="js-partner-countdown">45</span>
     const patterns = [
       // <span class="js-partner-countdown">45</span>
       /<span[^>]*class=["'][^"']*js-partner-countdown[^"']*["'][^>]*>(\d+)<\/span>/i,
@@ -729,7 +739,7 @@ export class SlowDownloader {
           const extension = extMatch ? extMatch[1] : "bin";
           let baseName = lastSegment.substring(0, lastSegment.lastIndexOf("."));
 
-          // Clean AA format: "Title -- Author -- Publisher..."
+          // Clean format: "Title -- Author -- Publisher..."
           const parts = baseName.split(" -- ").map((p) => p.trim());
           if (parts.length >= 2) {
             baseName = `${parts[0]} - ${parts[1]}`;

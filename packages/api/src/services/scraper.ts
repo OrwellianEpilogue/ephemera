@@ -4,14 +4,24 @@ import { getErrorMessage } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
 import { searchCacheManager } from "./search-cache.js";
 import { appConfigService } from "./app-config.js";
+import { searcherHealthService } from "./searcher-health.js";
+
+/**
+ * Internal scrape result that includes block page detection.
+ * Used internally by the scraper - not exposed in the API.
+ */
+interface InternalScrapeResult extends SearchResponse {
+  /** True if the page was detected as an ISP block page (missing searcher markers) */
+  isBlockedPage: boolean;
+}
 
 // Configure Crawlee to use in-memory storage globally
 // This avoids file conflicts when multiple crawlers run concurrently
 Configuration.getGlobalConfig().set("persistStorage", false);
 
 /**
- * Transform an AA image URL to use our proxy endpoint
- * This protects client IP addresses from being exposed to AA
+ * Transform an searcher image URL to use our proxy endpoint
+ * This protects client IP addresses from being exposed to searcher
  *
  * TEMPORARILY DISABLED: The proxy creates connection blocking issues.
  * Browser has 6 connection limit to localhost:8286. Even with lazy loading
@@ -32,13 +42,13 @@ function transformImageUrlToProxy(
   // const encodedUrl = Buffer.from(originalUrl, 'utf-8').toString('base64');
   // return `/api/proxy/image?url=${encodedUrl}`;
 }
-export class AAScraper {
-  async scrapeUrl(url: string): Promise<SearchResponse> {
+export class SearcherScraper {
+  async scrapeUrl(url: string): Promise<InternalScrapeResult> {
     const crawlId = Math.random().toString(36).substring(7);
     logger.info(`[${crawlId}] Crawler starting for: ${url}`);
 
     // Use local variable instead of shared instance state to avoid race conditions
-    let result: SearchResponse | null = null;
+    let result: InternalScrapeResult | null = null;
 
     const crawler = new CheerioCrawler({
       maxRequestRetries: 3,
@@ -67,10 +77,34 @@ export class AAScraper {
       requestHandler: async ({ $, _request, _log }) => {
         logger.info(`[${crawlId}] HTTP response received, parsing HTML...`);
 
+        // Validate this is a real searcher page, not an ISP block page
+        // Searcher pages contain "open source" or "open library" in their content
+        const pageText = $.text().toLowerCase();
+        const isValidSearcherPage =
+          pageText.includes("open source") || pageText.includes("open library");
+
+        if (!isValidSearcherPage) {
+          logger.warn(
+            `[${crawlId}] Invalid page detected - likely ISP block page (missing searcher markers)`,
+          );
+          result = {
+            results: [],
+            pagination: {
+              page: 1,
+              per_page: 50,
+              has_next: false,
+              has_previous: false,
+              estimated_total_results: null,
+            },
+            isBlockedPage: true,
+          };
+          return;
+        }
+
         // Parse the page
         const parseStart = Date.now();
-        const books = AAScraper.parseBooks($);
-        const pagination = AAScraper.parsePagination($);
+        const books = SearcherScraper.parseBooks($);
+        const pagination = SearcherScraper.parsePagination($);
         const parseDuration = Date.now() - parseStart;
 
         logger.info(
@@ -81,15 +115,19 @@ export class AAScraper {
         result = {
           results: books,
           pagination,
+          isBlockedPage: false,
         };
       },
 
       failedRequestHandler: async ({ request }, error) => {
-        // Only log non-network errors (network errors are expected from AA)
+        // Only log non-network errors (network errors are expected from searcher)
         const isNetworkError =
           error.message?.includes("terminated") ||
           error.message?.includes("socket") ||
-          error.message?.includes("ECONNREFUSED");
+          error.message?.includes("ECONNREFUSED") ||
+          error.message?.includes("CERT") ||
+          error.message?.includes("SSL") ||
+          error.message?.includes("certificate");
 
         if (!isNetworkError) {
           logger.error(
@@ -103,6 +141,7 @@ export class AAScraper {
         }
 
         // Don't throw - return empty result instead
+        // Network errors are treated as potential block (ISP DNS rewrite with invalid cert)
         result = {
           results: [],
           pagination: {
@@ -112,6 +151,7 @@ export class AAScraper {
             has_previous: false,
             estimated_total_results: null,
           },
+          isBlockedPage: isNetworkError, // Network errors likely indicate blocking
         };
       },
     });
@@ -126,7 +166,7 @@ export class AAScraper {
         `[${crawlId}] Crawler completed in ${Date.now() - crawlerStart}ms`,
       );
     } catch (error: unknown) {
-      // Only log unexpected errors (socket/network errors are expected from AA)
+      // Only log unexpected errors (socket/network errors are expected from searcher)
       const errorMessage = getErrorMessage(error);
       const errorCode =
         typeof error === "object" && error !== null && "code" in error
@@ -136,6 +176,9 @@ export class AAScraper {
         errorMessage.includes("terminated") ||
         errorMessage.includes("socket") ||
         errorMessage.includes("ECONNREFUSED") ||
+        errorMessage.includes("CERT") ||
+        errorMessage.includes("SSL") ||
+        errorMessage.includes("certificate") ||
         errorCode === "UND_ERR_SOCKET";
 
       if (!isNetworkError) {
@@ -145,6 +188,7 @@ export class AAScraper {
       }
 
       // Return empty result if crawler completely fails
+      // Network errors likely indicate ISP blocking
       if (!result) {
         logger.warn(`[${crawlId}] No results available, returning empty`);
         return {
@@ -156,6 +200,7 @@ export class AAScraper {
             has_previous: false,
             estimated_total_results: null,
           },
+          isBlockedPage: isNetworkError,
         };
       }
     }
@@ -171,6 +216,7 @@ export class AAScraper {
           has_previous: false,
           estimated_total_results: null,
         },
+        isBlockedPage: false,
       }
     );
   }
@@ -361,7 +407,7 @@ export class AAScraper {
 
     return {
       page,
-      per_page: 50, // AA shows 50 results per page
+      per_page: 50, // searcher shows 50 results per page
       has_next,
       has_previous,
       estimated_total_results,
@@ -370,6 +416,23 @@ export class AAScraper {
 
   async search(query: SearchQuery): Promise<SearchResponse> {
     const searchId = Math.random().toString(36).substring(7);
+
+    // Check if search should be skipped due to blocked status
+    if (searcherHealthService.shouldSkipSearch()) {
+      logger.warn(
+        `[${searchId}] Skipping search - all searcher variants are blocked (TTL not expired)`,
+      );
+      return {
+        results: [],
+        pagination: {
+          page: 1,
+          per_page: 50,
+          has_next: false,
+          has_previous: false,
+          estimated_total_results: null,
+        },
+      };
+    }
 
     // Check cache first
     logger.info(`[${searchId}] Checking cache for page ${query.page}...`);
@@ -404,8 +467,9 @@ export class AAScraper {
     }
 
     // Try each URL variant until one succeeds
-    let lastResult: SearchResponse | null = null;
+    let lastResult: InternalScrapeResult | null = null;
     let workingBaseUrl: string | null = null;
+    let blockedCount = 0;
 
     for (let i = 0; i < urlVariants.length; i++) {
       const baseUrl = urlVariants[i];
@@ -418,11 +482,20 @@ export class AAScraper {
 
       const result = await this.scrapeUrl(url);
 
+      // Track blocked pages
+      if (result.isBlockedPage) {
+        blockedCount++;
+        logger.warn(
+          `[${searchId}] Variant ${baseUrl} appears blocked (${blockedCount}/${urlVariants.length})`,
+        );
+      }
+
       // Check if we got actual results (success indicator)
       // Empty results with no error is still a valid response
       if (
-        result.results.length > 0 ||
-        result.pagination.estimated_total_results !== null
+        !result.isBlockedPage &&
+        (result.results.length > 0 ||
+          result.pagination.estimated_total_results !== null)
       ) {
         lastResult = result;
         workingBaseUrl = baseUrl;
@@ -432,6 +505,17 @@ export class AAScraper {
       // If no results, try the next domain (might be a domain issue)
       logger.warn(`[${searchId}] No results from ${baseUrl}, trying next...`);
       lastResult = result;
+    }
+
+    // Update searcher health status based on results
+    if (workingBaseUrl) {
+      // At least one variant worked - mark as healthy
+      await searcherHealthService.markHealthy();
+    } else if (blockedCount === urlVariants.length && urlVariants.length > 0) {
+      // ALL variants were blocked - mark as blocked
+      await searcherHealthService.markBlocked(
+        "All search service domains appear to be blocked.",
+      );
     }
 
     // If a fallback URL worked, save it
@@ -537,4 +621,4 @@ export class AAScraper {
 }
 
 // Singleton instance
-export const aaScraper = new AAScraper();
+export const searcherScraper = new SearcherScraper();

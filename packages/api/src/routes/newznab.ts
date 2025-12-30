@@ -8,7 +8,7 @@ import {
 } from "../services/newznab-formatter.js";
 import { nzbGenerator } from "../services/nzb-generator.js";
 import { bookRepository } from "../repositories/book.js";
-import { aaScraper } from "../services/scraper.js";
+import { searcherScraper } from "../services/scraper.js";
 import type { Book } from "../db/schema.js";
 import type { SearchResponse } from "@ephemera/shared";
 
@@ -143,7 +143,7 @@ newznab.get("/api", async (c) => {
     if (!book) {
       // Try to find it via search (in case it's not in DB yet)
       try {
-        const searchResults = await aaScraper.search({
+        const searchResults = await searcherScraper.search({
           q: params.data.id, // Search by MD5
           page: 1,
         });
@@ -287,7 +287,7 @@ newznab.get("/api", async (c) => {
     } else {
       // Perform new search
       try {
-        searchResults = await aaScraper.search({
+        searchResults = await searcherScraper.search({
           q: searchQuery,
           page: Math.floor(params.data.offset / params.data.limit) + 1,
         });

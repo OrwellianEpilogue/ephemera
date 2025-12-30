@@ -22,7 +22,7 @@ export interface MaintenanceStatus {
  * Maintenance mode is triggered when ALL conditions are met:
  * 1. FLARESOLVERR_URL is configured (env var set)
  * 2. FlareSolverr is NOT available (health check fails)
- * 3. No AA API key is configured (searcherApiKey is empty)
+ * 3. No searcher API key is configured (searcherApiKey is empty)
  * 4. Setup is complete (isSetupComplete === true)
  */
 class FlareSolverrHealthService {

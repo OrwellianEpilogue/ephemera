@@ -3,6 +3,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { appSettingsService } from "../services/app-settings.js";
 import { emailSettingsService } from "../services/email-settings.js";
 import { flareSolverrHealthService } from "../services/flaresolverr-health.js";
+import { searcherHealthService } from "../services/searcher-health.js";
 import { frontendConfigSchema, errorResponseSchema } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
 
@@ -40,7 +41,21 @@ app.openapi(getConfigRoute, async (c) => {
   try {
     const appSettings = await appSettingsService.getSettings();
     const emailSettings = await emailSettingsService.getSettings();
-    const maintenanceStatus = flareSolverrHealthService.getStatus();
+    const flareSolverrStatus = flareSolverrHealthService.getStatus();
+    const searcherStatus = searcherHealthService.getStatus();
+
+    // Compute individual and combined maintenance status
+    const flareSolverrDown = flareSolverrStatus.inMaintenanceMode;
+    const searcherBlocked = searcherStatus.isBlocked;
+    const maintenanceMode = flareSolverrDown || searcherBlocked;
+
+    // Prioritize FlareSolverr reason, then searcher reason
+    let maintenanceReason: string | null = null;
+    if (flareSolverrDown) {
+      maintenanceReason = flareSolverrStatus.reason;
+    } else if (searcherBlocked) {
+      maintenanceReason = searcherStatus.reason;
+    }
 
     return c.json(
       {
@@ -54,9 +69,13 @@ app.openapi(getConfigRoute, async (c) => {
         // From email settings (just enabled status, no credentials)
         emailEnabled: emailSettings?.enabled ?? false,
 
-        // Maintenance mode status
-        maintenanceMode: maintenanceStatus.inMaintenanceMode,
-        maintenanceReason: maintenanceStatus.reason,
+        // Combined maintenance mode status
+        maintenanceMode,
+        maintenanceReason,
+
+        // Granular status fields
+        flareSolverrDown,
+        searcherBlocked,
       },
       200,
     );
