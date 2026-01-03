@@ -388,13 +388,13 @@ class AppriseService {
     notification: NotificationData,
     customHeaders: Record<string, string> | null,
   ): Promise<void> {
-    const formData = new FormData();
-    formData.append("title", notification.title);
-    formData.append("body", notification.body);
-    formData.append("type", notification.type);
-    formData.append("tags", "all");
+    const payload = {
+      ...notification,
+      tags: "all",
+    };
 
     const headers: Record<string, string> = {};
+    headers["Content-Type"] = "application/json";
 
     // Add custom headers if provided
     if (customHeaders) {
@@ -406,7 +406,7 @@ class AppriseService {
     const response = await fetch(serverUrl, {
       method: "POST",
       headers,
-      body: formData,
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
