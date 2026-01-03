@@ -3,8 +3,7 @@ import type { SearchQuery, Book, SearchResponse } from "@ephemera/shared";
 import { getErrorMessage } from "@ephemera/shared";
 import { logger } from "../utils/logger.js";
 import { searchCacheManager } from "./search-cache.js";
-
-const BASE_URL = process.env.AA_BASE_URL;
+import { getAaBaseUrls } from "../utils/aa-base-url.js";
 
 /**
  * Transform an AA image URL to use our proxy endpoint
@@ -31,10 +30,13 @@ function transformImageUrlToProxy(
 }
 export class AAScraper {
   private lastResult: SearchResponse | null = null;
+  private lastScrapeHadNetworkError = false;
 
   async scrapeUrl(url: string): Promise<SearchResponse> {
     const crawlId = Math.random().toString(36).substring(7);
     logger.info(`[${crawlId}] Crawler starting for: ${url}`);
+
+    this.lastScrapeHadNetworkError = false;
 
     const crawler = new CheerioCrawler({
       maxRequestRetries: 3,
@@ -87,6 +89,10 @@ export class AAScraper {
           error.message?.includes("socket") ||
           error.message?.includes("ECONNREFUSED");
 
+        if (isNetworkError) {
+          this.lastScrapeHadNetworkError = true;
+        }
+
         if (!isNetworkError) {
           logger.error(
             `[${crawlId}] Request ${request.url} failed:`,
@@ -136,6 +142,10 @@ export class AAScraper {
         errorMessage.includes("socket") ||
         errorMessage.includes("ECONNREFUSED") ||
         errorCode === "UND_ERR_SOCKET";
+
+      if (isNetworkError) {
+        this.lastScrapeHadNetworkError = true;
+      }
 
       if (!isNetworkError) {
         logger.warn(`[${crawlId}] Crawler error for ${url}:`, errorMessage);
@@ -386,28 +396,54 @@ export class AAScraper {
     logger.info(`[${searchId}] Cache miss (${cacheDuration}ms)`);
 
     // Cache miss - scrape the page
-    const url = this.buildSearchUrl(query);
-    logger.info(`[${searchId}] URL: ${url}`);
+    const baseUrls = getAaBaseUrls();
+    let lastResult: SearchResponse | null = null;
 
-    const result = await this.scrapeUrl(url);
+    for (const baseUrl of baseUrls) {
+      const url = this.buildSearchUrl(query, baseUrl);
+      logger.info(`[${searchId}] URL: ${url}`);
 
-    if (result.results.length === 0) {
-      logger.warn(`[${searchId}] No results found`);
-    } else {
-      logger.success(`[${searchId}] Found ${result.results.length} books`);
+      const result = await this.scrapeUrl(url);
+      lastResult = result;
 
-      // Cache the result
-      const cacheSetStart = Date.now();
-      await searchCacheManager.set(query, result);
-      logger.info(
-        `[${searchId}] Cached result (${Date.now() - cacheSetStart}ms)`,
-      );
+      if (this.lastScrapeHadNetworkError) {
+        logger.warn(
+          `[${searchId}] Network error using ${baseUrl}, trying next mirror...`,
+        );
+        continue;
+      }
+
+      if (result.results.length === 0) {
+        logger.warn(`[${searchId}] No results found`);
+      } else {
+        logger.success(`[${searchId}] Found ${result.results.length} books`);
+
+        // Cache the result
+        const cacheSetStart = Date.now();
+        await searchCacheManager.set(query, result);
+        logger.info(
+          `[${searchId}] Cached result (${Date.now() - cacheSetStart}ms)`,
+        );
+      }
+
+      return result;
     }
 
-    return result;
+    return (
+      lastResult || {
+        results: [],
+        pagination: {
+          page: 1,
+          per_page: 50,
+          has_next: false,
+          has_previous: false,
+          estimated_total_results: null,
+        },
+      }
+    );
   }
 
-  private buildSearchUrl(query: SearchQuery): string {
+  private buildSearchUrl(query: SearchQuery, baseUrl: string): string {
     const params = new URLSearchParams();
 
     // Check if we're doing an advanced search (author or title present)
@@ -465,7 +501,7 @@ export class AAScraper {
       query.lang.forEach((l) => params.append("lang", l));
     }
 
-    return `${BASE_URL}/search?${params.toString()}`;
+    return new URL(`/search?${params.toString()}`, baseUrl).toString();
   }
 }
 

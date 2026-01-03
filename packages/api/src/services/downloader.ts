@@ -6,9 +6,9 @@ import { Readable } from "stream";
 import { logger } from "../utils/logger.js";
 import { downloadTracker } from "./download-tracker.js";
 import { slowDownloader, type ProgressInfo } from "./slow-downloader.js";
+import { getAaBaseUrls } from "../utils/aa-base-url.js";
 
 const AA_API_KEY = process.env.AA_API_KEY;
-const AA_BASE_URL = process.env.AA_BASE_URL;
 const TEMP_FOLDER = process.env.DOWNLOAD_FOLDER || "./downloads";
 const REQUEST_TIMEOUT = parseInt(process.env.REQUEST_TIMEOUT || "30000");
 
@@ -59,28 +59,48 @@ export class Downloader {
       params.append("domain_index", domainIndex.toString());
     }
 
-    const url = `${AA_BASE_URL}/dyn/api/fast_download.json?${params.toString()}`;
+    const baseUrls = getAaBaseUrls();
+    let lastError: string | undefined;
 
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+    for (const baseUrl of baseUrls) {
+      const url = new URL(
+        `/dyn/api/fast_download.json?${params.toString()}`,
+        baseUrl,
+      ).toString();
 
-      const response = await fetch(url, {
-        signal: controller.signal,
-      });
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
-      clearTimeout(timeout);
+        const response = await fetch(url, {
+          signal: controller.signal,
+        });
 
-      const data = await response.json();
+        clearTimeout(timeout);
 
-      return data as AAResponse;
-    } catch (error: unknown) {
-      logger.error(`Failed to get download URL for ${md5}:`, error);
-      return {
-        download_url: null,
-        error:
-          error instanceof Error ? error.message : "Failed to get download URL",
-      };
+        if (!response.ok) {
+          lastError = `HTTP ${response.status}: ${response.statusText}`;
+          logger.warn(
+            `AA API request failed on ${baseUrl} for ${md5}: ${lastError}`,
+          );
+          continue;
+        }
+
+        const data = (await response.json()) as AAResponse;
+        return data;
+      } catch (error: unknown) {
+        lastError =
+          error instanceof Error ? error.message : "Failed to get download URL";
+        logger.warn(
+          `AA API request failed on ${baseUrl} for ${md5}: ${lastError}`,
+        );
+      }
+    }
+
+    logger.error(`Failed to get download URL for ${md5}:`, lastError);
+    return {
+      download_url: null,
+      error: lastError || "Failed to get download URL",
     }
   }
 

@@ -57,6 +57,9 @@ services:
       # Leave empty to disable this feature
       # li, bz, etc.
       LG_BASE_URL: #https://gen.com
+      # Anna's Archive mirror fallbacks (comma-separated)
+      # Example: https://annas-archive.se,https://annas-archive.li
+      AA_MIRROR_URLS:
 
       AA_API_KEY: # Only for paid members of AA, otherwise leave blank for slow downloads
       PUID: 1000
@@ -164,6 +167,7 @@ All other settings have sensible defaults, but you can override them:
 | Variable           | Default                 | Description            |
 | ------------------ | ----------------------- | ---------------------- |
 | `AA_API_KEY`       | `empty`                 | `dhw8adhwa8...` Only for paid members of AA, otherwise leave blank for slow downloads       |
+| `AA_MIRROR_URLS`   | `empty`                 | Comma-separated fallback mirrors (e.g. `https://annas-archive.se,https://annas-archive.li`) |
 | `PORT`             | `8286`                  | Application port       |
 | `DB_PATH`          | `/app/data/database.db` | Database location      |
 | `DOWNLOAD_FOLDER`  | `/app/downloads`        | Temp download folder   |
@@ -209,6 +213,13 @@ environment:
 - The frontend automatically detects the API base path from the backend
 - Backward compatible - existing deployments continue working with default `/api`
 - Both development and production environments support custom paths
+
+### Mirror Fallbacks
+
+If the primary Anna's Archive domain is unavailable, Ephemera will try fallback
+mirrors. Configure `AA_MIRROR_URLS` with a comma-separated list (for example,
+`https://annas-archive.se,https://annas-archive.li`). The primary `AA_BASE_URL`
+is always attempted first.
 
 ## Monorepo Structure
 

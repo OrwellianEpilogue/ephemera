@@ -5,8 +5,8 @@ import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 import { logger } from "../utils/logger.js";
 import { downloadTracker } from "./download-tracker.js";
+import { getAaBaseUrls } from "../utils/aa-base-url.js";
 
-const AA_BASE_URL = process.env.AA_BASE_URL;
 const TEMP_FOLDER = process.env.DOWNLOAD_FOLDER || "./downloads";
 const FLARESOLVERR_URL =
   process.env.FLARESOLVERR_URL || "http://localhost:8191";
@@ -326,112 +326,140 @@ export class SlowDownloader {
       sessionId = await this.createSession(downloadId);
       logger.info(`[${downloadId}] Created FlareSolverr session: ${sessionId}`);
 
-      // Build slow download URL
-      const slowDownloadUrl = `${AA_BASE_URL}/slow_download/${md5}/${pathIndex}/${serverIndex}`;
-      logger.info(`[${downloadId}] Requesting: ${slowDownloadUrl}`);
+      const baseUrls = getAaBaseUrls();
+      let lastError: string | undefined;
 
-      onProgress?.({
-        status: "bypassing_protection",
-        message: "Bypassing bot protection...",
-      });
+      for (const baseUrl of baseUrls) {
+        const slowDownloadUrl = new URL(
+          `/slow_download/${md5}/${pathIndex}/${serverIndex}`,
+          baseUrl,
+        ).toString();
+        logger.info(`[${downloadId}] Requesting: ${slowDownloadUrl}`);
 
-      // Request the page through FlareSolverr (this handles bot protection)
-      let html = await this.requestPage(slowDownloadUrl, sessionId, downloadId);
-
-      // Extract download URL from HTML
-      let downloadUrl = this.extractDownloadUrl(html, downloadId);
-
-      // If no download URL found, check for countdown and wait
-      if (!downloadUrl) {
-        logger.info(
-          `[${downloadId}] Download link not ready, checking for countdown...`,
-        );
-
-        // Extract countdown duration from the page
-        const countdownSeconds = this.extractCountdownTime(html, downloadId);
-
-        if (countdownSeconds > 0) {
-          logger.info(
-            `[${downloadId}] Countdown found: ${countdownSeconds} seconds`,
-          );
-
-          // Check if download was cancelled before starting countdown
-          const preCountdownStatus = await downloadTracker.get(md5);
-          if (preCountdownStatus?.status === "cancelled") {
-            logger.info(
-              `[${downloadId}] Download already cancelled before countdown`,
-            );
-            throw new Error("Download cancelled by user");
-          }
-
-          await onProgress?.({
-            status: "waiting_countdown",
-            message: `Waiting for countdown (${countdownSeconds}s)...`,
-            countdownSeconds,
-            countdownStartedAt: Date.now(),
+        try {
+          onProgress?.({
+            status: "bypassing_protection",
+            message: "Bypassing bot protection...",
           });
 
-          // Wait for the countdown duration + 2 seconds buffer, checking for cancellation
-          const totalWaitMs = (countdownSeconds + 2) * 1000;
-          const endTime = Date.now() + totalWaitMs;
-          const checkIntervalMs = 200; // Check every 200ms for faster cancellation response
+          // Request the page through FlareSolverr (this handles bot protection)
+          let html = await this.requestPage(
+            slowDownloadUrl,
+            sessionId,
+            downloadId,
+          );
 
-          while (Date.now() < endTime) {
-            // Check if download was cancelled
-            const currentStatus = await downloadTracker.get(md5);
-            if (currentStatus?.status === "cancelled") {
+          // Extract download URL from HTML
+          let downloadUrl = this.extractDownloadUrl(html, downloadId);
+
+          // If no download URL found, check for countdown and wait
+          if (!downloadUrl) {
+            logger.info(
+              `[${downloadId}] Download link not ready, checking for countdown...`,
+            );
+
+            // Extract countdown duration from the page
+            const countdownSeconds = this.extractCountdownTime(html, downloadId);
+
+            if (countdownSeconds > 0) {
               logger.info(
-                `[${downloadId}] Download cancelled during countdown`,
+                `[${downloadId}] Countdown found: ${countdownSeconds} seconds`,
               );
-              throw new Error("Download cancelled by user");
-            }
 
-            // Wait 200ms before next check (or remaining time if less)
-            const remainingMs = endTime - Date.now();
-            const waitMs = Math.min(checkIntervalMs, Math.max(0, remainingMs));
-            if (waitMs > 0) {
-              await new Promise((resolve) => setTimeout(resolve, waitMs));
+              // Check if download was cancelled before starting countdown
+              const preCountdownStatus = await downloadTracker.get(md5);
+              if (preCountdownStatus?.status === "cancelled") {
+                logger.info(
+                  `[${downloadId}] Download already cancelled before countdown`,
+                );
+                throw new Error("Download cancelled by user");
+              }
+
+              await onProgress?.({
+                status: "waiting_countdown",
+                message: `Waiting for countdown (${countdownSeconds}s)...`,
+                countdownSeconds,
+                countdownStartedAt: Date.now(),
+              });
+
+              // Wait for the countdown duration + 2 seconds buffer, checking for cancellation
+              const totalWaitMs = (countdownSeconds + 2) * 1000;
+              const endTime = Date.now() + totalWaitMs;
+              const checkIntervalMs = 200; // Check every 200ms for faster cancellation response
+
+              while (Date.now() < endTime) {
+                // Check if download was cancelled
+                const currentStatus = await downloadTracker.get(md5);
+                if (currentStatus?.status === "cancelled") {
+                  logger.info(
+                    `[${downloadId}] Download cancelled during countdown`,
+                  );
+                  throw new Error("Download cancelled by user");
+                }
+
+                // Wait 200ms before next check (or remaining time if less)
+                const remainingMs = endTime - Date.now();
+                const waitMs = Math.min(
+                  checkIntervalMs,
+                  Math.max(0, remainingMs),
+                );
+                if (waitMs > 0) {
+                  await new Promise((resolve) => setTimeout(resolve, waitMs));
+                }
+              }
+
+              logger.info(
+                `[${downloadId}] Countdown complete, requesting page again...`,
+              );
+
+              // Request the page again - the download link should now be available
+              html = await this.requestPage(
+                slowDownloadUrl,
+                sessionId,
+                downloadId,
+              );
+              downloadUrl = this.extractDownloadUrl(html, downloadId);
+
+              if (!downloadUrl) {
+                throw new Error("Could not find download link after countdown");
+              }
+            } else {
+              throw new Error(
+                "Could not find download link or countdown timer on page",
+              );
             }
           }
 
           logger.info(
-            `[${downloadId}] Countdown complete, requesting page again...`,
+            `[${downloadId}] Found download URL: ${downloadUrl.substring(0, 100)}...`,
           );
 
-          // Request the page again - the download link should now be available
-          html = await this.requestPage(slowDownloadUrl, sessionId, downloadId);
-          downloadUrl = this.extractDownloadUrl(html, downloadId);
+          // Download the actual file
+          const filePath = await this.downloadFile(
+            downloadUrl,
+            md5,
+            downloadId,
+            onProgress,
+          );
 
-          if (!downloadUrl) {
-            throw new Error("Could not find download link after countdown");
-          }
-        } else {
-          throw new Error(
-            "Could not find download link or countdown timer on page",
+          logger.success(`[${downloadId}] Download completed: ${filePath}`);
+
+          return {
+            success: true,
+            filePath,
+            pathIndex,
+            serverIndex,
+          };
+        } catch (error: unknown) {
+          lastError =
+            error instanceof Error ? error.message : "Slow download failed";
+          logger.warn(
+            `[${downloadId}] Slow download failed on ${baseUrl}: ${lastError}`,
           );
         }
       }
 
-      logger.info(
-        `[${downloadId}] Found download URL: ${downloadUrl.substring(0, 100)}...`,
-      );
-
-      // Download the actual file
-      const filePath = await this.downloadFile(
-        downloadUrl,
-        md5,
-        downloadId,
-        onProgress,
-      );
-
-      logger.success(`[${downloadId}] Download completed: ${filePath}`);
-
-      return {
-        success: true,
-        filePath,
-        pathIndex,
-        serverIndex,
-      };
+      throw new Error(lastError || "Slow download failed on all mirrors");
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
       logger.error(`[${downloadId}] Download failed:`, errorMsg);
