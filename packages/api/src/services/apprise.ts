@@ -585,42 +585,53 @@ class AppriseService {
     }
   }
 
-  /**
-   * Send notification to Apprise server
-   */
-  private async sendToApprise(
-    serverUrl: string,
-    notification: NotificationData,
-    customHeaders: Record<string, string> | null,
-  ): Promise<void> {
-    const formData = new FormData();
-    formData.append("title", notification.title);
-    formData.append("body", notification.body);
-    formData.append("type", notification.type);
-    formData.append("tags", "all");
+/**
+ * Send notification to Apprise server
+ */
+private async sendToApprise(
+  serverUrl: string,
+  notification: NotificationData,
+  customHeaders: Record<string, string> | null,
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("title", notification.title);
+  formData.append("body", notification.body);
+  formData.append("type", notification.type);
 
-    const headers: Record<string, string> = {};
+  // Determine effective routing tag
+  const tag =
+    customHeaders?.["X-Apprise-Tag"] ??
+    customHeaders?.["X-Apprise-Tags"] ??
+    "ephemera";
 
-    // Add custom headers if provided
-    if (customHeaders) {
-      Object.entries(customHeaders).forEach(([key, value]) => {
-        headers[key] = value;
-      });
-    }
+  // Apply tag to notification payload
+  formData.append("tags", tag);
 
-    const response = await fetch(serverUrl, {
-      method: "POST",
-      headers,
-      body: formData,
+  const headers: Record<string, string> = {};
+
+  // Add custom headers if provided
+  if (customHeaders) {
+    Object.entries(customHeaders).forEach(([key, value]) => {
+      headers[key] = value;
     });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "Unknown error");
-      throw new Error(
-        `Apprise server returned ${response.status}: ${errorText}`,
-      );
-    }
   }
+
+  const response = await fetch(serverUrl, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(
+      `Apprise server returned ${response.status}: ${errorText}`,
+    );
+  }
+}
+
+
+  
 
   /**
    * Send a test notification
