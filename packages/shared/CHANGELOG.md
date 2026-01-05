@@ -1,5 +1,42 @@
 # @ephemera/shared
 
+## 2.0.0
+
+### Major Changes
+
+- Features:
+  multi user auth / oidc (#45)
+  proxy auth fall through (#95)
+  post-download EPUB normalization and format conversion (#99)
+  approval workflow for users without download permission (#90)
+  domain fallback for searcher and quick download URLs (#110)
+  Tolino Cloud integration with ebook conversion and book metadata enrichment and Tolino series collections (#93, #103 #111)
+  dynamic page titles (#96)
+  detect searcher issues and show maintenance mode
+  pause/resume functionality for downloads
+  show active count and pause indicator in browser tab title
+  9 new notification events and fix triggers (#107)
+  action buttons to BookCard when downloaded (#109)
+  book tracking app list imports feature (#102)
+  text filter to search requests
+  FlareSolverr health check and maintenance mode (#100)
+  styling and display improvements (#105)
+
+  Fixes:
+  optimize queue page with single JOIN query
+  enforce delete permissions at API level (#88)
+  include IP address in untrusted proxy log message
+  resolve 404/429 loop on settings page and persist auth secret
+  cache setup status to reduce API calls
+  add cross-request session cache to reduce Better Auth calls
+  respect keepInDownloads setting for automated actions
+  bundle React and Mantine together to prevent race condition
+  allow clearing author & title
+  config endpoint, permission check procps, render loops (#98)
+  pin Node to 22.16.0 to avoid undici fetch bug (#97)#
+  add self-unregistering service worker to clear stale caches (#94)
+  optimize API caching and database queries (#91)
+
 ## 1.4.2
 
 ### Patch Changes
