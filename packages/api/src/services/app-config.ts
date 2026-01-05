@@ -4,7 +4,7 @@ import { appConfig, type AppConfig } from "../db/schema.js";
 import { logger } from "../utils/logger.js";
 
 // Domain fallback configurations
-const SEARCHER_FALLBACK_TLDS = [".org", ".se", ".li"];
+const SEARCHER_FALLBACK_TLDS = [".se", ".li", ".in", ".pm"];
 const QUICK_FALLBACK_TLDS = [".bz", ".la", ".gl", ".vg", ".li"];
 
 /**
