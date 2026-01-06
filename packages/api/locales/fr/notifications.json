@@ -1,0 +1,100 @@
+{
+  "prefix": "Ephemera",
+  "parts": {
+    "by": " par ",
+    "reason_prefix": " : ",
+    "format_info": " ({{format}})",
+    "collection_info": " à la collection \"{{name}}\"",
+    "from_list": "\nDepuis la liste : {{listName}} ({{source}})",
+    "book_by": "\"{{title}}\" de {{author}}",
+    "unknown_book": "Livre inconnu"
+  },
+  "events": {
+    "new_request": {
+      "title": "{{prefix}} : Nouvelle demande de téléchargement créée",
+      "body": "Demande pour : {{query}}{{userInfo}}{{listInfo}}"
+    },
+    "download_error": {
+      "title": "{{prefix}} : Échec du téléchargement",
+      "body": "{{bookInfo}} n'a pas pu être téléchargé\nErreur : {{error}}"
+    },
+    "available": {
+      "title": "{{prefix}} : Téléchargement terminé",
+      "body": "{{bookInfo}} est maintenant disponible{{formatInfo}}"
+    },
+    "delayed": {
+      "title": "{{prefix}} : Téléchargement retardé - Quota épuisé",
+      "body": "{{bookInfo}} retardé en raison des limites de quota\nProchain essai : {{nextRetry}}"
+    },
+    "update_available": {
+      "title": "{{prefix}} : Mise à jour disponible",
+      "body": "La version {{latestVersion}} est disponible (actuelle : {{currentVersion}})"
+    },
+    "request_fulfilled": {
+      "title": "{{prefix}} : Demande satisfaite",
+      "body": "Trouvé et mis en file : {{bookInfo}}\nDemande : {{description}}"
+    },
+    "book_queued": {
+      "title": "{{prefix}} : Livre mis en file d'attente",
+      "body": "{{bookInfo}} a été ajouté à la file de téléchargement"
+    },
+    "request_pending_approval": {
+      "title": "{{prefix}} : Demande en attente d'approbation",
+      "body": "Nouvelle demande de {{user}} : {{description}}"
+    },
+    "request_approved": {
+      "title": "{{prefix}} : Demande approuvée",
+      "body": "Votre demande pour \"{{query}}\" a été approuvée et sera traitée prochainement"
+    },
+    "request_rejected": {
+      "title": "{{prefix}} : Demande rejetée",
+      "body": "Votre demande pour \"{{query}}\" a été rejetée{{reason}}"
+    },
+    "list_created": {
+      "title": "{{prefix}} : Nouvelle liste d'import créée",
+      "body": "La liste \"{{listName}}\" ({{source}}) a été créée par {{userName}}"
+    },
+    "tolino_configured": {
+      "title": "{{prefix}} : Tolino Cloud configuré",
+      "body": "{{userName}} a connecté son compte Tolino Cloud ({{reseller}})"
+    },
+    "email_recipient_added": {
+      "title": "{{prefix}} : Destinataire email ajouté",
+      "body": "{{userName}} a ajouté le destinataire email : {{recipient}}"
+    },
+    "oidc_account_created": {
+      "title": "{{prefix}} : Nouvel utilisateur auto-provisionné",
+      "body": "L'utilisateur {{userName}} ({{email}}) a été créé via {{providerName}}"
+    },
+    "oidc_role_updated": {
+      "title": "{{prefix}} : Rôle utilisateur modifié",
+      "body": "Le rôle de {{userName}} est passé de {{oldRole}} à {{newRole}} (via la revendication {{groupClaim}})"
+    },
+    "service_unhealthy": {
+      "title": "{{prefix}} : Service indisponible",
+      "body": "FlareSolverr est devenu indisponible.\n{{reason}}"
+    },
+    "service_recovered": {
+      "title": "{{prefix}} : Service rétabli",
+      "body": "FlareSolverr est de nouveau disponible"
+    },
+    "email_sent": {
+      "title": "{{prefix}} : Livre envoyé par email",
+      "body": "{{bookInfo}} envoyé à {{recipient}}"
+    },
+    "tolino_uploaded": {
+      "title": "{{prefix}} : Livre envoyé sur Tolino Cloud",
+      "body": "{{bookInfo}} envoyé{{collectionInfo}}"
+    }
+  },
+  "email": {
+    "subject": "Livre : {{title}}",
+    "text": "Voici le livre que vous avez demandé : {{title}}{{author}}",
+    "html": {
+      "title": "Votre Livre",
+      "label_title": "Titre",
+      "label_author": "Auteur",
+      "footer": "Le livre est joint à cet email."
+    }
+  }
+}

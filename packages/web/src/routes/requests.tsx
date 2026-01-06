@@ -37,7 +37,6 @@ import {
 } from "@tabler/icons-react";
 import { useState, useMemo, useCallback } from "react";
 import { useDisclosure } from "@mantine/hooks";
-import { formatDistanceToNow } from "date-fns";
 import {
   useRequests,
   useRequestStats,
@@ -49,21 +48,8 @@ import { useAppSettings } from "../hooks/useSettings";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { UserBadge } from "../components/UserBadge";
 import { SOURCE_COLORS, type SavedRequestWithMetadata } from "@ephemera/shared";
-
-// Helper function to format check interval for display
-function formatCheckInterval(interval: string): string {
-  const intervalMap: Record<string, string> = {
-    "1min": "every minute",
-    "15min": "every 15 minutes",
-    "30min": "every 30 minutes",
-    "1h": "every hour",
-    "6h": "every 6 hours",
-    "12h": "every 12 hours",
-    "24h": "every 24 hours",
-    weekly: "weekly",
-  };
-  return intervalMap[interval] || "every 6 hours";
-}
+import { useTranslation } from "react-i18next";
+import { formatDistanceToNowLocalized } from "../utils/date-utils";
 
 // Helper to get cover URL (local or remote)
 function getCoverUrl(
@@ -81,6 +67,9 @@ function getCoverUrl(
 
 // Request card component
 function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
+  const { t, i18n } = useTranslation("translation", {
+    keyPrefix: "requests",
+  });
   const deleteRequest = useDeleteRequest();
   const approveRequest = useApproveRequest();
   const rejectRequest = useRejectRequest();
@@ -93,7 +82,7 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
   const [rejectionReason, setRejectionReason] = useState("");
 
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this request?")) {
+    if (confirm(t("card.confirm_delete"))) {
       deleteRequest.mutate(request.id);
     }
   };
@@ -122,30 +111,30 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
   };
 
   if (params.author) {
-    filters.push(`Author: ${params.author}`);
+    filters.push(t("filters.author", { value: params.author }));
   }
 
   if (params.title) {
-    filters.push(`Title: ${params.title}`);
+    filters.push(t("filters.title", { value: params.title }));
   }
 
   const extArray = toArray(params.ext);
   if (extArray.length > 0) {
-    filters.push(`Format: ${extArray.join(", ")}`);
+    filters.push(t("filters.format", { value: extArray.join(", ") }));
   }
 
   const langArray = toArray(params.lang);
   if (langArray.length > 0) {
-    filters.push(`Language: ${langArray.join(", ")}`);
+    filters.push(t("filters.language", { value: langArray.join(", ") }));
   }
 
   const contentArray = toArray(params.content);
   if (contentArray.length > 0) {
-    filters.push(`Content: ${contentArray.join(", ")}`);
+    filters.push(t("filters.content", { value: contentArray.join(", ") }));
   }
 
   if (params.sort) {
-    filters.push(`Sort: ${params.sort}`);
+    filters.push(t("filters.sort", { value: params.sort }));
   }
 
   const statusColor =
@@ -157,14 +146,9 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
       rejected: "red",
     }[request.status as string] || "gray";
 
-  const statusLabel =
-    {
-      pending_approval: "pending approval",
-      active: "active",
-      fulfilled: "fulfilled",
-      cancelled: "cancelled",
-      rejected: "rejected",
-    }[request.status as string] || request.status;
+  const statusLabel = t(`status.${request.status}`, {
+    defaultValue: request.status,
+  });
 
   // Check if user has permission to manage requests
   const hasManagePermission = isAdmin || permissions?.canManageRequests;
@@ -173,12 +157,15 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
     if (params.q) return params.q;
 
     if (params.title && params.author) {
-      return `"${params.title}" by ${params.author}`;
+      return t("card.title_author", {
+        title: params.title,
+        author: params.author,
+      });
     }
-    if (params.title) return `Title: "${params.title}"`;
-    if (params.author) return `Author: ${params.author}`;
+    if (params.title) return t("card.title_only", { title: params.title });
+    if (params.author) return t("card.author_only", { author: params.author });
 
-    return "Unknown search";
+    return t("card.unknown_search");
   };
 
   const metadata = request.metadata;
@@ -233,7 +220,7 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
                   </Badge>
                 )}
                 {hasManagePermission && (
-                  <Tooltip label="Delete request">
+                  <Tooltip label={t("card.actions.delete")}>
                     <ActionIcon
                       variant="subtle"
                       color="red"
@@ -306,7 +293,9 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
                       )}
                       {metadata.pages && (
                         <Badge size="xs" variant="light" color="gray">
-                          {metadata.pages} pages
+                          {t("card.metadata.pages", {
+                            count: metadata.pages,
+                          })}
                         </Badge>
                       )}
                       {metadata.isbn && (
@@ -367,9 +356,11 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
             <Group gap={4}>
               <IconClock size={14} />
               <Text size="xs">
-                Created{" "}
-                {formatDistanceToNow(new Date(request.createdAt), {
-                  addSuffix: true,
+                {t("card.metadata.created", {
+                  time: formatDistanceToNowLocalized(
+                    new Date(request.createdAt),
+                    i18n.language,
+                  ),
                 })}
               </Text>
             </Group>
@@ -378,9 +369,11 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
               <Group gap={4}>
                 <IconRefresh size={14} />
                 <Text size="xs">
-                  Last checked{" "}
-                  {formatDistanceToNow(new Date(request.lastCheckedAt), {
-                    addSuffix: true,
+                  {t("card.metadata.last_checked", {
+                    time: formatDistanceToNowLocalized(
+                      new Date(request.lastCheckedAt),
+                      i18n.language,
+                    ),
                   })}
                 </Text>
               </Group>
@@ -390,9 +383,11 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
               <Group gap={4}>
                 <IconCheck size={14} />
                 <Text size="xs">
-                  Fulfilled{" "}
-                  {formatDistanceToNow(new Date(request.fulfilledAt), {
-                    addSuffix: true,
+                  {t("card.metadata.fulfilled", {
+                    time: formatDistanceToNowLocalized(
+                      new Date(request.fulfilledAt),
+                      i18n.language,
+                    ),
                   })}
                 </Text>
               </Group>
@@ -404,16 +399,22 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
             <Card withBorder bg="var(--mantine-color-red-light)">
               <Stack gap={4}>
                 <Text size="sm" fw={500} c="red">
-                  Request rejected
+                  {t("card.rejection.title")}
                 </Text>
                 {request.rejectionReason && (
-                  <Text size="xs">Reason: {request.rejectionReason}</Text>
+                  <Text size="xs">
+                    {t("card.rejection.reason", {
+                      reason: request.rejectionReason,
+                    })}
+                  </Text>
                 )}
                 {request.approverName && (
                   <Text size="xs" c="dimmed">
-                    Rejected by {request.approverName}
+                    {t("card.rejection.by", {
+                      name: request.approverName,
+                    })}
                     {request.rejectedAt &&
-                      ` ${formatDistanceToNow(new Date(request.rejectedAt), { addSuffix: true })}`}
+                      ` ${formatDistanceToNowLocalized(new Date(request.rejectedAt), i18n.language)}`}
                   </Text>
                 )}
               </Stack>
@@ -423,9 +424,11 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
           {/* Show approver info for approved requests */}
           {request.status === "active" && request.approverName && (
             <Text size="xs" c="dimmed">
-              Approved by {request.approverName}
+              {t("card.approval.by", {
+                name: request.approverName,
+              })}
               {request.approvedAt &&
-                ` ${formatDistanceToNow(new Date(request.approvedAt), { addSuffix: true })}`}
+                ` ${formatDistanceToNowLocalized(new Date(request.approvedAt), i18n.language)}`}
             </Text>
           )}
 
@@ -439,7 +442,7 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
                 onClick={handleApprove}
                 loading={approveRequest.isPending}
               >
-                Approve
+                {t("card.actions.approve")}
               </Button>
               <Button
                 size="xs"
@@ -448,7 +451,7 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
                 leftSection={<IconX size={14} />}
                 onClick={openRejectModal}
               >
-                Reject
+                {t("card.actions.reject")}
               </Button>
             </Group>
           )}
@@ -459,27 +462,27 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
       <Modal
         opened={rejectModalOpened}
         onClose={closeRejectModal}
-        title="Reject Request"
+        title={t("modals.reject.title")}
         centered
       >
         <Stack gap="md">
-          <Text size="sm">Are you sure you want to reject this request?</Text>
+          <Text size="sm">{t("modals.reject.confirmation")}</Text>
           <Textarea
-            label="Reason (optional)"
-            placeholder="Enter a reason for rejection..."
+            label={t("modals.reject.reason_label")}
+            placeholder={t("modals.reject.reason_placeholder")}
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.currentTarget.value)}
           />
           <Group justify="flex-end" gap="xs">
             <Button variant="default" onClick={closeRejectModal}>
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button
               color="red"
               onClick={handleReject}
               loading={rejectRequest.isPending}
             >
-              Reject
+              {t("modals.reject.confirm")}
             </Button>
           </Group>
         </Stack>
@@ -490,12 +493,22 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
 
 // Main Requests page
 function RequestsPage() {
-  usePageTitle("Requests");
+  const { t } = useTranslation("translation", {
+    keyPrefix: "requests",
+  });
+  usePageTitle(t("title"));
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const { isAdmin } = useAuth();
   const { data: permissions } = usePermissions();
   const canManageRequests = isAdmin || permissions?.canManageRequests;
+
+  // Helper function to format check interval for display
+  function formatCheckInterval(interval: string): string {
+    return t(`intervals.${interval}`, {
+      defaultValue: t("intervals.6h"),
+    });
+  }
 
   // Fetch requests based on active tab
   const statusFilter =
@@ -568,7 +581,7 @@ function RequestsPage() {
     return (
       <Container size="xl">
         <Center p="xl">
-          <Text c="red">Error loading requests. Please try again.</Text>
+          <Text c="red">{t("errors.loading")}</Text>
         </Center>
       </Container>
     );
@@ -587,36 +600,41 @@ function RequestsPage() {
     <Container size="xl">
       <Stack gap="lg">
         <Group justify="space-between">
-          <Title order={1}>Book Requests</Title>
+          <Title order={1}>{t("header.title")}</Title>
           {stats && (
             <Group gap="xs">
               {canManageRequests && stats.pending_approval > 0 && (
                 <Badge color="orange" variant="light">
-                  {stats.pending_approval} pending
+                  {t("stats.pending", {
+                    count: stats.pending_approval,
+                  })}
                 </Badge>
               )}
               <Badge color="blue" variant="light">
-                {stats.active} active
+                {t("stats.active", { count: stats.active })}
               </Badge>
               <Badge color="green" variant="light">
-                {stats.fulfilled} fulfilled
+                {t("stats.fulfilled", {
+                  count: stats.fulfilled,
+                })}
               </Badge>
             </Group>
           )}
         </Group>
 
         <Text c="dimmed" size="sm">
-          Saved search requests that are automatically checked for new results
-          {settings?.requestCheckInterval &&
-            ` ${formatCheckInterval(settings.requestCheckInterval)}`}
-          .{" "}
+          {t("header.description", {
+            interval: settings?.requestCheckInterval
+              ? formatCheckInterval(settings.requestCheckInterval)
+              : "",
+          })}{" "}
           <Anchor component={Link} to="/settings" size="sm">
-            Change check interval in settings
+            {t("header.settings_link")}
           </Anchor>
         </Text>
 
         <TextInput
-          placeholder="Search by title, author, ISBN, series, year, MD5..."
+          placeholder={t("search.placeholder")}
           leftSection={<IconSearch size={16} />}
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.currentTarget.value)}
@@ -643,7 +661,7 @@ function RequestsPage() {
                 ) : null
               }
             >
-              All
+              {t("tabs.all")}
             </Tabs.Tab>
             <Tabs.Tab
               value="active"
@@ -660,7 +678,7 @@ function RequestsPage() {
                 ) : null
               }
             >
-              Active
+              {t("tabs.active")}
             </Tabs.Tab>
             <Tabs.Tab
               value="fulfilled"
@@ -677,7 +695,7 @@ function RequestsPage() {
                 ) : null
               }
             >
-              Fulfilled
+              {t("tabs.fulfilled")}
             </Tabs.Tab>
             {canManageRequests && (
               <Tabs.Tab
@@ -695,7 +713,7 @@ function RequestsPage() {
                   ) : null
                 }
               >
-                To Approve
+                {t("tabs.pending_approval")}
               </Tabs.Tab>
             )}
             <Tabs.Tab
@@ -713,7 +731,7 @@ function RequestsPage() {
                 ) : null
               }
             >
-              Rejected
+              {t("tabs.rejected")}
             </Tabs.Tab>
           </Tabs.List>
 
@@ -729,16 +747,18 @@ function RequestsPage() {
                 <Stack align="center" gap="sm">
                   <IconBookmark size={48} opacity={0.3} />
                   <Text c="dimmed">
-                    {searchQuery ? "No matching requests" : "No requests found"}
+                    {searchQuery ? t("empty.no_match") : t("empty.no_requests")}
                   </Text>
                   <Text size="sm" c="dimmed">
                     {searchQuery
-                      ? "Try a different search term"
+                      ? t("empty.try_different")
                       : activeTab === "all"
-                        ? "Search for a book and save it as a request when no results are found"
+                        ? t("empty.all_hint")
                         : activeTab === "pending_approval"
-                          ? "No requests pending approval"
-                          : `No ${activeTab} requests`}
+                          ? t("empty.pending_hint")
+                          : t("empty.tab_hint", {
+                              tab: activeTab,
+                            })}
                   </Text>
                 </Stack>
               </Center>

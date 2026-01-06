@@ -7,7 +7,8 @@ export type ListSource =
   | "goodreads"
   | "storygraph"
   | "hardcover"
-  | "openlibrary";
+  | "openlibrary"
+  | "babelio";
 export type ListImportMode = "all" | "future";
 export type ListFetchInterval = "15min" | "30min" | "1h" | "6h" | "12h" | "24h";
 

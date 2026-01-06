@@ -21,6 +21,7 @@ import {
   Code,
   NumberInput,
   Table,
+  Select,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -36,6 +37,7 @@ import {
   IconCopy,
   IconApi,
   IconBook,
+  IconLanguage,
 } from "@tabler/icons-react";
 import { apiFetch } from "@ephemera/shared";
 import { changePassword } from "../lib/auth-client";
@@ -46,17 +48,22 @@ import {
   useDeleteApiKey,
   type NewApiKey,
 } from "../hooks/useApiKeys";
+import { useTranslation } from "react-i18next";
 
 interface CurrentUser {
   id: string;
   name: string;
   email: string;
+  locale: string;
   role: "admin" | "user";
   hasPassword: boolean;
   hasOIDC: boolean;
 }
 
 export default function AccountSettings() {
+  const { t, i18n } = useTranslation("translation", {
+    keyPrefix: "account",
+  });
   const queryClient = useQueryClient();
 
   // Fetch current user info
@@ -68,6 +75,7 @@ export default function AccountSettings() {
   // Profile form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [locale, setLocale] = useState("");
 
   // Password form state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -95,22 +103,27 @@ export default function AccountSettings() {
     if (currentUser) {
       setName(currentUser.name);
       setEmail(currentUser.email);
+      setLocale(currentUser.locale || "en");
     }
   }, [currentUser]);
 
   // Profile update mutation
   const updateProfileMutation = useMutation({
-    mutationFn: (data: { name?: string; email?: string }) =>
+    mutationFn: (data: { name?: string; email?: string; locale?: string }) =>
       apiFetch<CurrentUser>("/users/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: (updatedUser) => {
+    onSuccess: async (updatedUser) => {
       queryClient.setQueryData(["currentUser"], updatedUser);
+      setLocale(updatedUser.locale || "en");
+      if (updatedUser.locale && i18n.language !== updatedUser.locale) {
+        await i18n.changeLanguage(updatedUser.locale);
+      }
       notifications.show({
-        title: "Profile Updated",
-        message: "Your profile has been updated successfully",
+        title: t("notifications.profile_updated.title"),
+        message: t("notifications.profile_updated.message"),
         color: "green",
         icon: <IconCheck size={16} />,
       });
@@ -119,7 +132,9 @@ export default function AccountSettings() {
       notifications.show({
         title: "Error",
         message:
-          error instanceof Error ? error.message : "Failed to update profile",
+          error instanceof Error
+            ? error.message
+            : t("notifications.profile_update_failed"),
         color: "red",
       });
     },
@@ -134,7 +149,9 @@ export default function AccountSettings() {
         revokeOtherSessions: false,
       });
       if (result.error) {
-        throw new Error(result.error.message || "Failed to change password");
+        throw new Error(
+          result.error.message || t("notifications.password_change_failed"),
+        );
       }
       return result;
     },
@@ -144,33 +161,38 @@ export default function AccountSettings() {
       setConfirmPassword("");
       setPasswordError(null);
       notifications.show({
-        title: "Password Changed",
-        message: "Your password has been updated successfully",
+        title: t("notifications.password_changed.title"),
+        message: t("notifications.password_changed.message"),
         color: "green",
         icon: <IconCheck size={16} />,
       });
     },
     onError: (error) => {
       setPasswordError(
-        error instanceof Error ? error.message : "Failed to change password",
+        error instanceof Error
+          ? error.message
+          : t("notifications.password_change_failed"),
       );
     },
   });
 
-  // Check if profile has changes
+  // Derived states for validation
   const hasProfileChanges =
-    currentUser && (name !== currentUser.name || email !== currentUser.email);
+    currentUser &&
+    (name !== currentUser.name ||
+      email !== currentUser.email ||
+      (locale !== "" && locale !== currentUser.locale));
 
-  // Validate password change
   const canChangePassword =
     currentPassword.length > 0 &&
     newPassword.length >= 8 &&
     newPassword === confirmPassword;
 
   const handleSaveProfile = () => {
-    const updates: { name?: string; email?: string } = {};
+    const updates: { name?: string; email?: string; locale?: string } = {};
     if (name !== currentUser?.name) updates.name = name;
     if (email !== currentUser?.email) updates.email = email;
+    if (locale !== currentUser?.locale) updates.locale = locale;
     updateProfileMutation.mutate(updates);
   };
 
@@ -183,7 +205,7 @@ export default function AccountSettings() {
     createApiKeyMutation.mutate(
       {
         name: newKeyName,
-        expiresIn: newKeyExpiresIn ? newKeyExpiresIn * 24 * 60 * 60 : undefined, // Convert days to seconds
+        expiresIn: newKeyExpiresIn ? newKeyExpiresIn * 24 * 60 * 60 : undefined,
       },
       {
         onSuccess: (data) => {
@@ -191,20 +213,6 @@ export default function AccountSettings() {
           setCreateKeyModalOpen(false);
           setNewKeyName("");
           setNewKeyExpiresIn(undefined);
-          notifications.show({
-            title: "API Key Created",
-            message:
-              "Your new API key has been created. Copy it now - it won't be shown again!",
-            color: "green",
-            icon: <IconCheck size={16} />,
-          });
-        },
-        onError: (error) => {
-          notifications.show({
-            title: "Error",
-            message: error.message || "Failed to create API key",
-            color: "red",
-          });
         },
       },
     );
@@ -212,48 +220,40 @@ export default function AccountSettings() {
 
   const handleDeleteApiKey = (keyId: string) => {
     deleteApiKeyMutation.mutate(keyId, {
-      onSuccess: () => {
-        setKeyToDelete(null);
-        notifications.show({
-          title: "API Key Deleted",
-          message: "The API key has been revoked",
-          color: "green",
-          icon: <IconCheck size={16} />,
-        });
-      },
-      onError: (error) => {
-        notifications.show({
-          title: "Error",
-          message: error.message || "Failed to delete API key",
-          color: "red",
-        });
-      },
+      onSuccess: () => setKeyToDelete(null),
     });
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(undefined, {
+  const formatDateString = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString(i18n.language, {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
   };
 
-  if (isLoading) {
+  const languageOptions = (i18n.options.supportedLngs || [])
+    .filter((lng) => lng !== "cimode")
+    .map((lng) => {
+      const name = new Intl.DisplayNames([lng], { type: "language" }).of(lng);
+      return {
+        value: lng,
+        label: name ? name.charAt(0).toUpperCase() + name.slice(1) : lng,
+      };
+    });
+
+  if (isLoading)
     return (
       <Center p="xl">
         <Loader size="lg" />
       </Center>
     );
-  }
-
-  if (!currentUser) {
+  if (!currentUser)
     return (
       <Alert color="red" icon={<IconInfoCircle size={16} />}>
-        Failed to load user information
+        {t("errors.load_user_failed")}
       </Alert>
     );
-  }
 
   return (
     <Stack gap="lg">
@@ -262,33 +262,42 @@ export default function AccountSettings() {
         <Stack gap="md">
           <Group gap="xs">
             <IconUser size={20} />
-            <Title order={4}>Profile</Title>
+            <Title order={4}>{t("profile.title")}</Title>
           </Group>
           <Text size="sm" c="dimmed">
-            Update your account information
+            {t("profile.description")}
           </Text>
 
           <TextInput
-            label="Name"
-            placeholder="Your name"
+            label={t("profile.fields.name.label")}
+            placeholder={t("profile.fields.name.placeholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             leftSection={<IconUser size={16} />}
           />
 
           <TextInput
-            label="Email"
+            label={t("profile.fields.email.label")}
             type="email"
-            placeholder="your@email.com"
+            placeholder={t("profile.fields.email.placeholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={currentUser.hasOIDC && !currentUser.hasPassword}
             description={
               currentUser.hasOIDC && !currentUser.hasPassword
-                ? "Email cannot be changed for SSO-only accounts"
+                ? t("profile.fields.email.sso_warning")
                 : undefined
             }
             leftSection={<IconMail size={16} />}
+          />
+
+          <Select
+            label={t("profile.fields.language.label")}
+            description={t("profile.fields.language.description")}
+            value={locale}
+            onChange={(v) => setLocale(v || "en")}
+            data={languageOptions}
+            leftSection={<IconLanguage size={16} />}
           />
 
           <Group justify="flex-end">
@@ -297,7 +306,7 @@ export default function AccountSettings() {
               disabled={!hasProfileChanges}
               loading={updateProfileMutation.isPending}
             >
-              Save Profile
+              {t("profile.buttons.save")}
             </Button>
           </Group>
         </Stack>
@@ -309,10 +318,10 @@ export default function AccountSettings() {
           <Stack gap="md">
             <Group gap="xs">
               <IconLock size={20} />
-              <Title order={4}>Change Password</Title>
+              <Title order={4}>{t("password.title")}</Title>
             </Group>
             <Text size="sm" c="dimmed">
-              Update your account password
+              {t("password.description")}
             </Text>
 
             {passwordError && (
@@ -322,33 +331,33 @@ export default function AccountSettings() {
             )}
 
             <PasswordInput
-              label="Current Password"
-              placeholder="Enter your current password"
+              label={t("password.fields.current.label")}
+              placeholder={t("password.fields.current.placeholder")}
               leftSection={<IconKey size={16} />}
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
             />
 
-            <Divider label="New Password" labelPosition="center" />
+            <Divider label={t("password.divider")} labelPosition="center" />
 
             <PasswordInput
-              label="New Password"
-              placeholder="Enter new password (min 8 characters)"
+              label={t("password.fields.new.label")}
+              placeholder={t("password.fields.new.placeholder")}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              description="Must be at least 8 characters"
+              description={t("password.fields.new.description")}
               required
             />
 
             <PasswordInput
-              label="Confirm New Password"
-              placeholder="Confirm new password"
+              label={t("password.fields.confirm.label")}
+              placeholder={t("password.fields.confirm.placeholder")}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               error={
                 confirmPassword && newPassword !== confirmPassword
-                  ? "Passwords do not match"
+                  ? t("password.errors.mismatch")
                   : undefined
               }
               required
@@ -360,7 +369,7 @@ export default function AccountSettings() {
                 disabled={!canChangePassword}
                 loading={changePasswordMutation.isPending}
               >
-                Change Password
+                {t("password.buttons.change")}
               </Button>
             </Group>
           </Stack>
@@ -369,9 +378,7 @@ export default function AccountSettings() {
         <Paper p="md" withBorder>
           <Alert icon={<IconPlugConnected size={16} />} color="blue">
             <Text size="sm">
-              <strong>SSO Authentication:</strong> Your account uses Single
-              Sign-On (SSO). Password management is handled by your identity
-              provider.
+              <strong>{t("sso.title")}:</strong> {t("sso.description")}
             </Text>
           </Alert>
         </Paper>
@@ -380,24 +387,28 @@ export default function AccountSettings() {
       {/* Auth Methods Info */}
       <Paper p="md" withBorder>
         <Stack gap="md">
-          <Title order={4}>Authentication Methods</Title>
+          <Title order={4}>{t("auth_methods.title")}</Title>
           <Stack gap="xs">
             <Group gap="xs">
               <IconKey size={16} />
               <Text size="sm" fw={500}>
-                Password Login:
+                {t("auth_methods.password")}:
               </Text>
               <Text size="sm" c={currentUser.hasPassword ? "green" : "dimmed"}>
-                {currentUser.hasPassword ? "Enabled" : "Not configured"}
+                {currentUser.hasPassword
+                  ? t("auth_methods.enabled")
+                  : t("auth_methods.not_configured")}
               </Text>
             </Group>
             <Group gap="xs">
               <IconPlugConnected size={16} />
               <Text size="sm" fw={500}>
-                SSO/OIDC:
+                {t("auth_methods.sso")}:
               </Text>
               <Text size="sm" c={currentUser.hasOIDC ? "green" : "dimmed"}>
-                {currentUser.hasOIDC ? "Linked" : "Not linked"}
+                {currentUser.hasOIDC
+                  ? t("auth_methods.linked")
+                  : t("auth_methods.not_linked")}
               </Text>
             </Group>
           </Stack>
@@ -411,7 +422,7 @@ export default function AccountSettings() {
             <Group justify="space-between">
               <Group gap="xs">
                 <IconApi size={20} />
-                <Title order={4}>API Keys</Title>
+                <Title order={4}>{t("apikeys.title")}</Title>
               </Group>
               <Group gap="xs">
                 <Button
@@ -422,20 +433,19 @@ export default function AccountSettings() {
                   href="/api/docs"
                   target="_blank"
                 >
-                  Documentation
+                  {t("apikeys.buttons.docs")}
                 </Button>
                 <Button
                   size="xs"
                   leftSection={<IconPlus size={14} />}
                   onClick={() => setCreateKeyModalOpen(true)}
                 >
-                  Create Key
+                  {t("apikeys.buttons.create")}
                 </Button>
               </Group>
             </Group>
             <Text size="sm" c="dimmed">
-              API keys allow third-party tools to access the API on your behalf.
-              Use the <Code>x-api-key</Code> header to authenticate.
+              {t("apikeys.description")}
             </Text>
 
             {apiKeysLoading ? (
@@ -446,28 +456,32 @@ export default function AccountSettings() {
               <Table>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>Name</Table.Th>
-                    <Table.Th>Key</Table.Th>
-                    <Table.Th>Created</Table.Th>
-                    <Table.Th>Expires</Table.Th>
-                    <Table.Th>Status</Table.Th>
+                    <Table.Th>{t("apikeys.table.name")}</Table.Th>
+                    <Table.Th>{t("apikeys.table.key")}</Table.Th>
+                    <Table.Th>{t("apikeys.table.created")}</Table.Th>
+                    <Table.Th>{t("apikeys.table.expires")}</Table.Th>
+                    <Table.Th>{t("apikeys.table.status")}</Table.Th>
                     <Table.Th></Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
                   {apiKeys.map((key) => (
                     <Table.Tr key={key.id}>
-                      <Table.Td>{key.name || "Unnamed"}</Table.Td>
+                      <Table.Td>{key.name || t("apikeys.unnamed")}</Table.Td>
                       <Table.Td>
                         <Code>...{key.start}</Code>
                       </Table.Td>
-                      <Table.Td>{formatDate(key.createdAt)}</Table.Td>
+                      <Table.Td>{formatDateString(key.createdAt)}</Table.Td>
                       <Table.Td>
-                        {key.expiresAt ? formatDate(key.expiresAt) : "Never"}
+                        {key.expiresAt
+                          ? formatDateString(key.expiresAt)
+                          : t("apikeys.never")}
                       </Table.Td>
                       <Table.Td>
                         <Badge size="sm" color={key.enabled ? "green" : "red"}>
-                          {key.enabled ? "Active" : "Disabled"}
+                          {key.enabled
+                            ? t("apikeys.status.active")
+                            : t("apikeys.status.disabled")}
                         </Badge>
                       </Table.Td>
                       <Table.Td>
@@ -485,7 +499,7 @@ export default function AccountSettings() {
               </Table>
             ) : (
               <Text size="sm" c="dimmed" ta="center" py="md">
-                No API keys created yet
+                {t("apikeys.empty")}
               </Text>
             )}
           </Stack>
@@ -496,20 +510,20 @@ export default function AccountSettings() {
       <Modal
         opened={createKeyModalOpen}
         onClose={() => setCreateKeyModalOpen(false)}
-        title="Create API Key"
+        title={t("apikeys.create_modal.title")}
       >
         <Stack gap="md">
           <TextInput
-            label="Key Name"
-            placeholder="My API Key"
+            label={t("apikeys.create_modal.fields.name.label")}
+            placeholder={t("apikeys.create_modal.fields.name.placeholder")}
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
             required
           />
           <NumberInput
-            label="Expires in (days)"
-            placeholder="Leave empty for no expiration"
-            description="Optional: Set the number of days until this key expires"
+            label={t("apikeys.create_modal.fields.expires.label")}
+            placeholder={t("apikeys.create_modal.fields.expires.placeholder")}
+            description={t("apikeys.create_modal.fields.expires.description")}
             value={newKeyExpiresIn}
             onChange={(val) =>
               setNewKeyExpiresIn(typeof val === "number" ? val : undefined)
@@ -522,29 +536,28 @@ export default function AccountSettings() {
               variant="default"
               onClick={() => setCreateKeyModalOpen(false)}
             >
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button
               onClick={handleCreateApiKey}
               disabled={!newKeyName.trim()}
               loading={createApiKeyMutation.isPending}
             >
-              Create Key
+              {t("apikeys.create_modal.buttons.create")}
             </Button>
           </Group>
         </Stack>
       </Modal>
 
-      {/* Show Created Key Modal */}
       <Modal
         opened={!!createdKey}
         onClose={() => setCreatedKey(null)}
-        title="API Key Created"
+        title={t("apikeys.created_modal.title")}
       >
         <Stack gap="md">
           <Alert color="yellow" icon={<IconInfoCircle size={16} />}>
             <Text size="sm" fw={500}>
-              Copy your API key now. It will not be shown again!
+              {t("apikeys.created_modal.warning")}
             </Text>
           </Alert>
           <Group gap="xs">
@@ -555,7 +568,13 @@ export default function AccountSettings() {
             </Code>
             <CopyButton value={createdKey?.key || ""}>
               {({ copied, copy }) => (
-                <Tooltip label={copied ? "Copied!" : "Copy"}>
+                <Tooltip
+                  label={
+                    copied
+                      ? t("apikeys.created_modal.copied")
+                      : t("apikeys.created_modal.copy")
+                  }
+                >
                   <ActionIcon
                     color={copied ? "teal" : "gray"}
                     variant="subtle"
@@ -568,36 +587,33 @@ export default function AccountSettings() {
             </CopyButton>
           </Group>
           <Text size="sm" c="dimmed">
-            Use this key in the <Code>x-api-key</Code> header when making API
-            requests.
+            {t("apikeys.created_modal.instruction")}
           </Text>
           <Group justify="flex-end" mt="md">
-            <Button onClick={() => setCreatedKey(null)}>Done</Button>
+            <Button onClick={() => setCreatedKey(null)}>
+              {t("common:actions.close")}
+            </Button>
           </Group>
         </Stack>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <Modal
         opened={!!keyToDelete}
         onClose={() => setKeyToDelete(null)}
-        title="Delete API Key"
+        title={t("apikeys.delete_modal.title")}
       >
         <Stack gap="md">
-          <Text>
-            Are you sure you want to delete this API key? Any applications using
-            this key will lose access immediately.
-          </Text>
+          <Text>{t("apikeys.delete_modal.message")}</Text>
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={() => setKeyToDelete(null)}>
-              Cancel
+              {t("common:actions.cancel")}
             </Button>
             <Button
               color="red"
               onClick={() => keyToDelete && handleDeleteApiKey(keyToDelete)}
               loading={deleteApiKeyMutation.isPending}
             >
-              Delete Key
+              {t("apikeys.delete_modal.confirm")}
             </Button>
           </Group>
         </Stack>

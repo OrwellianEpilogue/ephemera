@@ -27,8 +27,12 @@ import {
   useRegenerateApiKey,
 } from "../hooks/use-indexer-settings";
 import { notifications } from "@mantine/notifications";
+import { useTranslation, Trans } from "react-i18next";
 
 export function IndexerSettings() {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "settings.indexer",
+  });
   const { data: settings, isLoading, error } = useIndexerSettings();
   const updateSettings = useUpdateIndexerSettings();
   const regenerateKey = useRegenerateApiKey();
@@ -76,8 +80,10 @@ export function IndexerSettings() {
         sabnzbdEnabled: enabled,
       });
       notifications.show({
-        title: "Settings updated",
-        message: `Indexer APIs ${enabled ? "enabled" : "disabled"}`,
+        title: t("notifications.settings_updated"),
+        message: t("notifications.enabled", {
+          state: enabled ? "enabled" : "disabled",
+        }),
         color: "green",
       });
     } catch (_error) {
@@ -94,14 +100,14 @@ export function IndexerSettings() {
     try {
       await regenerateKey.mutateAsync({ service });
       notifications.show({
-        title: "API key regenerated",
-        message: `New ${service} API key generated successfully`,
+        title: t("notifications.key_regenerated"),
+        message: t("notifications.key_success", { service }),
         color: "green",
       });
     } catch (_error) {
       notifications.show({
-        title: "Error",
-        message: `Failed to regenerate ${service} API key`,
+        title: t("notifications.error.title"),
+        message: t("notifications.key_failed", { service }),
         color: "red",
       });
     }
@@ -111,14 +117,14 @@ export function IndexerSettings() {
     try {
       await updateSettings.mutateAsync({ baseUrl });
       notifications.show({
-        title: "Settings updated",
-        message: "Base URL has been updated",
+        title: t("notifications.settings_updated"),
+        message: t("notifications.base_url_updated"),
         color: "green",
       });
     } catch (_error) {
       notifications.show({
-        title: "Error",
-        message: "Failed to update base URL",
+        title: t("notifications.error.title"),
+        message: t("notifications.base_url_failed"),
         color: "red",
       });
     }
@@ -129,16 +135,16 @@ export function IndexerSettings() {
     try {
       await updateSettings.mutateAsync({ indexerOnlyMode: enabled });
       notifications.show({
-        title: "Settings updated",
-        message: enabled
-          ? "Indexer-only mode enabled - only indexer downloads will be visible in SABnzbd APIs"
-          : "Indexer-only mode disabled - all downloads will be visible in SABnzbd APIs",
+        title: t("notifications.settings_updated"),
+        message: t("notifications.indexer_mode_updated", {
+          state: enabled ? "enabled" : "disabled",
+        }),
         color: "green",
       });
     } catch (_error) {
       notifications.show({
-        title: "Error",
-        message: "Failed to update indexer-only mode",
+        title: t("notifications.error.title"),
+        message: t("notifications.indexer_mode_failed"),
         color: "red",
       });
       setIndexerOnlyMode(!enabled); // Revert on error
@@ -165,14 +171,18 @@ export function IndexerSettings() {
 
       await updateSettings.mutateAsync(updates);
       notifications.show({
-        title: "Settings updated",
-        message: `${field === "completed" ? "Completed" : "Incomplete"} directory path updated`,
+        title: t("notifications.settings_updated"),
+        message: t("notifications.directory_updated", {
+          type: field === "completed" ? "completed" : "incomplete",
+        }),
         color: "green",
       });
     } catch {
       notifications.show({
-        title: "Error",
-        message: `Failed to update ${field} directory path`,
+        title: t("notifications.error.title"),
+        message: t("notifications.directory_failed", {
+          type: field === "completed" ? "completed" : "incomplete",
+        }),
         color: "red",
       });
     }
@@ -183,16 +193,16 @@ export function IndexerSettings() {
     try {
       await updateSettings.mutateAsync({ indexerCategoryDir: enabled });
       notifications.show({
-        title: "Settings updated",
-        message: enabled
-          ? "Category subdirectories enabled"
-          : "Category subdirectories disabled",
+        title: t("notifications.settings_updated"),
+        message: t("notifications.category_updated", {
+          state: enabled ? "enabled" : "disabled",
+        }),
         color: "green",
       });
     } catch (_error) {
       notifications.show({
-        title: "Error",
-        message: "Failed to update category directory setting",
+        title: t("notifications.error.title"),
+        message: t("notifications.category_failed"),
         color: "red",
       });
       setIndexerCategoryDir(!enabled); // Revert on error
@@ -202,41 +212,38 @@ export function IndexerSettings() {
   if (error) {
     return (
       <Alert icon={<IconInfoCircle size="1rem" />} color="red">
-        <Text>Failed to load indexer settings: {String(error)}</Text>
+        <Text>
+          {t("errors.load_failed")}: {String(error)}
+        </Text>
       </Alert>
     );
   }
 
   if (isLoading || !settings) {
-    return <Text>Loading indexer settings...</Text>;
+    return <Text>{t("common.status.loading")}</Text>;
   }
 
   return (
     <Stack gap="lg">
       <Alert icon={<IconInfoCircle size="1rem" />} variant="light">
-        <Text size="sm">
-          Enable these services to make Ephemera compatible with *arr
-          applications like Readarr and LazyLibrarian. Ephemera will act as both
-          a Newznab indexer and SABnzbd download client.
-        </Text>
+        <Text size="sm">{t("info_alert")}</Text>
       </Alert>
 
       {/* Base URL Configuration */}
       <Paper p="md" withBorder>
         <Stack gap="md">
-          <Title order={4}>API Configuration</Title>
+          <Title order={4}>{t("api_config.title")}</Title>
           <TextInput
-            label="Base URL"
+            label={t("api_config.base_url.label")}
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.currentTarget.value)}
             onBlur={handleBaseUrlSave}
-            placeholder="http://192.168.1.100:8286"
-            description="The internal URL where Ephemera is accessible for other tools"
+            placeholder={t("api_config.base_url.placeholder")}
+            description={t("api_config.base_url.description")}
             required
           />
           <Text size="xs" c="dimmed">
-            Set this to the IP address or domain where Ephemera is running. For
-            Docker setups, use your host IP, not localhost.
+            {t("api_config.base_url.note")}
           </Text>
         </Stack>
       </Paper>
@@ -246,9 +253,9 @@ export function IndexerSettings() {
         <Stack gap="md">
           <Group justify="space-between" align="center">
             <div>
-              <Title order={4}>Indexer APIs</Title>
+              <Title order={4}>{t("indexer_apis.title")}</Title>
               <Text size="sm" c="dimmed">
-                Enable Newznab and SABnzbd APIs for *arr applications
+                {t("indexer_apis.description")}
               </Text>
             </div>
             <Switch
@@ -256,6 +263,7 @@ export function IndexerSettings() {
               onChange={(e) => handleIndexersToggle(e.currentTarget.checked)}
               size="lg"
               disabled={updateSettings.isPending}
+              label={t("indexer_apis.enabled")}
             />
           </Group>
 
@@ -265,9 +273,9 @@ export function IndexerSettings() {
               <Stack gap="md">
                 {/* Newznab Configuration */}
                 <Stack gap="sm">
-                  <Title order={5}>Newznab (Indexer)</Title>
+                  <Title order={5}>{t("indexer_apis.newznab.title")}</Title>
                   <TextInput
-                    label="API Key"
+                    label={t("indexer_apis.newznab.api_key")}
                     value={settings.newznabApiKey || ""}
                     readOnly
                     rightSectionWidth={70}
@@ -279,7 +287,11 @@ export function IndexerSettings() {
                         >
                           {({ copied, copy }) => (
                             <Tooltip
-                              label={copied ? "Copied" : "Copy API key"}
+                              label={
+                                copied
+                                  ? t("indexer_apis.newznab.copied")
+                                  : t("indexer_apis.newznab.copy")
+                              }
                               withArrow
                               position="left"
                             >
@@ -298,7 +310,10 @@ export function IndexerSettings() {
                             </Tooltip>
                           )}
                         </CopyButton>
-                        <Tooltip label="Regenerate API key" withArrow>
+                        <Tooltip
+                          label={t("indexer_apis.newznab.regenerate")}
+                          withArrow
+                        >
                           <ActionIcon
                             onClick={() => handleRegenerateKey("newznab")}
                             variant="subtle"
@@ -317,9 +332,9 @@ export function IndexerSettings() {
 
                 {/* SABnzbd Configuration */}
                 <Stack gap="sm">
-                  <Title order={5}>SABnzbd (Download Client)</Title>
+                  <Title order={5}>{t("indexer_apis.sabnzbd.title")}</Title>
                   <TextInput
-                    label="API Key"
+                    label={t("indexer_apis.sabnzbd.api_key")}
                     value={settings.sabnzbdApiKey || ""}
                     readOnly
                     rightSectionWidth={70}
@@ -331,7 +346,11 @@ export function IndexerSettings() {
                         >
                           {({ copied, copy }) => (
                             <Tooltip
-                              label={copied ? "Copied" : "Copy API key"}
+                              label={
+                                copied
+                                  ? t("indexer_apis.sabnzbd.copied")
+                                  : t("indexer_apis.sabnzbd.copy")
+                              }
                               withArrow
                               position="left"
                             >
@@ -350,7 +369,10 @@ export function IndexerSettings() {
                             </Tooltip>
                           )}
                         </CopyButton>
-                        <Tooltip label="Regenerate API key" withArrow>
+                        <Tooltip
+                          label={t("indexer_apis.sabnzbd.regenerate")}
+                          withArrow
+                        >
                           <ActionIcon
                             onClick={() => handleRegenerateKey("sabnzbd")}
                             variant="subtle"
@@ -375,46 +397,81 @@ export function IndexerSettings() {
                 >
                   <Stack gap="xs">
                     <Text size="xs">
-                      <strong>Usenet Configuration:</strong>
+                      <strong>
+                        {t("indexer_apis.configuration.usenet_title")}:
+                      </strong>
                     </Text>
                     <Text size="xs">
-                      <strong>2. Add Download Client:</strong> Settings →
-                      Download Clients → Add → SABnzbd
+                      <strong>
+                        {t("indexer_apis.configuration.add_client")}
+                      </strong>
                       <br />
-                      Name: <Code>Ephemera</Code>
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.client_name"
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      Host: <Code>192.168.1.1</Code>
-                      (Your internal IP of Ephemera)
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.client_host"
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      Port: <Code>8286</Code>
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.client_port"
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      URL Base: <Code>sabnzbd</Code> (Requires toggling Advanced
-                      Settings)
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.client_url_base"
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      API Key: <Code>{settings.sabnzbdApiKey}</Code>
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.client_api_key"
+                        values={{ key: settings.sabnzbdApiKey }}
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      Category: <Code>ephemera</Code>
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.client_category"
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      Client Priority: <Code>50</Code> (Requires toggling
-                      Advanced Settings)
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.client_priority"
+                        components={{ c: <Code /> }}
+                      />
                     </Text>
                     <Text size="xs">
-                      <strong>1. Add Indexer:</strong> Settings → Indexers → Add
-                      → Newznab → Custom
+                      <strong>
+                        {t("indexer_apis.configuration.add_indexer")}
+                      </strong>
                       <br />
-                      URL: <Code>https://192.168.1.1:8286</Code>
-                      (Your internal IP of Ephemera)
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.indexer_url"
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      API Path: <Code>/newznab/api</Code> (Requires toggling
-                      Advanced Settings)
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.api_path"
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      API Key: <Code>{settings.newznabApiKey}</Code>
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.api_key"
+                        values={{ key: settings.newznabApiKey }}
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      Categories:
-                      <Code>7000,7010,7020,7030</Code>
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.categories"
+                        components={{ c: <Code /> }}
+                      />
                       <br />
-                      Download Client:
-                      <Code>Ephemera</Code>
+                      <Trans
+                        i18nKey="settings.indexer.indexer_apis.configuration.download_client"
+                        components={{ c: <Code /> }}
+                      />
                     </Text>
                   </Stack>
                 </Alert>
@@ -425,12 +482,10 @@ export function IndexerSettings() {
                 <Group justify="space-between" align="center">
                   <div>
                     <Text size="sm" fw={500}>
-                      Indexer-only Mode
+                      {t("indexer_only_mode.title")}
                     </Text>
                     <Text size="xs" c="dimmed">
-                      Only expose downloads initiated via indexer APIs in the
-                      queue and history. Web downloads won't be visible. Files
-                      won't be moved to other folders.
+                      {t("indexer_only_mode.description")}
                     </Text>
                   </div>
                   <Switch
@@ -447,9 +502,9 @@ export function IndexerSettings() {
 
                 {/* Directory Configuration */}
                 <Stack gap="sm">
-                  <Title order={5}>Download Directories</Title>
+                  <Title order={5}>{t("directories.title")}</Title>
                   <FolderInput
-                    label="Completed Downloads Directory"
+                    label={t("directories.completed.label")}
                     value={indexerCompletedDir}
                     onChange={(value, fromBrowser) => {
                       setIndexerCompletedDir(value);
@@ -461,11 +516,11 @@ export function IndexerSettings() {
                     onBlur={() =>
                       handleDirectorySave("completed", indexerCompletedDir)
                     }
-                    placeholder="/downloads/complete"
-                    description="Path where completed downloads from indexer will be moved"
+                    placeholder={t("directories.completed.placeholder")}
+                    description={t("directories.completed.description")}
                   />
                   <FolderInput
-                    label="Incomplete Downloads Directory"
+                    label={t("directories.incomplete.label")}
                     value={indexerIncompleteDir}
                     onChange={(value, fromBrowser) => {
                       setIndexerIncompleteDir(value);
@@ -477,17 +532,16 @@ export function IndexerSettings() {
                     onBlur={() =>
                       handleDirectorySave("incomplete", indexerIncompleteDir)
                     }
-                    placeholder="/downloads/incomplete"
-                    description="Path for temporary files during download"
+                    placeholder={t("directories.incomplete.placeholder")}
+                    description={t("directories.incomplete.description")}
                   />
                   <Group justify="space-between" align="center">
                     <div>
                       <Text size="sm" fw={500}>
-                        Use Category Subdirectories
+                        {t("directories.category_subdirs.label")}
                       </Text>
                       <Text size="xs" c="dimmed">
-                        Create subdirectories based on category (e.g.,
-                        /downloads/complete/ephemera/)
+                        {t("directories.category_subdirs.description")}
                       </Text>
                     </div>
                     <Switch

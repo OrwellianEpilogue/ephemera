@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -81,6 +82,9 @@ interface PermissionsFormProps {
 }
 
 function PermissionsForm({ permissions, onChange }: PermissionsFormProps) {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "settings.users",
+  });
   const handleChange = (key: keyof Permissions, value: boolean) => {
     onChange({ ...permissions, [key]: value });
   };
@@ -88,17 +92,17 @@ function PermissionsForm({ permissions, onChange }: PermissionsFormProps) {
   return (
     <Stack gap="xs">
       <Text size="sm" fw={500}>
-        Permissions
+        {t("permissions.title")}
       </Text>
       <Switch
-        label="Can delete downloads"
+        label={t("permissions.delete_downloads")}
         checked={permissions.canDeleteDownloads}
         onChange={(e) =>
           handleChange("canDeleteDownloads", e.currentTarget.checked)
         }
       />
       <Switch
-        label="Can manage requests"
+        label={t("permissions.manage_requests")}
         checked={permissions.canManageRequests}
         onChange={(e) =>
           handleChange("canManageRequests", e.currentTarget.checked)
@@ -106,54 +110,53 @@ function PermissionsForm({ permissions, onChange }: PermissionsFormProps) {
       />
       <Stack gap={4}>
         <Switch
-          label="Can start downloads without approval"
+          label={t("permissions.start_downloads")}
           checked={permissions.canStartDownloads}
           onChange={(e) =>
             handleChange("canStartDownloads", e.currentTarget.checked)
           }
         />
         <Text size="xs" c="dimmed" ml="xl">
-          When disabled, requests require approval from a user with "Can manage
-          requests" permission
+          {t("permissions.start_downloads_desc")}
         </Text>
       </Stack>
       <Switch
-        label="Can configure app settings (General)"
+        label={t("permissions.configure_app")}
         checked={permissions.canConfigureApp}
         onChange={(e) =>
           handleChange("canConfigureApp", e.currentTarget.checked)
         }
       />
       <Switch
-        label="Can configure integrations (Booklore, Indexer)"
+        label={t("permissions.configure_integrations")}
         checked={permissions.canConfigureIntegrations}
         onChange={(e) =>
           handleChange("canConfigureIntegrations", e.currentTarget.checked)
         }
       />
       <Switch
-        label="Can configure notifications"
+        label={t("permissions.configure_notifications")}
         checked={permissions.canConfigureNotifications}
         onChange={(e) =>
           handleChange("canConfigureNotifications", e.currentTarget.checked)
         }
       />
       <Switch
-        label="Can configure email settings"
+        label={t("permissions.configure_email")}
         checked={permissions.canConfigureEmail}
         onChange={(e) =>
           handleChange("canConfigureEmail", e.currentTarget.checked)
         }
       />
       <Switch
-        label="Can see download owner"
+        label={t("permissions.see_owner")}
         checked={permissions.canSeeDownloadOwner}
         onChange={(e) =>
           handleChange("canSeeDownloadOwner", e.currentTarget.checked)
         }
       />
       <Switch
-        label="Can manage API keys"
+        label={t("permissions.manage_api_keys")}
         checked={permissions.canManageApiKeys}
         onChange={(e) =>
           handleChange("canManageApiKeys", e.currentTarget.checked)
@@ -172,6 +175,9 @@ interface CreateUserForm {
 }
 
 export default function UsersManagement() {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "settings.users",
+  });
   const queryClient = useQueryClient();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -277,8 +283,8 @@ export default function UsersManagement() {
       setShowPasswordField(false);
       setNewPassword("");
       notifications.show({
-        title: "Password Updated",
-        message: "User password has been reset successfully",
+        title: t("users.notifications.password_updated.title"),
+        message: t("users.notifications.password_updated.message"),
         color: "green",
         icon: <IconCheck size={16} />,
       });
@@ -312,7 +318,7 @@ export default function UsersManagement() {
   };
 
   const handleDeleteUser = (id: string) => {
-    if (confirm("Are you sure you want to delete this user?")) {
+    if (confirm(t("users.confirm_delete"))) {
       deleteUserMutation.mutate(id);
     }
   };
@@ -346,16 +352,16 @@ export default function UsersManagement() {
     <Box>
       <Group justify="space-between" mb="xl">
         <div>
-          <Title order={2}>User Management</Title>
+          <Title order={2}>{t("title")}</Title>
           <Text c="dimmed" size="sm">
-            Manage user accounts, roles, and permissions
+            {t("description")}
           </Text>
         </div>
         <Button
           leftSection={<IconPlus size={16} />}
           onClick={() => setCreateModalOpen(true)}
         >
-          Create User
+          {t("create_button")}
         </Button>
       </Group>
 
@@ -377,14 +383,14 @@ export default function UsersManagement() {
           <Table>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Email</Table.Th>
-                <Table.Th>Password</Table.Th>
-                <Table.Th>OIDC</Table.Th>
-                <Table.Th>Role</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Created</Table.Th>
-                <Table.Th>Actions</Table.Th>
+                <Table.Th>{t("table.user")}</Table.Th>
+                <Table.Th>{t("table.email")}</Table.Th>
+                <Table.Th>{t("table.password")}</Table.Th>
+                <Table.Th>{t("table.oidc")}</Table.Th>
+                <Table.Th>{t("table.role")}</Table.Th>
+                <Table.Th>{t("table.status")}</Table.Th>
+                <Table.Th>{t("table.created")}</Table.Th>
+                <Table.Th>{t("table.actions")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -429,10 +435,10 @@ export default function UsersManagement() {
                   <Table.Td>
                     {user.banned ? (
                       <Badge color="red" leftSection={<IconUserX size={12} />}>
-                        Banned
+                        {t("table.status_banned")}
                       </Badge>
                     ) : (
-                      <Badge color="green">Active</Badge>
+                      <Badge color="green">{t("table.status_active")}</Badge>
                     )}
                   </Table.Td>
                   <Table.Td>
@@ -469,12 +475,12 @@ export default function UsersManagement() {
           setCreateModalOpen(false);
           setError(null);
         }}
-        title="Create New User"
+        title={t("create_modal.title")}
         size="lg"
       >
         <Stack gap="md">
           <TextInput
-            label="Name"
+            label={t("create_modal.name")}
             placeholder="John Doe"
             required
             value={createForm.name}
@@ -484,7 +490,7 @@ export default function UsersManagement() {
           />
 
           <TextInput
-            label="Email"
+            label={t("create_modal.email")}
             placeholder="user@example.com"
             type="email"
             required
@@ -495,7 +501,7 @@ export default function UsersManagement() {
           />
 
           <PasswordInput
-            label="Password"
+            label={t("create_modal.password")}
             placeholder="Minimum 8 characters"
             required
             value={createForm.password}
@@ -505,7 +511,7 @@ export default function UsersManagement() {
           />
 
           <Select
-            label="Role"
+            label={t("create_modal.role")}
             data={[
               { value: "user", label: "User" },
               { value: "admin", label: "Admin" },
@@ -521,7 +527,7 @@ export default function UsersManagement() {
 
           {createForm.role === "admin" ? (
             <Alert color="blue" variant="light">
-              Admins automatically have all permissions
+              {t("permissions.admin_alert")}
             </Alert>
           ) : (
             <PermissionsForm
@@ -540,13 +546,13 @@ export default function UsersManagement() {
                 setError(null);
               }}
             >
-              Cancel
+              {t("create_modal.cancel")}
             </Button>
             <Button
               onClick={handleCreateUser}
               loading={createUserMutation.isPending}
             >
-              Create User
+              {t("create_modal.submit")}
             </Button>
           </Group>
         </Stack>
@@ -560,13 +566,13 @@ export default function UsersManagement() {
           setSelectedUser(null);
           setError(null);
         }}
-        title="Edit User"
+        title={t("edit_modal.title")}
         size="lg"
       >
         {selectedUser && (
           <Stack gap="md">
             <TextInput
-              label="Name"
+              label={t("edit_modal.name")}
               value={selectedUser.name}
               onChange={(e) =>
                 setSelectedUser({ ...selectedUser, name: e.target.value })
@@ -574,7 +580,7 @@ export default function UsersManagement() {
             />
 
             <TextInput
-              label="Email"
+              label={t("edit_modal.email")}
               type="email"
               value={selectedUser.email}
               onChange={(e) =>
@@ -583,7 +589,7 @@ export default function UsersManagement() {
             />
 
             <Select
-              label="Role"
+              label={t("edit_modal.role")}
               data={[
                 { value: "user", label: "User" },
                 { value: "admin", label: "Admin" },
@@ -598,7 +604,7 @@ export default function UsersManagement() {
             />
 
             <Switch
-              label="Ban user"
+              label={t("edit_modal.ban")}
               checked={selectedUser.banned}
               onChange={(e) =>
                 setSelectedUser({
@@ -610,7 +616,7 @@ export default function UsersManagement() {
 
             {selectedUser.banned && (
               <TextInput
-                label="Ban reason"
+                label={t("edit_modal.ban_reason")}
                 placeholder="Reason for ban"
                 value={selectedUser.banReason || ""}
                 onChange={(e) =>
@@ -624,7 +630,7 @@ export default function UsersManagement() {
 
             {selectedUser.role === "admin" ? (
               <Alert color="blue" variant="light">
-                Admins automatically have all permissions
+                {t("permissions.admin_alert")}
               </Alert>
             ) : (
               <PermissionsForm
@@ -638,7 +644,7 @@ export default function UsersManagement() {
             {/* Password Reset Section */}
             <Stack gap="xs">
               <Text size="sm" fw={500}>
-                Password
+                {t("edit_modal.password_title")}
               </Text>
               {selectedUser.hasPassword ? (
                 !showPasswordField ? (
@@ -649,12 +655,12 @@ export default function UsersManagement() {
                     onClick={() => setShowPasswordField(true)}
                     w="fit-content"
                   >
-                    Reset Password
+                    {t("edit_modal.reset_password")}
                   </Button>
                 ) : (
                   <Group gap="xs" align="flex-end">
                     <PasswordInput
-                      placeholder="New password (min 8 chars)"
+                      placeholder={t("edit_modal.new_password_placeholder")}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       style={{ flex: 1 }}
@@ -666,7 +672,7 @@ export default function UsersManagement() {
                       disabled={newPassword.length < 8}
                       loading={setPasswordMutation.isPending}
                     >
-                      Set
+                      {t("edit_modal.set_password")}
                     </Button>
                     <Button
                       size="sm"
@@ -686,14 +692,11 @@ export default function UsersManagement() {
                   icon={<IconPlugConnected size={16} />}
                   p="xs"
                 >
-                  <Text size="sm">
-                    This user authenticates via SSO only. Password cannot be
-                    set.
-                  </Text>
+                  <Text size="sm">{t("edit_modal.sso_only")}</Text>
                 </Alert>
               ) : (
                 <Text size="sm" c="dimmed">
-                  No authentication method configured
+                  {t("edit_modal.no_auth")}
                 </Text>
               )}
             </Stack>
@@ -707,13 +710,13 @@ export default function UsersManagement() {
                   setError(null);
                 }}
               >
-                Cancel
+                {t("edit_modal.cancel")}
               </Button>
               <Button
                 onClick={handleUpdateUser}
                 loading={updateUserMutation.isPending}
               >
-                Save Changes
+                {t("edit_modal.save")}
               </Button>
             </Group>
           </Stack>

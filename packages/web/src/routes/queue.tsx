@@ -42,6 +42,7 @@ import {
   useResumeQueue,
 } from "../hooks/useDownload";
 import { useAuth } from "../hooks/useAuth";
+import { useTranslation } from "react-i18next";
 
 // Virtualized list component for better performance with large lists
 function VirtualizedDownloadList({ items }: { items: QueueItem[] }) {
@@ -96,7 +97,10 @@ function VirtualizedDownloadList({ items }: { items: QueueItem[] }) {
 }
 
 function QueuePage() {
-  usePageTitle("Queue");
+  const { t } = useTranslation("translation", {
+    keyPrefix: "queue",
+  });
+  usePageTitle(t("title"));
   // 1. Call ALL hooks first (before any conditional returns)
   const { data: queue, isLoading, isError } = useQueue({ enableSSE: false });
   const [searchQuery, setSearchQuery] = useState("");
@@ -237,7 +241,7 @@ function QueuePage() {
     return (
       <Container size="xl">
         <Center p="xl">
-          <Text c="red">Error loading queue. Please try again.</Text>
+          <Text c="red">{t("errors.loading")}</Text>
         </Center>
       </Container>
     );
@@ -252,7 +256,7 @@ function QueuePage() {
       <Stack gap="lg">
         <Group justify="space-between" align="baseline" wrap="nowrap">
           <Group align="baseline" gap="md" wrap="nowrap">
-            <Title order={1}>Download Queue</Title>
+            <Title order={1}>{t("title")}</Title>
             {totalActive > 0 && (
               <Badge
                 size="lg"
@@ -260,7 +264,7 @@ function QueuePage() {
                 color="blue"
                 leftSection={<IconRefresh size={16} />}
               >
-                {totalActive} active
+                {t("stats.active", { count: totalActive })}
               </Badge>
             )}
             {queue?.paused && (
@@ -270,7 +274,7 @@ function QueuePage() {
                 color="orange"
                 style={{ transform: "translateY(-3px)" }}
               >
-                Paused
+                {t("status.paused")}
               </Badge>
             )}
           </Group>
@@ -284,7 +288,7 @@ function QueuePage() {
                   onClick={() => resumeQueue.mutate()}
                   loading={resumeQueue.isPending}
                 >
-                  Resume
+                  {t("buttons.resume")}
                 </Button>
               ) : (
                 <Button
@@ -294,7 +298,7 @@ function QueuePage() {
                   onClick={() => pauseQueue.mutate()}
                   loading={pauseQueue.isPending}
                 >
-                  Pause
+                  {t("buttons.pause")}
                 </Button>
               ))}
             <Button
@@ -304,13 +308,13 @@ function QueuePage() {
               onClick={() => setClearModalOpened(true)}
               disabled={clearableCount === 0}
             >
-              Clear Queue
+              {t("buttons.clear_queue")}
             </Button>
           </Group>
         </Group>
 
         <TextInput
-          placeholder="Search by title, author, format, language, publisher, or MD5..."
+          placeholder={t("search.placeholder")}
           leftSection={<IconSearch size={16} />}
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.currentTarget.value)}
@@ -323,8 +327,7 @@ function QueuePage() {
             color="orange"
             variant="light"
           >
-            Downloads are paused. New items can be added but won&apos;t start
-            downloading until resumed.
+            {t("alerts.paused")}
           </Alert>
         )}
 
@@ -332,21 +335,18 @@ function QueuePage() {
         <Modal
           opened={clearModalOpened}
           onClose={() => setClearModalOpened(false)}
-          title="Clear Queue"
+          title={t("modals.clear.title")}
           centered
         >
           <Stack gap="md">
             <Text>
-              Are you sure you want to clear <strong>{clearableCount}</strong>{" "}
-              download{clearableCount !== 1 ? "s" : ""}?
+              {t("modals.clear.confirmation", { count: clearableCount })}
             </Text>
             <Text size="sm" c="dimmed">
-              This will delete all completed, available, error, and cancelled
-              downloads from the queue. Active downloads (queued, downloading,
-              delayed) will not be affected.
+              {t("modals.clear.description")}
             </Text>
             <Text size="sm" c="dimmed" fs="italic">
-              Note: Downloaded files will remain on disk.
+              {t("modals.clear.note")}
             </Text>
             <Group justify="flex-end" gap="sm">
               <Button
@@ -354,7 +354,7 @@ function QueuePage() {
                 color="gray"
                 onClick={() => setClearModalOpened(false)}
               >
-                Cancel
+                {t("common:actions.cancel")}
               </Button>
               <Button
                 color="red"
@@ -362,7 +362,7 @@ function QueuePage() {
                 loading={clearQueue.isPending}
                 leftSection={<IconTrash size={16} />}
               >
-                Clear {clearableCount} Download{clearableCount !== 1 ? "s" : ""}
+                {t("modals.clear.confirm", { count: clearableCount })}
               </Button>
             </Group>
           </Stack>
@@ -387,7 +387,7 @@ function QueuePage() {
                 ) : null
               }
             >
-              All
+              {t("tabs.all")}
             </Tabs.Tab>
 
             <Tabs.Tab
@@ -407,7 +407,7 @@ function QueuePage() {
                 ) : null
               }
             >
-              Downloading
+              {t("tabs.downloading")}
             </Tabs.Tab>
 
             <Tabs.Tab
@@ -427,7 +427,7 @@ function QueuePage() {
                 ) : null
               }
             >
-              Queued
+              {t("tabs.queued")}
             </Tabs.Tab>
 
             <Tabs.Tab
@@ -447,7 +447,7 @@ function QueuePage() {
                 ) : null
               }
             >
-              Delayed
+              {t("tabs.delayed")}
             </Tabs.Tab>
 
             <Tabs.Tab
@@ -467,7 +467,7 @@ function QueuePage() {
                 ) : null
               }
             >
-              Done
+              {t("tabs.done")}
             </Tabs.Tab>
 
             <Tabs.Tab
@@ -487,7 +487,7 @@ function QueuePage() {
                 ) : null
               }
             >
-              Available
+              {t("tabs.available")}
             </Tabs.Tab>
 
             <Tabs.Tab
@@ -507,7 +507,7 @@ function QueuePage() {
                 ) : null
               }
             >
-              Errors
+              {t("tabs.error")}
             </Tabs.Tab>
 
             <Tabs.Tab
@@ -527,7 +527,7 @@ function QueuePage() {
                 ) : null
               }
             >
-              Cancelled
+              {t("tabs.cancelled")}
             </Tabs.Tab>
           </Tabs.List>
 
@@ -539,7 +539,7 @@ function QueuePage() {
               <Center p="xl">
                 <Stack align="center" gap="sm">
                   <IconList size={48} opacity={0.3} />
-                  <Text c="dimmed">No downloads yet</Text>
+                  <Text c="dimmed">{t("empty.all")}</Text>
                 </Stack>
               </Center>
             )}
@@ -554,9 +554,7 @@ function QueuePage() {
                 <Stack align="center" gap="sm">
                   <IconDownload size={48} opacity={0.3} />
                   <Text c="dimmed">
-                    {searchQuery
-                      ? "No matching downloads"
-                      : "No active downloads"}
+                    {searchQuery ? t("empty.no_match") : t("empty.downloading")}
                   </Text>
                 </Stack>
               </Center>
@@ -572,9 +570,7 @@ function QueuePage() {
                 <Stack align="center" gap="sm">
                   <IconClock size={48} opacity={0.3} />
                   <Text c="dimmed">
-                    {searchQuery
-                      ? "No matching downloads"
-                      : "No queued downloads"}
+                    {searchQuery ? t("empty.no_match") : t("empty.queued")}
                   </Text>
                 </Stack>
               </Center>
@@ -590,9 +586,7 @@ function QueuePage() {
                 <Stack align="center" gap="sm">
                   <IconFolderCheck size={48} opacity={0.3} />
                   <Text c="dimmed">
-                    {searchQuery
-                      ? "No matching downloads"
-                      : "No available downloads"}
+                    {searchQuery ? t("empty.no_match") : t("empty.available")}
                   </Text>
                 </Stack>
               </Center>
@@ -608,9 +602,7 @@ function QueuePage() {
                 <Stack align="center" gap="sm">
                   <IconCheck size={48} opacity={0.3} />
                   <Text c="dimmed">
-                    {searchQuery
-                      ? "No matching downloads"
-                      : "No completed downloads in temp folder"}
+                    {searchQuery ? t("empty.no_match") : t("empty.done")}
                   </Text>
                 </Stack>
               </Center>
@@ -627,8 +619,7 @@ function QueuePage() {
                   variant="light"
                   mb="md"
                 >
-                  These downloads are delayed due to quota limits. They will
-                  retry automatically.
+                  {t("alerts.delayed")}
                 </Alert>
                 <VirtualizedDownloadList items={filteredDelayed} />
               </>
@@ -637,9 +628,7 @@ function QueuePage() {
                 <Stack align="center" gap="sm">
                   <IconClock size={48} opacity={0.3} />
                   <Text c="dimmed">
-                    {searchQuery
-                      ? "No matching downloads"
-                      : "No delayed downloads"}
+                    {searchQuery ? t("empty.no_match") : t("empty.delayed")}
                   </Text>
                 </Stack>
               </Center>
@@ -656,7 +645,7 @@ function QueuePage() {
                   variant="light"
                   mb="md"
                 >
-                  These downloads failed. Check the error messages for details.
+                  {t("alerts.error")}
                 </Alert>
                 <VirtualizedDownloadList items={filteredError} />
               </>
@@ -665,9 +654,7 @@ function QueuePage() {
                 <Stack align="center" gap="sm">
                   <IconAlertCircle size={48} opacity={0.3} />
                   <Text c="dimmed">
-                    {searchQuery
-                      ? "No matching downloads"
-                      : "No failed downloads"}
+                    {searchQuery ? t("empty.no_match") : t("empty.error")}
                   </Text>
                 </Stack>
               </Center>
@@ -683,9 +670,7 @@ function QueuePage() {
                 <Stack align="center" gap="sm">
                   <IconX size={48} opacity={0.3} />
                   <Text c="dimmed">
-                    {searchQuery
-                      ? "No matching downloads"
-                      : "No cancelled downloads"}
+                    {searchQuery ? t("empty.no_match") : t("empty.cancelled")}
                   </Text>
                 </Stack>
               </Center>

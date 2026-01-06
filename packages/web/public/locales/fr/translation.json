@@ -1,0 +1,1732 @@
+{
+  "account": {
+    "title": "Compte",
+    "profile": {
+      "title": "Profil",
+      "description": "Mettez à jour vos informations de compte",
+      "fields": {
+        "name": {
+          "label": "Nom",
+          "placeholder": "Votre nom"
+        },
+        "email": {
+          "label": "Email",
+          "placeholder": "votre@email.com",
+          "sso_warning": "L'email ne peut pas être modifié pour les comptes SSO"
+        },
+        "language": {
+          "label": "Langue d'affichage",
+          "description": "Choisissez votre langue préférée pour l'interface et les notifications"
+        }
+      },
+      "buttons": {
+        "save": "Enregistrer le profil"
+      }
+    },
+    "password": {
+      "title": "Changer le mot de passe",
+      "description": "Mettez à jour le mot de passe de votre compte",
+      "divider": "Nouveau mot de passe",
+      "fields": {
+        "current": {
+          "label": "Mot de passe actuel",
+          "placeholder": "Entrez votre mot de passe actuel"
+        },
+        "new": {
+          "label": "Nouveau mot de passe",
+          "placeholder": "Nouveau mot de passe (min 8 caractères)",
+          "description": "Doit contenir au moins 8 caractères"
+        },
+        "confirm": {
+          "label": "Confirmer le nouveau mot de passe",
+          "placeholder": "Confirmez le nouveau mot de passe"
+        }
+      },
+      "errors": {
+        "mismatch": "Les mots de passe ne correspondent pas"
+      },
+      "buttons": {
+        "change": "Changer le mot de passe"
+      }
+    },
+    "sso": {
+      "title": "Authentification SSO",
+      "description": "Votre compte utilise l'authentification unique (SSO). La gestion du mot de passe est gérée par votre fournisseur d'identité."
+    },
+    "auth_methods": {
+      "title": "Méthodes d'authentification",
+      "password": "Connexion par mot de passe",
+      "enabled": "Activé",
+      "not_configured": "Non configuré",
+      "sso": "SSO/OIDC",
+      "linked": "Lié",
+      "not_linked": "Non lié"
+    },
+    "apikeys": {
+      "title": "Clés API",
+      "description": "Les clés API permettent aux outils tiers d'accéder à l'API en votre nom.\nUtilisez l'en-tête <0>x-api-key</0> pour vous authentifier.",
+      "buttons": {
+        "docs": "Documentation",
+        "create": "Créer une clé"
+      },
+      "table": {
+        "name": "Nom",
+        "key": "Clé",
+        "created": "Créée le",
+        "expires": "Expire le",
+        "status": "Statut"
+      },
+      "unnamed": "Sans nom",
+      "never": "Jamais",
+      "status": {
+        "active": "Active",
+        "disabled": "Désactivée"
+      },
+      "empty": "Aucune clé API créée pour le moment",
+      "create_modal": {
+        "title": "Créer une clé API",
+        "fields": {
+          "name": {
+            "label": "Nom de la clé",
+            "placeholder": "Ma clé API"
+          },
+          "expires": {
+            "label": "Expire dans (jours)",
+            "placeholder": "Laisser vide pour aucune expiration",
+            "description": "Optionnel : Définir le nombre de jours avant expiration"
+          }
+        },
+        "buttons": {
+          "create": "Créer la clé"
+        }
+      },
+      "created_modal": {
+        "title": "Clé API créée",
+        "warning": "Copiez votre clé API maintenant. Elle ne sera plus affichée !",
+        "copy": "Copier",
+        "copied": "Copié !",
+        "instruction": "Utilisez cette clé dans l'en-tête <0>x-api-key</0> lors de vos requêtes API."
+      },
+      "delete_modal": {
+        "title": "Supprimer la clé API",
+        "message": "Êtes-vous sûr de vouloir supprimer cette clé API ? Toute application utilisant cette clé perdra immédiatement l'accès.",
+        "confirm": "Supprimer la clé"
+      }
+    },
+    "notifications": {
+      "profile_updated": {
+        "title": "Profil mis à jour",
+        "message": "Votre profil a été mis à jour avec succès"
+      },
+      "profile_update_failed": "Échec de la mise à jour du profil",
+      "password_changed": {
+        "title": "Mot de passe changé",
+        "message": "Votre mot de passe a été mis à jour avec succès"
+      },
+      "password_change_failed": "Échec du changement de mot de passe",
+      "apikey_created": {
+        "title": "Clé API créée",
+        "message": "Votre nouvelle clé API a été créée. Copiez-la maintenant !"
+      },
+      "apikey_create_failed": "Échec de la création de la clé API",
+      "apikey_deleted": {
+        "title": "Clé API supprimée",
+        "message": "La clé API a été révoquée"
+      },
+      "apikey_delete_failed": "Échec de la suppression de la clé API"
+    },
+    "errors": {
+      "load_user_failed": "Échec du chargement des informations utilisateur"
+    }
+  },
+  "book": {
+    "status": {
+      "waiting": "Attente {{seconds}}s...",
+      "downloading_percent": "Téléchargement {{percent}}%",
+      "downloaded": "Téléchargé",
+      "queued": "En attente",
+      "delayed": "Retardé",
+      "error": "Erreur"
+    },
+    "buttons": {
+      "downloading": "Téléchargement {{percent}}",
+      "in_queue": "En attente",
+      "delayed": "Retardé",
+      "retry_download": "Réessayer",
+      "download": "Télécharger",
+      "already_requested": "Déjà demandé",
+      "request": "Demander"
+    },
+    "tooltips": {
+      "file_access_disabled": "Activez \"Garder une copie dans le dossier de téléchargement\" dans les Paramètres pour utiliser le téléchargement navigateur et l'email",
+      "download_file": "Télécharger le fichier",
+      "send_to": "Envoyer à {{recipient}}",
+      "send_via_email": "Envoyer par email",
+      "upload_tolino": "Envoyer vers Tolino Cloud",
+      "upload_tolino_convert": "Envoyer vers Tolino Cloud (sera converti en EPUB)",
+      "already_requested": "Vous avez déjà demandé ce livre",
+      "request_review": "Votre demande sera examinée par un administrateur"
+    },
+    "menu": {
+      "send_to": "Envoyer à :"
+    }
+  },
+  "common": {
+    "actions": {
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "close": "Fermer",
+      "add": "Ajouter",
+      "save_settings": "Enregistrer les paramètres",
+      "retry": "Réessayer"
+    },
+    "status": {
+      "loading": "Chargement..."
+    },
+    "enabled": "Activé",
+    "note": "Note",
+    "warning": "Attention",
+    "errors": {
+      "title": "Erreur",
+      "unknown": "Erreur inconnue",
+      "missing_config": "Configuration manquante"
+    }
+  },
+  "components": {
+    "folder_browser": {
+      "title": "Sélectionner un dossier",
+      "select": "Sélectionner",
+      "root": "Racine",
+      "browse": "Naviguer",
+      "path_placeholder": "/chemin/vers/dossier",
+      "redirect_notice": "Le chemin demandé n'existait pas. Affichage du répertoire valide le plus proche.",
+      "load_error": "Échec du chargement du répertoire",
+      "columns": {
+        "type": "Type",
+        "name": "Nom"
+      },
+      "empty": {
+        "items": "Aucun élément dans ce répertoire",
+        "folders": "Aucun dossier dans ce répertoire"
+      },
+      "go_root": "Aller à la racine",
+      "current_path": "Actuel"
+    }
+  },
+  "download": {
+    "countdown": {
+      "waiting": "En attente du démarrage du téléchargement… {{seconds}}s restants"
+    },
+    "tooltips": {
+      "cancel": "Annuler le téléchargement",
+      "download": "Télécharger le fichier",
+      "file_access_disabled": "Activez \"Garder une copie dans le dossier de téléchargement\" dans les Paramètres pour utiliser le téléchargement navigateur et l'email",
+      "send_to": "Envoyer à {{recipient}}",
+      "send_via_email": "Envoyer par email",
+      "upload_tolino": "Envoyer vers Tolino Cloud",
+      "upload_tolino_convert": "Envoyer vers Tolino Cloud (sera converti en EPUB)",
+      "delete": "Supprimer le téléchargement"
+    },
+    "menu": {
+      "send_to": "Envoyer à :"
+    },
+    "source": {
+      "web": "Web",
+      "indexer": "Indexeur",
+      "api": "API",
+      "unknown": "Inconnu"
+    },
+    "upload_status": "Envoi : {{status}}",
+    "size_unknown": "Taille inconnue",
+    "eta": "Temps restant : {{time}}",
+    "next_retry": "Prochain essai : {{time}}",
+    "downloads_left": "{{count}} téléchargements restants aujourd'hui",
+    "error_message": "Erreur : {{message}}",
+    "queued_at": "Mis en file : {{date}}",
+    "completed_at": "Terminé : {{date}}",
+    "buttons": {
+      "retry": "Réessayer le téléchargement"
+    },
+    "modals": {
+      "delete": {
+        "title": "Supprimer le téléchargement",
+        "confirmation": "Êtes-vous sûr de vouloir supprimer cet enregistrement de téléchargement ?",
+        "by_author": "par {{author}}",
+        "status": "Statut : {{status}}",
+        "note": "Note : Cela supprimera uniquement l'enregistrement. Le fichier téléchargé (s'il existe) restera sur le disque.",
+        "confirm": "Supprimer"
+      }
+    }
+  },
+  "errors": {
+    "loading_failed": "Échec du chargement des paramètres. Veuillez réessayer."
+  },
+  "layout": {
+    "app_title": "Ephemera",
+    "nav": {
+      "search": "Recherche",
+      "queue": "File d'attente",
+      "requests": "Demandes",
+      "lists": "Listes",
+      "library": "Bibliothèque",
+      "settings": "Paramètres"
+    },
+    "user_menu": {
+      "account": "Compte",
+      "user_fallback": "Utilisateur",
+      "actions": "Actions",
+      "my_account": "Mon Compte",
+      "sign_out": "Se déconnecter"
+    },
+    "roles": {
+      "admin": "Admin",
+      "administrator": "Administrateur"
+    },
+    "footer": {
+      "loading": "Chargement de la version...",
+      "update_available": "Mise à jour disponible"
+    },
+    "aria": {
+      "library": "Bibliothèque",
+      "toggle_theme": "Changer le thème"
+    }
+  },
+  "lists": {
+    "title": "Listes",
+    "header": {
+      "title": "Listes d'import",
+      "add_button": "Ajouter une liste",
+      "description": "Connectez vos listes \"À lire\" depuis les plateformes de suivi de livres. Les nouveaux livres ajoutés à vos listes créeront automatiquement des demandes de téléchargement."
+    },
+    "stats": {
+      "total_lists": "{{count}} listes",
+      "active": "{{count}} actives",
+      "imported": "{{count}} livres importés"
+    },
+    "empty": {
+      "title": "Aucune liste d'import configurée",
+      "description": "Ajoutez une liste pour importer automatiquement des livres depuis Goodreads, StoryGraph ou Hardcover",
+      "button": "Ajouter votre première liste"
+    },
+    "loading": "Chargement...",
+    "error": "Erreur lors du chargement des listes. Veuillez réessayer.",
+    "card": {
+      "status": {
+        "active": "Active",
+        "disabled": "Désactivée",
+        "error": "Erreur"
+      },
+      "stats": {
+        "imported": "{{count}} livres importés",
+        "last_checked": "Dernière vérification {{time}}",
+        "never_checked": "Jamais"
+      },
+      "actions": {
+        "hide": "Masquer",
+        "details": "Détails",
+        "disable_tooltip": "Désactiver la liste",
+        "enable_tooltip": "Activer la liste",
+        "refresh_tooltip": "Actualiser maintenant",
+        "delete_tooltip": "Supprimer la liste"
+      },
+      "details": {
+        "import_mode": "Mode d'import :",
+        "mode_all": "Tous les livres",
+        "mode_future": "Ajouts futurs uniquement",
+        "user_id": "ID Utilisateur :",
+        "username": "Nom d'utilisateur :",
+        "shelf": "Étagère :",
+        "list": "Liste :",
+        "filters": "Filtres :",
+        "format": "Format : {{values}}",
+        "language": "Langue : {{values}}",
+        "content": "Contenu : {{values}}",
+        "created": "Créée :"
+      },
+      "confirm_delete": "Êtes-vous sûr de vouloir supprimer cette liste ?"
+    },
+    "add_modal": {
+      "title": "Ajouter une liste d'import",
+      "steps": {
+        "source": "Source",
+        "select_platform": "Sélectionnez la plateforme depuis laquelle importer des livres :",
+        "config": "Configuration",
+        "options": "Options"
+      },
+      "fields": {
+        "profile_url_id": {
+          "label": "URL de profil ou ID utilisateur",
+          "placeholder": "https://www.goodreads.com/user/show/12345",
+          "success": "✓ ID Utilisateur : {{id}}"
+        },
+        "babelio_url_id": {
+          "label": "URL ou ID de liste Babelio",
+          "placeholder": "Collez l'URL d'une liste Babelio ou saisissez l'ID numérique (ex: 78873)",
+          "success": "ID de liste Babelio {{id}} détecté"
+        },
+        "shelf": {
+          "label": "Étagère",
+          "placeholder": "Sélectionner une étagère",
+          "loading": "Chargement des étagères..."
+        },
+        "username": {
+          "label": "Nom d'utilisateur",
+          "placeholder": "votre_nom_utilisateur",
+          "checking": "Vérification de l'accès à la liste...",
+          "accessible": "Liste accessible",
+          "verifying": "Vérification du nom d'utilisateur..."
+        },
+        "list": {
+          "label": "Liste",
+          "placeholder": "Sélectionner une liste",
+          "loading": "Chargement des listes pour {{username}}..."
+        },
+        "import_mode": {
+          "label": "Mode d'import",
+          "description": "Comment gérer les livres existants sur la liste",
+          "future": "Ajouts futurs uniquement (recommandé)",
+          "all": "Tous les livres (peut créer beaucoup de demandes)"
+        },
+        "formats": {
+          "label": "Formats préférés",
+          "placeholder": "N'importe quel format"
+        },
+        "use_book_lang": {
+          "label": "Utiliser la langue du livre pour la recherche",
+          "description": "Si activé, les recherches utilisent la langue du livre depuis Hardcover. Revient aux langues ci-dessous si indisponible."
+        },
+        "languages": {
+          "label": "Langues préférées",
+          "label_fallback": "Langues de repli",
+          "placeholder": "N'importe quelle langue",
+          "description": "Utilisé quand la langue du livre est indisponible"
+        }
+      },
+      "alerts": {
+        "goodreads_delay": "Les flux RSS Goodreads peuvent avoir un délai de 15-60 minutes après l'ajout de livres. Les livres nouvellement ajoutés seront importés lors de la prochaine vérification planifiée.",
+        "storygraph_warning": "StoryGraph nécessite FlareSolverr pour contourner la protection Cloudflare. Seule la page initiale de votre liste 'à lire' sera importée.",
+        "hardcover_error": "Impossible de récupérer les listes pour cet utilisateur. Veuillez vérifier le nom d'utilisateur et réessayer.",
+        "import_all_warning": "Cela créera des demandes de téléchargement pour tous les livres actuellement sur la liste, pas seulement les nouveaux ajouts.",
+        "babelio_info": "Seules les listes Babelio publiques peuvent être importées. Assurez-vous que l'URL suit le format : babelio.com/liste/ID/nom"
+      },
+      "buttons": {
+        "back": "Retour",
+        "next": "Suivant",
+        "create": "Créer la liste"
+      }
+    },
+    "notifications": {
+      "deleted": {
+        "title": "Liste supprimée",
+        "message": "\"{{name}}\" a été supprimée"
+      },
+      "state_change": {
+        "title_enabled": "Liste activée",
+        "title_disabled": "Liste désactivée",
+        "message_enabled": "\"{{name}}\" est maintenant activée",
+        "message_disabled": "\"{{name}}\" est maintenant désactivée"
+      },
+      "refresh": {
+        "failed": "Échec de l'actualisation",
+        "success_title": "Liste actualisée",
+        "success_message": "{{new}} nouveaux livres trouvés ({{total}} au total)"
+      },
+      "created": {
+        "title": "Liste créée",
+        "message": "\"{{name}}\" a été créée et sera vérifiée périodiquement"
+      },
+      "error": "Erreur",
+      "create_error": "Erreur lors de la création de la liste"
+    },
+    "validation": {
+      "failed": "Échec de la validation"
+    },
+    "source_status": {
+      "api_key": "Clé API requise",
+      "flaresolverr": "FlareSolverr requis"
+    }
+  },
+  "login": {
+    "title": "Bienvenue sur Ephemera",
+    "subtitle": "Connectez-vous pour continuer",
+    "loading_setup": "Vérification de l'installation...",
+    "divider_oidc": "ou continuer avec",
+    "tabs": {
+      "email": "Email",
+      "booklore": "Booklore",
+      "calibre": "Calibre"
+    },
+    "fields": {
+      "email": {
+        "label": "Email",
+        "placeholder": "votre@email.com"
+      },
+      "password": {
+        "label": "Mot de passe",
+        "placeholder": "Votre mot de passe"
+      },
+      "username": {
+        "label": "Nom d'utilisateur",
+        "placeholder": {
+          "booklore": "Nom d'utilisateur Booklore",
+          "calibre": "Nom d'utilisateur Calibre-Web"
+        }
+      },
+      "password_service": {
+        "placeholder": {
+          "booklore": "Mot de passe Booklore",
+          "calibre": "Mot de passe Calibre-Web"
+        }
+      }
+    },
+    "buttons": {
+      "sign_in": "Se connecter",
+      "sign_in_with": "Se connecter avec {{service}}"
+    },
+    "errors": {
+      "login_failed": "Échec de la connexion",
+      "generic": "Une erreur est survenue",
+      "service_login_failed": "Échec de la connexion {{service}}",
+      "oidc_failed": "Échec de la connexion OIDC"
+    }
+  },
+  "maintenance": {
+    "searcher_blocked": {
+      "title": "Service de recherche bloqué",
+      "message": "Le service de recherche semble être bloqué."
+    },
+    "service_unavailable": {
+      "title": "Service temporairement indisponible",
+      "flaresolverr_down": "FlareSolverr est indisponible et aucune clé API n'est configurée. La recherche et les téléchargements sont temporairement désactivés.",
+      "generic_message": "Le service est temporairement indisponible. Veuillez réessayer plus tard."
+    },
+    "suggestions": {
+      "title": "Essayez l'une de ces solutions :",
+      "dns": "Changez votre serveur DNS pour Cloudflare (<code >1.1.1.1</code >) ou Google (<code >8.8.8.8</code >)",
+      "vpn": "Utilisez un VPN pour contourner la restriction réseau",
+      "admin": "Vérifiez si votre administrateur réseau bloque le site"
+    },
+    "checking_recovery": "Vérification du rétablissement..."
+  },
+  "queue": {
+    "title": "File d'attente",
+    "stats": {
+      "active": "{{count}} actifs"
+    },
+    "status": {
+      "paused": "En pause"
+    },
+    "buttons": {
+      "resume": "Reprendre",
+      "pause": "Pause",
+      "clear_queue": "Vider la file"
+    },
+    "search": {
+      "placeholder": "Rechercher par titre, auteur, format, langue, éditeur ou MD5..."
+    },
+    "alerts": {
+      "paused": "Les téléchargements sont en pause. De nouveaux éléments peuvent être ajoutés mais ne commenceront pas à télécharger avant la reprise.",
+      "delayed": "Ces téléchargements sont retardés en raison des limites de quota. Ils réessayeront automatiquement.",
+      "error": "Ces téléchargements ont échoué. Vérifiez les messages d'erreur pour plus de détails."
+    },
+    "modals": {
+      "clear": {
+        "title": "Vider la file d'attente",
+        "confirmation": "Êtes-vous sûr de vouloir effacer {{count}} téléchargement(s) ?",
+        "description": "Cela supprimera tous les téléchargements terminés, disponibles, en erreur et annulés de la file. Les téléchargements actifs (en file, en cours, retardés) ne seront pas affectés.",
+        "note": "Note : Les fichiers téléchargés resteront sur le disque.",
+        "confirm": "Effacer {{count}} téléchargement(s)"
+      }
+    },
+    "tabs": {
+      "all": "Tous",
+      "downloading": "En cours",
+      "queued": "En file",
+      "delayed": "Retardés",
+      "done": "Terminés",
+      "available": "Disponibles",
+      "error": "Erreurs",
+      "cancelled": "Annulés"
+    },
+    "empty": {
+      "all": "Aucun téléchargement pour le moment",
+      "no_match": "Aucun téléchargement correspondant",
+      "downloading": "Aucun téléchargement actif",
+      "queued": "Aucun téléchargement en file d'attente",
+      "available": "Aucun téléchargement disponible",
+      "done": "Aucun téléchargement terminé dans le dossier temporaire",
+      "delayed": "Aucun téléchargement retardé",
+      "error": "Aucun téléchargement échoué",
+      "cancelled": "Aucun téléchargement annulé"
+    },
+    "errors": {
+      "loading": "Erreur lors du chargement de la file d'attente. Veuillez réessayer."
+    }
+  },
+  "requests": {
+    "title": "Demandes",
+    "header": {
+      "title": "Demandes de livres",
+      "description": "Recherches enregistrées vérifiées automatiquement pour de nouveaux résultats {{interval}}.",
+      "settings_link": "Modifier l'intervalle dans les paramètres"
+    },
+    "search": {
+      "placeholder": "Rechercher par titre, auteur, ISBN, série, année, MD5..."
+    },
+    "stats": {
+      "pending": "{{count}} en attente",
+      "active": "{{count}} actives",
+      "fulfilled": "{{count}} satisfaites"
+    },
+    "intervals": {
+      "1min": "chaque minute",
+      "15min": "toutes les 15 minutes",
+      "30min": "toutes les 30 minutes",
+      "1h": "toutes les heures",
+      "6h": "toutes les 6 heures",
+      "12h": "toutes les 12 heures",
+      "24h": "toutes les 24 heures",
+      "weekly": "chaque semaine"
+    },
+    "tabs": {
+      "all": "Toutes",
+      "active": "Actives",
+      "fulfilled": "Satisfaites",
+      "pending_approval": "À approuver",
+      "rejected": "Rejetées"
+    },
+    "empty": {
+      "no_match": "Aucune demande correspondante",
+      "no_requests": "Aucune demande trouvée",
+      "try_different": "Essayez un terme de recherche différent",
+      "all_hint": "Recherchez un livre et enregistrez-le comme demande si aucun résultat n'est trouvé",
+      "pending_hint": "Aucune demande en attente d'approbation",
+      "tab_hint": "Aucune demande {{tab}}"
+    },
+    "errors": {
+      "loading": "Erreur lors du chargement des demandes. Veuillez réessayer."
+    },
+    "card": {
+      "confirm_delete": "Êtes-vous sûr de vouloir supprimer cette demande ?",
+      "title_author": "\"{{title}}\" par {{author}}",
+      "title_only": "Titre : \"{{title}}\"",
+      "author_only": "Auteur : {{author}}",
+      "unknown_search": "Recherche inconnue",
+      "actions": {
+        "delete": "Supprimer la demande",
+        "approve": "Approuver",
+        "reject": "Rejeter"
+      },
+      "metadata": {
+        "pages": "{{count}} pages",
+        "created": "Créée {{time}}",
+        "last_checked": "Dernière vérif. {{time}}",
+        "fulfilled": "Satisfaite {{time}}"
+      },
+      "rejection": {
+        "title": "Demande rejetée",
+        "reason": "Raison : {{reason}}",
+        "by": "Rejetée par {{name}}"
+      },
+      "approval": {
+        "by": "Approuvée par {{name}}"
+      }
+    },
+    "filters": {
+      "author": "Auteur : {{value}}",
+      "title": "Titre : {{value}}",
+      "format": "Format : {{value}}",
+      "language": "Langue : {{value}}",
+      "content": "Contenu : {{value}}",
+      "sort": "Tri : {{value}}"
+    },
+    "status": {
+      "pending_approval": "en attente d'approbation",
+      "active": "active",
+      "fulfilled": "satisfaite",
+      "cancelled": "annulée",
+      "rejected": "rejetée"
+    },
+    "modals": {
+      "reject": {
+        "title": "Rejeter la demande",
+        "confirmation": "Êtes-vous sûr de vouloir rejeter cette demande ?",
+        "reason_label": "Raison (optionnel)",
+        "reason_placeholder": "Entrez une raison pour le rejet...",
+        "confirm": "Rejeter"
+      }
+    }
+  },
+  "search": {
+    "title": "Recherche",
+    "placeholder": "Rechercher par titre, auteur, ISBN...",
+    "button": "Rechercher",
+    "error": "Erreur lors du chargement des résultats. Veuillez réessayer.",
+    "load_more_error": "Échec du chargement de plus de résultats",
+    "no_more_results": "Plus de résultats",
+    "start_prompt": "Entrez un terme de recherche pour commencer",
+    "filters": {
+      "toggle": "Options de filtre",
+      "reset": "Réinitialiser tous les filtres",
+      "deep_search": "Rechercher dans les descriptions et métadonnées",
+      "author": {
+        "label": "Auteur",
+        "placeholder": "Nom de l'auteur"
+      },
+      "title": {
+        "label": "Titre",
+        "placeholder": "Titre du livre"
+      },
+      "year": {
+        "label": "Année",
+        "placeholder": "Année de publication"
+      },
+      "sort": {
+        "label": "Trier par",
+        "placeholder": "Plus pertinent"
+      },
+      "format": {
+        "label": "Format de fichier",
+        "placeholder": "N'importe quel format"
+      },
+      "language": {
+        "label": "Langue",
+        "placeholder": "N'importe quelle langue"
+      },
+      "content_type": {
+        "label": "Type de contenu",
+        "placeholder": "N'importe quel type"
+      }
+    },
+    "results": {
+      "found_count": "{{total}}+ résultats trouvés{{query}}{{author}}{{title}}",
+      "showing_count": "Affichage de {{count}} livres"
+    },
+    "no_results": {
+      "title": "Aucun résultat trouvé{{query}}{{author}}{{title}}",
+      "suggestion": "Essayez d'ajuster vos filtres ou termes de recherche",
+      "request_exists": "Vous avez déjà une demande active pour cette recherche",
+      "view_requests": "Voir vos demandes",
+      "save_request": "Enregistrer cette recherche comme demande",
+      "request_info": "Ephemera vérifiera automatiquement les nouveaux résultats et téléchargera le livre lorsqu'il sera disponible"
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "tabs": {
+      "general": "Général",
+      "users": "Utilisateurs",
+      "lists": "Listes",
+      "notifications": "Notifications",
+      "email": "Email",
+      "oidc": "OIDC",
+      "proxy_auth": "Auth Proxy",
+      "booklore": "Booklore",
+      "indexer": "Indexeur",
+      "tolino": "Tolino"
+    },
+    "general": {
+      "save_button": "Enregistrer les paramètres",
+      "post_download": {
+        "title": "Actions post-téléchargement",
+        "description": "Configurer ce qui se passe après le téléchargement réussi d'un livre",
+        "booklore_disabled": "Activez et configurez Booklore pour utiliser les options d'envoi.",
+        "booklore_not_auth": "Authentifiez-vous avec Booklore ci-dessous pour activer les options d'envoi.",
+        "move_to_ingest": {
+          "label": "Déplacer vers Ingest",
+          "description": "Déplacer les fichiers téléchargés vers votre dossier d'import configuré"
+        },
+        "keep_in_downloads": {
+          "label": "Garder une copie dans le dossier de téléchargement",
+          "description": "Garder le fichier original dans le dossier de téléchargement pour les téléchargements navigateur/email (copie au lieu de déplacer)"
+        },
+        "upload_to_booklore": {
+          "label": "Envoyer vers Booklore",
+          "description": "Envoyer vers la bibliothèque Booklore (nécessite la configuration Booklore)"
+        },
+        "move_to_indexer": {
+          "label": "Déplacer vers le dossier Indexeur",
+          "description": "Déplacer vers un dossier séparé pour les téléchargements indexeur (SABnzbd/Readarr)"
+        },
+        "normalize_epub": {
+          "label": "Normaliser les EPUBs pour Kindle",
+          "description": "Passer les EPUBs par Calibre pour corriger les problèmes d'encodage (nécessite Calibre)"
+        },
+        "convert": {
+          "label": "Convertir au format",
+          "description": "Convertir automatiquement tous les téléchargements vers ce format (nécessite Calibre)",
+          "placeholder": "Pas de conversion"
+        },
+        "booklore_note": {
+          "disabled": "Activez et configurez Booklore pour utiliser les options d'envoi.",
+          "enabled": "Authentifiez-vous avec Booklore ci-dessous pour activer les options d'envoi."
+        }
+      },
+      "requests": {
+        "title": "Demandes",
+        "description": "Configurer la vérification des demandes de livres enregistrées",
+        "check_interval": {
+          "label": "Intervalle de vérification",
+          "description": "Fréquence de vérification automatique des nouveaux résultats pour les demandes enregistrées",
+          "placeholder": "Sélectionner un intervalle",
+          "warning": "Vérifier chaque minute peut entraîner un nombre excessif de requêtes et pourrait vous faire bannir du service. À utiliser à vos risques et périls."
+        },
+        "intervals": {
+          "1min": "Chaque minute (Non recommandé)",
+          "15min": "Toutes les 15 minutes",
+          "30min": "Toutes les 30 minutes",
+          "1h": "Toutes les heures",
+          "6h": "Toutes les 6 heures",
+          "12h": "Toutes les 12 heures",
+          "24h": "Toutes les 24 heures",
+          "weekly": "Hebdomadaire"
+        }
+      },
+      "display": {
+        "title": "Préférences d'affichage",
+        "description": "Personnaliser l'affichage des dates et heures dans l'application",
+        "time_format": {
+          "label": "Format de l'heure",
+          "description": "Choisir comment les heures sont affichées",
+          "h24": "24 Heures",
+          "h24_desc": "Afficher les heures au format 24h (ex: 14:30)",
+          "ampm": "12 Heures (AM/PM)",
+          "ampm_desc": "Afficher les heures au format 12h avec AM/PM (ex: 2:30 PM)"
+        },
+        "date_format": {
+          "label": "Format de date",
+          "description": "Choisir comment les dates sont affichées",
+          "eur": "Format EUR",
+          "eur_desc": "JJ.MM.AAAA (ex: 31.12.2023)",
+          "us": "Format US",
+          "us_desc": "MM/JJ/AAAA (ex: 12/31/2023)"
+        }
+      },
+      "library_link": {
+        "title": "Lien Bibliothèque",
+        "description": "Ajouter un lien vers votre bibliothèque externe (ex: BookLore, Calibre-Web-Automated ou autre système de gestion)",
+        "url": {
+          "label": "URL de la bibliothèque",
+          "description": "Entrez l'URL complète de votre bibliothèque",
+          "placeholder": "https://ma-biblio.fr"
+        },
+        "location": {
+          "label": "Emplacement du lien",
+          "description": "Choisir où afficher le lien vers la bibliothèque",
+          "sidebar": "Barre latérale",
+          "sidebar_desc": "Afficher le lien dans la navigation latérale",
+          "header": "En-tête",
+          "header_desc": "Afficher le lien dans l'en-tête à côté du changement de thème",
+          "both": "Barre latérale & En-tête",
+          "both_desc": "Afficher le lien dans la barre latérale et l'en-tête"
+        }
+      },
+      "cache": {
+        "title": "Cache",
+        "description": "Configurer les paramètres de rétention du cache",
+        "retention": {
+          "label": "Rétention du cache des livres",
+          "description": "Nombre de jours pour conserver le cache de recherche et téléchargement avant suppression auto (0 = jamais supprimer, nettoyage quotidien)"
+        },
+        "search_days": {
+          "label": "Jours de cache de recherche",
+          "description": "Nombre de jours pour conserver les livres des résultats de recherche en cache avant suppression auto (0 = jamais supprimer, nettoyage quotidien)"
+        }
+      },
+      "archive": {
+        "title": "Paramètres d'archive",
+        "description": "Configurer le service d'archive pour les recherches et téléchargements",
+        "searcher_url": {
+          "label": "URL de base du moteur",
+          "description": "URL de base pour le service d'archive/recherche (ex: Anna's Archive)",
+          "placeholder": "https://archive.org"
+        },
+        "api_key": {
+          "label": "Clé API du moteur",
+          "description": "Clé API pour les téléchargements authentifiés (optionnel, pour plus de rapidité)",
+          "placeholder": "Clé API optionnelle"
+        },
+        "quick_url": {
+          "label": "URL téléchargement rapide",
+          "description": "Source alternative de téléchargement rapide (optionnel)",
+          "placeholder": "Source alternative optionnelle"
+        }
+      },
+      "folders": {
+        "title": "Chemins des dossiers",
+        "description": "Configurer où les fichiers téléchargés sont stockés",
+        "download": {
+          "label": "Dossier de téléchargement",
+          "description": "Dossier temporaire pour les téléchargements en cours",
+          "placeholder": "./downloads"
+        },
+        "ingest": {
+          "label": "Dossier d'import (Ingest)",
+          "description": "Destination finale pour les téléchargements terminés",
+          "placeholder": "/path/to/final/books"
+        }
+      },
+      "download_settings": {
+        "title": "Paramètres de téléchargement",
+        "description": "Configurer le comportement de téléchargement et les tentatives",
+        "max_concurrent": {
+          "label": "Téléchargements simultanés max",
+          "description": "Nombre maximum de téléchargements pouvant s'exécuter simultanément (1-5)"
+        },
+        "retry_attempts": {
+          "label": "Tentatives de réessai",
+          "description": "Nombre de fois pour réessayer un téléchargement échoué (1-10)"
+        },
+        "timeout": {
+          "label": "Délai d'expiration (ms)",
+          "description": "Délai pour les requêtes API en millisecondes (5000-300000)"
+        },
+        "cache_ttl": {
+          "label": "TTL du cache de recherche (secondes)",
+          "description": "Durée de mise en cache des résultats de recherche (60-86400)"
+        }
+      }
+    },
+    "notifications": {
+      "title": "Notifications Apprise",
+      "description": "Configurer les notifications push pour les événements de téléchargement via",
+      "enabled": "Activé",
+      "disabled_message": "Les notifications Apprise sont actuellement désactivées. Activez-les ci-dessus pour configurer les notifications push.",
+      "disabled_note": "Les notifications Apprise sont actuellement désactivées. Activez-les ci-dessus pour configurer les notifications push.",
+      "url": {
+        "label": "URL du serveur Apprise",
+        "placeholder": "http://apprise:8111/notify/apprise",
+        "description": "L'URL de votre endpoint API Apprise"
+      },
+      "headers": {
+        "title": "En-têtes personnalisés (optionnel)",
+        "add": "Ajouter un en-tête",
+        "name": "Nom de l'en-tête",
+        "value": "Valeur de l'en-tête",
+        "key_placeholder": "Nom de l'en-tête",
+        "value_placeholder": "Valeur de l'en-tête"
+      },
+      "events": {
+        "requests": {
+          "title": "Notifications de demandes",
+          "new_request": "Nouvelle demande de téléchargement créée",
+          "request_fulfilled": "Demande satisfaite (recherche auto a trouvé le livre)",
+          "request_pending": "Demande en attente d'approbation",
+          "request_approved": "Demande approuvée",
+          "request_rejected": "Demande rejetée"
+        },
+        "downloads": {
+          "title": "Notifications de téléchargement",
+          "queued": "Livre mis en file d'attente",
+          "available": "Téléchargement disponible (déplacé vers destination finale)",
+          "error": "Erreur de téléchargement (max tentatives atteint)",
+          "delayed": "Téléchargement retardé (quota épuisé)"
+        },
+        "integrations": {
+          "title": "Notifications d'intégration",
+          "list_created": "Nouvelle liste créée",
+          "recipient_added": "Destinataire email ajouté",
+          "email_sent": "Livre envoyé par email",
+          "email_sent_desc": "Volume élevé - envisagez de désactiver pour les utilisateurs actifs",
+          "tolino_configured": "Compte Tolino configuré",
+          "tolino_uploaded": "Livre envoyé vers Tolino"
+        },
+        "system": {
+          "title": "Notifications système",
+          "update": "Mise à jour disponible",
+          "unhealthy": "Service en panne (FlareSolverr indisponible)",
+          "recovered": "Service rétabli (FlareSolverr de retour)"
+        },
+        "auth": {
+          "title": "Notifications d'authentification",
+          "oidc_account_created": "Nouvel utilisateur auto-provisionné via OIDC",
+          "oidc_role_updated": "Rôle utilisateur mis à jour via groupes OIDC"
+        },
+        "high_volume": "Volume élevé - envisagez de désactiver pour les utilisateurs actifs"
+      },
+      "test_button": "Envoyer une notification de test",
+      "save_button": "Enregistrer les paramètres"
+    },
+    "booklore": {
+      "title": "Intégration Booklore",
+      "description": "Configurer l'envoi automatique vers votre bibliothèque Booklore",
+      "enabled": "Activé",
+      "disabled_message": "L'intégration Booklore est actuellement désactivée. Activez-la ci-dessus pour configurer les envois automatiques.",
+      "disabled_alert": "L'intégration Booklore est actuellement désactivée. Activez-la ci-dessus pour configurer les envois automatiques.",
+      "url": {
+        "label": "URL de base",
+        "placeholder": "http://192.168.7.3:6060"
+      },
+      "loading_libs": "Chargement des bibliothèques...",
+      "status": {
+        "connected": "✓ Connecté à Booklore",
+        "token_expires": "Le jeton d'accès expire le : {{date}}",
+        "refresh_expires": "Le jeton de rafraîchissement expire le : {{date}}",
+        "reauthenticate": "Se ré-authentifier"
+      },
+      "auth": {
+        "username": {
+          "label": "Nom d'utilisateur",
+          "placeholder": "Entrez votre nom d'utilisateur Booklore",
+          "description": "Les identifiants sont utilisés pour l'authentification uniquement, jamais stockés"
+        },
+        "password": {
+          "label": "Mot de passe",
+          "placeholder": "Entrez votre mot de passe Booklore"
+        }
+      },
+      "note": "Note : Lorsque l'action post-téléchargement est définie sur \"Envoi uniquement\" ou \"Déplacer et Envoyer\", les fichiers seront toujours envoyés automatiquement à Booklore s'il est activé et configuré.",
+      "note_upload": "Note : Lorsque l'action post-téléchargement est définie sur \"Envoi uniquement\" ou \"Déplacer et Envoyer\", les fichiers seront toujours envoyés automatiquement à Booklore s'il est activé et configuré.",
+      "fields": {
+        "url": {
+          "label": "URL de base",
+          "placeholder": "http://192.168.7.3:6060"
+        },
+        "library": {
+          "label": "Bibliothèque",
+          "placeholder": "Sélectionner une bibliothèque",
+          "loading": "Chargement des bibliothèques..."
+        },
+        "path": {
+          "label": "Chemin",
+          "placeholder": "Sélectionner un chemin"
+        },
+        "username": {
+          "label": "Nom d'utilisateur",
+          "placeholder": "Entrez votre nom d'utilisateur Booklore",
+          "description": "Les identifiants sont utilisés pour l'authentification uniquement, jamais stockés"
+        },
+        "password": {
+          "label": "Mot de passe",
+          "placeholder": "Entrez votre mot de passe Booklore"
+        }
+      },
+      "test_button": "Tester la connexion",
+      "save_buttons": {
+        "authenticate": "S'authentifier",
+        "save_library": "Enregistrer les paramètres de bibliothèque",
+        "save_changes": "Enregistrer les modifications",
+        "disable": "Désactiver Booklore"
+      },
+      "clear_auth": {
+        "message": "Les données d'authentification sont toujours stockées. Effacez-les pour une meilleure sécurité.",
+        "button": "Effacer les données d'authentification"
+      }
+    },
+    "indexer": {
+      "info_alert": "Activez ces services pour rendre Ephemera compatible avec les applications *arr comme Readarr et LazyLibrarian. Ephemera agira à la fois comme un indexeur Newznab et un client de téléchargement SABnzbd.",
+      "api_config": {
+        "title": "Configuration API",
+        "base_url": {
+          "label": "URL de base",
+          "description": "L'URL interne où Ephemera est accessible pour les autres outils",
+          "placeholder": "http://192.168.1.100:8286",
+          "note": "Définissez ceci sur l'adresse IP ou le domaine où Ephemera s'exécute. Pour les configurations Docker, utilisez l'IP de votre hôte, pas localhost."
+        }
+      },
+      "indexer_apis": {
+        "title": "APIs Indexeur",
+        "description": "Activer les APIs Newznab et SABnzbd pour les applications *arr",
+        "enabled": "Activé",
+        "newznab": {
+          "title": "Newznab (Indexeur)",
+          "api_key": "Clé API",
+          "copy": "Copier la clé API",
+          "copied": "Copié",
+          "regenerate": "Régénérer la clé API"
+        },
+        "sabnzbd": {
+          "title": "SABnzbd (Client de téléchargement)",
+          "api_key": "Clé API",
+          "copy": "Copier la clé API",
+          "copied": "Copié",
+          "regenerate": "Régénérer la clé API"
+        },
+        "configuration": {
+          "usenet_title": "Configuration Usenet",
+          "add_indexer": "1. Ajouter l'indexeur : Paramètres → Indexeurs → Ajouter → Newznab → Personnalisé",
+          "indexer_url": "URL : <c>https://192.168.1.1:8286</c> (Votre IP interne d'Ephemera)",
+          "api_path": "Chemin API : <c>/newznab/api</c> (Nécessite d'activer les Paramètres Avancés)",
+          "api_key": "Clé API : <c>{{key}}</c>",
+          "categories": "Catégories : <c>7000,7010,7020,7030</c>",
+          "download_client": "Client de téléchargement : <c>Ephemera</c>",
+          "add_client": "2. Ajouter le client de téléchargement : Paramètres → Clients de téléchargement → Ajouter → SABnzbd",
+          "client_name": "Nom : <c>Ephemera</c>",
+          "client_host": "Hôte : <c>192.168.1.1</c> (Votre IP interne d'Ephemera)",
+          "client_port": "Port : <c>8286</c>",
+          "client_url_base": "Base URL : <c>sabnzbd</c> (Nécessite d'activer les Paramètres Avancés)",
+          "client_api_key": "Clé API : <c>{{key}}</c>",
+          "client_category": "Catégorie : <c>ephemera</c>",
+          "client_priority": "Priorité client : <c>50</c> (Nécessite d'activer les Paramètres Avancés)"
+        }
+      },
+      "indexer_only_mode": {
+        "title": "Mode Indexeur uniquement",
+        "description": "N'exposer que les téléchargements initiés via les APIs indexeur dans la file d'attente et l'historique. Les téléchargements web ne seront pas visibles. Les fichiers ne seront pas déplacés vers d'autres dossiers."
+      },
+      "directories": {
+        "title": "Dossiers de téléchargement",
+        "completed": {
+          "label": "Dossier des téléchargements terminés",
+          "description": "Chemin où les téléchargements terminés de l'indexeur seront déplacés",
+          "placeholder": "/downloads/complete"
+        },
+        "incomplete": {
+          "label": "Dossier des téléchargements incomplets",
+          "description": "Chemin pour les fichiers temporaires pendant le téléchargement",
+          "placeholder": "/downloads/incomplete"
+        },
+        "category_subdirs": {
+          "label": "Utiliser des sous-dossiers de catégorie",
+          "description": "Créer des sous-dossiers basés sur la catégorie (ex: /downloads/complete/ephemera/)"
+        }
+      },
+      "notifications": {
+        "settings_updated": "Paramètres mis à jour",
+        "enabled": "APIs Indexeur {{state}}",
+        "key_regenerated": "Clé API régénérée",
+        "key_success": "Nouvelle clé API {{service}} générée avec succès",
+        "key_failed": "Échec de la régénération de la clé API {{service}}",
+        "base_url_updated": "L'URL de base a été mise à jour",
+        "base_url_failed": "Échec de la mise à jour de l'URL de base",
+        "indexer_mode_updated": "Mode Indexeur uniquement {{state}}",
+        "indexer_mode_failed": "Échec de la mise à jour du mode Indexeur uniquement",
+        "directory_updated": "Chemin du dossier {{type}} mis à jour",
+        "directory_failed": "Échec de la mise à jour du chemin du dossier {{type}}",
+        "category_updated": "Sous-dossiers de catégorie {{state}}",
+        "category_failed": "Échec de la mise à jour du paramètre de dossier de catégorie"
+      }
+    },
+    "email": {
+      "settings": {
+        "title": "Paramètres Email",
+        "description": "Configurer les paramètres SMTP pour envoyer des livres par email"
+      },
+      "recipients": {
+        "title": "Destinataires Email",
+        "description": {
+          "admin": "Gérer les adresses email pour tous les utilisateurs",
+          "user": "Gérer vos adresses email pour l'envoi de livres"
+        },
+        "description_admin": "Gérer les adresses email pour tous les utilisateurs",
+        "description_user": "Gérer vos adresses email pour l'envoi de livres",
+        "not_configured": {
+          "admin": "Un administrateur doit configurer les paramètres SMTP avant que vous puissiez ajouter des destinataires email.",
+          "user": "L'envoi d'email n'est pas encore configuré. "
+        },
+        "enable_hint": "Activez l'email dans les paramètres ci-dessus pour ajouter des destinataires.",
+        "admin_hint": "Un administrateur doit configurer les paramètres SMTP avant que vous puissiez ajouter des destinataires email.",
+        "form": {
+          "email_placeholder": "destinataire@exemple.com",
+          "name_placeholder": "Nom (optionnel)",
+          "add_button": "Ajouter"
+        },
+        "table": {
+          "auto_send": "Envoi auto",
+          "reassign": "Réassigner à l'utilisateur",
+          "reassign_to": "Réassigner à :",
+          "empty": "Aucun destinataire ajouté pour le moment"
+        },
+        "empty": "Aucun destinataire ajouté pour le moment"
+      },
+      "disabled_message": "L'envoi d'email est actuellement désactivé. Activez-le ci-dessus pour configurer les paramètres SMTP.",
+      "not_configured": "L'envoi d'email n'est pas encore configuré.",
+      "enable_hint": "Activez l'email dans les paramètres ci-dessus pour ajouter des destinataires.",
+      "admin_hint": "Un administrateur doit configurer les paramètres SMTP avant que vous puissiez ajouter des destinataires email.",
+      "file_access": {
+        "title": "Accès aux fichiers désactivé",
+        "message_part1": "Activez ",
+        "message_part2": " dans l'onglet Général sous Actions post-téléchargement pour utiliser l'envoi d'email. Sans ce paramètre, les fichiers téléchargés peuvent ne pas être disponibles pour les pièces jointes."
+      },
+      "smtp": {
+        "title": "Paramètres Email",
+        "description": "Configurer les paramètres SMTP pour envoyer des livres par email",
+        "enabled": "Activé",
+        "host": {
+          "label": "Hôte SMTP",
+          "placeholder": "smtp.gmail.com"
+        },
+        "port": {
+          "label": "Port SMTP"
+        },
+        "username": {
+          "label": "Nom d'utilisateur SMTP",
+          "placeholder": "utilisateur@gmail.com"
+        },
+        "password": {
+          "label": "Mot de passe SMTP",
+          "placeholder": "Votre mot de passe SMTP ou mot de passe d'application"
+        },
+        "sender_email": {
+          "label": "Email de l'expéditeur",
+          "placeholder": "livres@exemple.com"
+        },
+        "sender_name": {
+          "label": "Nom de l'expéditeur",
+          "placeholder": "Bibliothèque de livres"
+        },
+        "tls": {
+          "label": "Utiliser TLS/STARTTLS"
+        },
+        "file_access_warning": {
+          "title": "Accès aux fichiers désactivé",
+          "message": "Activez <strong>\"Garder une copie dans le dossier de téléchargement\"</strong> dans l'onglet Général sous Actions post-téléchargement pour utiliser l'envoi d'email. Sans ce paramètre, les fichiers téléchargés peuvent ne pas être disponibles pour les pièces jointes."
+        },
+        "disabled_alert": "L'envoi d'email est actuellement désactivé. Activez-le ci-dessus pour configurer les paramètres SMTP.",
+        "test_button": "Tester la connexion",
+        "save_button": "Enregistrer les paramètres"
+      },
+      "fields": {
+        "host": {
+          "label": "Hôte SMTP",
+          "placeholder": "smtp.gmail.com"
+        },
+        "port": {
+          "label": "Port SMTP"
+        },
+        "username": {
+          "label": "Nom d'utilisateur SMTP",
+          "placeholder": "utilisateur@gmail.com"
+        },
+        "password": {
+          "label": "Mot de passe SMTP",
+          "placeholder": "Votre mot de passe SMTP ou mot de passe d'application"
+        },
+        "sender_email": {
+          "label": "Email de l'expéditeur",
+          "placeholder": "livres@exemple.com"
+        },
+        "sender_name": {
+          "label": "Nom de l'expéditeur",
+          "placeholder": "Bibliothèque de livres"
+        },
+        "tls": {
+          "label": "Utiliser TLS/STARTTLS"
+        }
+      },
+      "buttons": {
+        "test": "Tester la connexion"
+      },
+      "notifications": {
+        "missing_config": {
+          "title": "Configuration manquante",
+          "smtp_host": "Veuillez entrer l'hôte SMTP",
+          "sender_email": "Veuillez entrer l'email de l'expéditeur"
+        }
+      }
+    },
+    "errors": {
+      "loading_failed": "Échec du chargement des paramètres. Veuillez réessayer."
+    },
+    "users": {
+      "title": "Gestion des utilisateurs",
+      "description": "Gérer les comptes utilisateurs, rôles et permissions",
+      "create_button": "Créer un utilisateur",
+      "table": {
+        "user": "Utilisateur",
+        "email": "Email",
+        "password": "Mot de passe",
+        "oidc": "OIDC",
+        "role": "Rôle",
+        "status": "Statut",
+        "created": "Créé le",
+        "actions": "Actions",
+        "status_active": "Actif",
+        "status_banned": "Banni"
+      },
+      "permissions": {
+        "title": "Permissions",
+        "delete_downloads": "Peut supprimer des téléchargements",
+        "manage_requests": "Peut gérer les demandes",
+        "start_downloads": "Peut démarrer des téléchargements sans approbation",
+        "start_downloads_desc": "Si désactivé, les demandes nécessitent l'approbation d'un utilisateur ayant la permission \"Peut gérer les demandes\"",
+        "configure_app": "Peut configurer l'application (Général)",
+        "configure_integrations": "Peut configurer les intégrations (Booklore, Indexeur)",
+        "configure_notifications": "Peut configurer les notifications",
+        "configure_email": "Peut configurer les paramètres email",
+        "see_owner": "Peut voir le propriétaire du téléchargement",
+        "manage_api_keys": "Peut gérer les clés API",
+        "admin_alert": "Les administrateurs ont automatiquement toutes les permissions"
+      },
+      "create_modal": {
+        "title": "Créer un nouvel utilisateur",
+        "name": "Nom",
+        "email": "Email",
+        "password": "Mot de passe",
+        "role": "Rôle",
+        "cancel": "Annuler",
+        "submit": "Créer l'utilisateur"
+      },
+      "edit_modal": {
+        "title": "Modifier l'utilisateur",
+        "name": "Nom",
+        "email": "Email",
+        "role": "Rôle",
+        "ban": "Bannir l'utilisateur",
+        "ban_reason": "Raison du bannissement",
+        "password_title": "Mot de passe",
+        "reset_password": "Réinitialiser le mot de passe",
+        "new_password_placeholder": "Nouveau mot de passe (min 8 caractères)",
+        "set_password": "Définir",
+        "cancel": "Annuler",
+        "save": "Enregistrer les modifications",
+        "sso_only": "Cet utilisateur s'authentifie via SSO uniquement. Le mot de passe ne peut pas être défini.",
+        "no_auth": "Aucune méthode d'authentification configurée"
+      },
+      "notifications": {
+        "password_updated": {
+          "title": "Mot de passe mis à jour",
+          "message": "Le mot de passe utilisateur a été réinitialisé avec succès"
+        }
+      },
+      "confirm_delete": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?"
+    },
+    "lists": {
+      "overview": {
+        "title": "Aperçu des listes d'import",
+        "check_now": "Vérifier tout maintenant",
+        "checking": "Vérification...",
+        "stats": {
+          "total": "{{count}} Listes au total",
+          "enabled": "{{count}} Activées",
+          "books": "{{count}} Livres importés"
+        },
+        "by_source": "Par source :"
+      },
+      "form": {
+        "title": "Paramètres",
+        "interval": {
+          "label": "Intervalle de vérification",
+          "description": "Fréquence de vérification des nouveaux livres pour les listes activées",
+          "options": {
+            "15min": "Toutes les 15 minutes",
+            "30min": "Toutes les 30 minutes",
+            "1h": "Toutes les heures",
+            "6h": "Toutes les 6 heures",
+            "12h": "Toutes les 12 heures",
+            "24h": "Toutes les 24 heures"
+          }
+        },
+        "hardcover_token": {
+          "label": "Jeton API Hardcover",
+          "description_new": "Requis pour les imports de listes Hardcover. <1>Obtenez votre jeton ici</1>",
+          "description_configured": "Le jeton est configuré. Entrez une nouvelle valeur pour le changer.",
+          "placeholder": "Entrez le jeton..."
+        },
+        "search_enhancement": {
+          "title": "Amélioration de la recherche",
+          "isbn_first": {
+            "label": "Rechercher par ISBN d'abord",
+            "description": "Si activé, recherche d'abord par ISBN (si disponible depuis la source d'import), puis se rabat sur titre/auteur si aucun résultat n'est trouvé. S'applique aux demandes de liste d'import et à la recherche manuelle."
+          },
+          "include_year": {
+            "label": "Inclure l'année dans la recherche",
+            "description": "Si activé, inclut l'année de publication dans les recherches titre/auteur (si disponible). Cela peut améliorer la précision des résultats mais peut exclure les rééditions."
+          }
+        },
+        "post_processing": {
+          "title": "Traitement post-téléchargement",
+          "embed_metadata": {
+            "label": "Intégrer les métadonnées dans les livres",
+            "description": "Si activé, intègre les métadonnées enrichies de Goodreads, Hardcover ou Storygraph (couverture, série, description, etc.) dans les ebooks téléchargés en utilisant Calibre. Nécessite l'installation de Calibre. Formats supportés : EPUB, MOBI, AZW, AZW3 (complet) ; PDF (limité)."
+          }
+        },
+        "save_button": "Enregistrer les paramètres"
+      },
+      "table": {
+        "title": "Listes de tous les utilisateurs",
+        "description": "Aperçu de toutes les listes d'import de tous les utilisateurs",
+        "headers": {
+          "name": "Nom",
+          "source": "Source",
+          "user": "Utilisateur",
+          "status": "Statut",
+          "books": "Livres",
+          "last_checked": "Dernière vérif."
+        },
+        "status": {
+          "active": "Active",
+          "disabled": "Désactivée",
+          "error": "Erreur"
+        },
+        "never": "Jamais",
+        "empty": "Aucune liste d'import n'a encore été créée. Les utilisateurs peuvent ajouter des listes depuis la page Listes."
+      },
+      "notifications": {
+        "no_changes": {
+          "title": "Aucun changement",
+          "message": "Aucun changement à enregistrer"
+        },
+        "save_success": {
+          "title": "Paramètres enregistrés",
+          "message": "Les paramètres d'import de liste ont été mis à jour"
+        },
+        "check_started": {
+          "title": "Vérification démarrée",
+          "message": "Toutes les listes activées sont en cours de vérification pour de nouveaux livres"
+        },
+        "error": {
+          "title": "Erreur"
+        }
+      }
+    },
+    "oidc": {
+      "title": "Fournisseurs OIDC",
+      "description": "Configurer les fournisseurs d'identité OpenID Connect",
+      "add_button": "Ajouter un fournisseur",
+      "table": {
+        "provider": "Fournisseur",
+        "issuer": "Émetteur",
+        "domain": "Domaine",
+        "status": "Statut",
+        "actions": "Actions",
+        "none": "Aucun",
+        "enabled": "Activé",
+        "disabled": "Désactivé",
+        "empty": "Aucun fournisseur OIDC configuré. Cliquez sur \"Ajouter un fournisseur\" pour commencer."
+      },
+      "tooltips": {
+        "test": "Tester la connexion",
+        "edit": "Modifier le fournisseur",
+        "delete": "Supprimer le fournisseur"
+      },
+      "alerts": {
+        "test_success": "Connexion réussie",
+        "test_failed": "Échec de la connexion",
+        "discovery_failed": "Échec de la découverte",
+        "discovered_issuer": "Émetteur découvert",
+        "discovered_issuer_desc": "Ceci est l'URL de l'émetteur faisant autorité qui sera stockée et utilisée pour la validation des jetons."
+      },
+      "form": {
+        "provider_id": {
+          "label": "ID Fournisseur",
+          "description": "Identifiant unique (minuscules, chiffres, traits d'union uniquement)"
+        },
+        "display_name": {
+          "label": "Nom d'affichage"
+        },
+        "issuer_url": {
+          "label": "URL de l'émetteur",
+          "description": "URL de base de votre fournisseur OIDC. Le point de terminaison de découverte sera dérivé automatiquement."
+        },
+        "discovery_url": {
+          "label": "URL de découverte",
+          "description": "Dérivé automatiquement de l'URL de l'émetteur. Surchargez uniquement si votre fournisseur utilise un chemin non standard.",
+          "test_button": "Tester la découverte"
+        },
+        "domain": {
+          "label": "Domaine (Optionnel)",
+          "description": "Router automatiquement les utilisateurs avec ce domaine email vers ce fournisseur"
+        },
+        "client_id": "ID Client",
+        "client_secret": "Secret Client",
+        "scopes": {
+          "label": "Scopes",
+          "description": "Scopes OAuth à demander. Tapez pour ajouter des scopes personnalisés.",
+          "placeholder": "Ajouter un scope..."
+        },
+        "auto_provision": {
+          "label": "Autoriser l'auto-provisionnement",
+          "description": "Créer automatiquement des comptes pour les nouveaux utilisateurs. Si désactivé, les utilisateurs doivent exister avant de pouvoir se connecter."
+        },
+        "enabled": {
+          "label": "Activer le fournisseur",
+          "description": "Les utilisateurs peuvent se connecter avec ce fournisseur"
+        },
+        "advanced": {
+          "show": "Afficher les options avancées",
+          "hide": "Masquer les options avancées",
+          "group_claims": {
+            "title": "Auto-Admin depuis les revendications de groupe",
+            "description": "Accorder automatiquement le rôle d'administrateur aux utilisateurs ayant une revendication de groupe spécifique dans leur jeton OIDC. Le rôle se synchronisera à chaque connexion (les utilisateurs peuvent être promus ou rétrogradés en fonction des groupes IdP).",
+            "claim_name": {
+              "label": "Nom de la revendication de groupe",
+              "description": "Nom de la revendication contenant les groupes d'utilisateurs (ex: groups, roles, memberOf)"
+            },
+            "admin_value": {
+              "label": "Valeur du groupe Admin",
+              "description": "Les utilisateurs avec ce groupe se verront accorder le rôle d'administrateur"
+            }
+          },
+          "permissions": {
+            "title": "Permissions par défaut pour les nouveaux utilisateurs",
+            "description": "Surcharger les permissions par défaut pour les utilisateurs créés via ce fournisseur. Les options non définies utiliseront les valeurs par défaut globales.",
+            "manage_requests": "Peut gérer les demandes",
+            "start_downloads": "Peut démarrer des téléchargements",
+            "delete_downloads": "Peut supprimer des téléchargements",
+            "manage_lists": "Peut gérer les listes",
+            "configure_tolino": "Peut configurer Tolino",
+            "see_owner": "Peut voir le propriétaire du téléchargement",
+            "configure_notifications": "Peut configurer les notifications",
+            "manage_api_keys": "Peut gérer les clés API",
+            "configure_app": "Peut configurer l'application",
+            "configure_integrations": "Peut configurer les intégrations",
+            "configure_email": "Peut configurer l'email"
+          }
+        },
+        "cancel": "Annuler",
+        "create": "Créer le fournisseur",
+        "save": "Enregistrer les modifications",
+        "test_connection": "Tester la connexion"
+      },
+      "confirm_delete": "Êtes-vous sûr de vouloir supprimer ce fournisseur OIDC ?"
+    },
+    "proxy_auth": {
+      "title": "Authentification par Proxy Inverse",
+      "description": "Authentifier les utilisateurs via des en-têtes de proxy de confiance (Authelia, Authentik, Traefik, etc.)",
+      "enabled": "Activé",
+      "security_warning": {
+        "title": "Avertissement de sécurité - Lire avant d'activer",
+        "message": "Cette fonctionnalité permet de contourner l'authentification normale en utilisant des en-têtes HTTP. Activez uniquement si :",
+        "list": {
+          "trusted_proxy": "Votre application est UNIQUEMENT accessible via un proxy inverse de confiance",
+          "strips_header": "Le proxy supprime l'en-tête d'authentification de TOUTES les requêtes externes entrantes",
+          "sets_header": "Le proxy ne définit l'en-tête qu'après une authentification réussie",
+          "blocked_direct": "L'accès direct à cette application est bloqué au niveau du réseau"
+        },
+        "footer": "Les points de terminaison API ne sont PAS affectés par l'authentification proxy pour des raisons de sécurité. Seule l'interface web utilise l'authentification par en-tête.",
+        "api_notice": "Les points de terminaison API ne sont PAS affectés par l'authentification proxy pour des raisons de sécurité. Seule l'interface web utilise l'authentification par en-tête."
+      },
+      "form": {
+        "header_name": {
+          "label": "Nom de l'en-tête",
+          "description": "En-tête HTTP contenant le nom d'utilisateur ou l'email authentifié",
+          "error": "Le nom de l'en-tête doit commencer par une lettre et ne contenir que des lettres, des chiffres et des traits d'union",
+          "common": "En-têtes courants : <1>Remote-User</1>, <3>X-Forwarded-User</3>, <5>X-Authentik-Username</5>, <7>X-Authelia-Username</7>"
+        },
+        "user_identifier": {
+          "label": "Identifiant utilisateur",
+          "description": "Comment faire correspondre la valeur de l'en-tête aux utilisateurs dans le système",
+          "options": {
+            "email": "Adresse Email",
+            "username": "Nom d'utilisateur (champ name)"
+          }
+        },
+        "trusted_proxies": {
+          "label": "IPs de proxy de confiance",
+          "description": "Liste séparée par des virgules d'adresses IP ou de plages CIDR autorisées à envoyer des en-têtes d'authentification",
+          "error": "Au moins une IP de proxy de confiance est requise",
+          "examples": "Exemples : <1>172.17.0.1</1> (IP unique), <3>10.0.0.0/8</3> (plage CIDR), <5>192.168.0.0/16</5> (réseau privé)"
+        },
+        "logout_url": {
+          "label": "URL de redirection de déconnexion (Optionnel)",
+          "description": "URL vers laquelle rediriger les utilisateurs après la déconnexion (ex: le point de terminaison de déconnexion de votre proxy)"
+        }
+      },
+      "status_enabled": "L'authentification par proxy est actuellement <1>activée</1>. Les utilisateurs se connectant depuis des proxys de confiance avec l'en-tête <3>{{header}}</3> seront automatiquement authentifiés.",
+      "how_it_works": {
+        "title": "Comment fonctionne l'authentification par proxy",
+        "list": {
+          "visits": "L'utilisateur visite votre application via le proxy inverse",
+          "authenticates": "Le proxy authentifie l'utilisateur (via Authelia, Authentik, etc.)",
+          "adds_header": "Le proxy ajoute l'en-tête <1>{{header}}</1> avec l'identifiant {{identifier}} de l'utilisateur authentifié",
+          "validates": "Cette application valide l'IP de la requête et recherche l'utilisateur",
+          "session": "Un cookie de session est créé et l'utilisateur est connecté"
+        },
+        "footer": "Les utilisateurs doivent déjà exister dans le système - pas d'auto-provisionnement.",
+        "no_provisioning": "Les utilisateurs doivent déjà exister dans le système - pas d'auto-provisionnement."
+      },
+      "save_button": "Enregistrer les paramètres"
+    },
+    "tolino": {
+      "title": "Tolino Cloud",
+      "status": {
+        "connected": "Connecté",
+        "expired": "Session expirée"
+      },
+      "description": "Téléchargez des livres directement sur votre liseuse Tolino via le Tolino Cloud",
+      "file_access_warning": {
+        "title": "Accès aux fichiers désactivé",
+        "message": "Activez <1>\"Garder une copie dans le dossier de téléchargement\"</1> dans l'onglet Général sous Actions post-téléchargement pour utiliser l'envoi Tolino Cloud. Sans ce paramètre, les fichiers téléchargés peuvent ne pas être disponibles pour l'envoi."
+      },
+      "alerts": {
+        "file_access_disabled": {
+          "title": "Accès aux fichiers désactivé",
+          "message": "Activez <1>\"Garder une copie dans le dossier de téléchargement\"</1> dans l'onglet Général sous Actions post-téléchargement pour utiliser l'envoi Tolino Cloud. Sans ce paramètre, les fichiers téléchargés peuvent ne pas être disponibles pour l'envoi."
+        },
+        "formats": {
+          "message": "Tolino Cloud n'accepte que les fichiers EPUB et PDF.",
+          "calibre_available": " Les autres formats seront automatiquement convertis avec Calibre.",
+          "calibre_missing": " Installez Calibre pour activer la conversion automatique des autres formats."
+        },
+        "tip": {
+          "label": "<strong>Astuce :</strong> Nous recommandons de créer un compte gratuit sur <1>Buchhandlung.de</1> et de le lier à votre compte Tolino existant.",
+          "message": "Cela fournit la connexion la plus fiable pour les envois automatisés."
+        }
+      },
+      "form": {
+        "reseller": {
+          "label": "Revendeur",
+          "description": "Sélectionnez votre librairie Tolino"
+        },
+        "email": {
+          "label": "Email",
+          "description": "Email de votre compte Tolino"
+        },
+        "password": {
+          "label": "Mot de passe",
+          "description": {
+            "update": "Laisser vide pour conserver le mot de passe actuel, ou entrer un nouveau pour mettre à jour",
+            "new": "Mot de passe de votre compte Tolino"
+          },
+          "placeholder": "Entrez votre mot de passe"
+        },
+        "auto_upload": {
+          "label": "Envoi automatique vers Tolino Cloud",
+          "description": "Envoyer automatiquement les livres vers Tolino Cloud une fois le téléchargement terminé"
+        },
+        "auto_upload_collection": {
+          "label": "Collection par défaut pour l'envoi auto",
+          "description": "Ajouter automatiquement les livres envoyés automatiquement à cette collection",
+          "placeholder": "Aucune (pas de collection)",
+          "loading": "Chargement...",
+          "new": "+ Créer une nouvelle collection...",
+          "new_placeholder": "Nom de la nouvelle collection",
+          "create": "Créer"
+        },
+        "ask_collection": {
+          "label": "Demander la collection lors de l'envoi manuel",
+          "description": "Afficher une boîte de dialogue pour sélectionner ou créer une collection lors de l'envoi manuel de livres"
+        },
+        "use_series": {
+          "label": "Utiliser le nom de la série comme collection",
+          "description": "Ajouter automatiquement les livres à une collection correspondant au nom de la série (à partir des métadonnées de la liste d'import). Revient à la collection par défaut s'il n'y a pas d'info de série. S'applique à l'envoi auto et manuel."
+        }
+      },
+      "buttons": {
+        "connect": "Connecter",
+        "update": "Mettre à jour",
+        "test": "Tester la connexion",
+        "disconnect": "Déconnecter",
+        "token_expiry": "Le jeton expire dans {{expiry}} (renouvellement auto)"
+      },
+      "upload": {
+        "title": "Envoyer vers Tolino Cloud",
+        "description": "Envoyer <strong>{{title}}</strong> vers votre bibliothèque Tolino Cloud.",
+        "conversion_alert": "Ce fichier sera converti au format EPUB avant l'envoi.",
+        "collection": {
+          "label": "Ajouter à une collection (optionnel)",
+          "series_detected": "Série détectée",
+          "suggested_desc": "Suggéré depuis la série : \"{{series}}\"",
+          "default_desc": "Sélectionnez une collection existante ou créez-en une nouvelle",
+          "loading": "Chargement des collections...",
+          "placeholder": "Aucune",
+          "none": "Aucune (pas de collection)",
+          "create_new": "+ Créer une nouvelle collection..."
+        },
+        "new_collection": {
+          "label": "Nom de la nouvelle collection",
+          "placeholder": "Entrez le nom de la collection"
+        },
+        "buttons": {
+          "upload": "Envoyer"
+        }
+      }
+    }
+  },
+  "setup": {
+    "title": "Installation",
+    "welcome": {
+      "title": "Bienvenue sur Ephemera",
+      "subtitle": "Configurons votre gestionnaire de téléchargement"
+    },
+    "loading": {
+      "checking": "Chargement...",
+      "config": "Chargement de la configuration..."
+    },
+    "steps": {
+      "config": {
+        "label": "Configuration",
+        "description": "Paramètres système"
+      },
+      "admin": {
+        "label": "Compte Admin",
+        "description": "Créer le premier utilisateur"
+      },
+      "complete": {
+        "title": "Installation terminée !"
+      }
+    },
+    "admin": {
+      "alert": "Créez le premier compte administrateur. Cet utilisateur aura un accès complet à tous les paramètres et fonctionnalités."
+    },
+    "complete": {
+      "message": "Votre instance Ephemera est maintenant configurée et prête à l'emploi.\nCliquez sur terminer pour accéder à la page de connexion."
+    },
+    "fields": {
+      "searcher_url": {
+        "label": "URL de base du moteur de recherche",
+        "description": "URL de base pour votre instance de recherche principale (ex: Archive)"
+      },
+      "api_key": {
+        "label": "Clé API",
+        "placeholder": "Optionnel - pour des téléchargements plus rapides",
+        "description": "Clé API pour les téléchargements authentifiés"
+      },
+      "quick_url": {
+        "label": "URL téléchargement rapide",
+        "placeholder": "URL LG pour source alternative",
+        "description": "Source alternative de téléchargement rapide (optionnel)"
+      },
+      "download_folder": {
+        "label": "Dossier de téléchargement",
+        "description": "Emplacement temporaire des téléchargements"
+      },
+      "ingest_folder": {
+        "label": "Dossier d'import (Ingest)",
+        "description": "Emplacement final pour les livres terminés"
+      },
+      "username": {
+        "label": "Nom d'utilisateur"
+      },
+      "email": {
+        "label": "Email"
+      },
+      "password": {
+        "label": "Mot de passe",
+        "placeholder": "Choisissez un mot de passe fort",
+        "description": "Minimum 8 caractères"
+      },
+      "confirm_password": {
+        "label": "Confirmer le mot de passe",
+        "placeholder": "Saisissez à nouveau le mot de passe"
+      }
+    },
+    "legacy": {
+      "title": "Clé d'installation requise",
+      "subtitle": "Une installation existante a été détectée",
+      "alert_intro": "Pour des raisons de sécurité, vous devez saisir la clé d'installation qui se trouve dans les journaux du serveur. Trouvez votre clé en exécutant :",
+      "field": {
+        "label": "Clé d'installation",
+        "placeholder": "Entrez la clé provenant des logs serveur"
+      },
+      "button": "Valider la clé"
+    },
+    "buttons": {
+      "back": "Retour",
+      "next": "Suivant",
+      "create_admin": "Créer l'admin et continuer",
+      "finish": "Terminer"
+    },
+    "errors": {
+      "title": "Erreur",
+      "generic": "Une erreur est survenue",
+      "searcher_url_required": "L'URL de base du moteur de recherche est requise",
+      "download_folder_required": "Le dossier de téléchargement est requis",
+      "ingest_folder_required": "Le dossier d'import est requis",
+      "username_required": "Le nom d'utilisateur est requis",
+      "email_required": "L'email est requis",
+      "email_invalid": "Veuillez entrer une adresse email valide",
+      "password_required": "Le mot de passe est requis",
+      "password_length": "Le mot de passe doit contenir au moins 8 caractères",
+      "passwords_mismatch": "Les mots de passe ne correspondent pas",
+      "invalid_key": "Clé d'installation invalide",
+      "validation_failed": "La validation a échoué",
+      "save_config_failed": "Échec de l'enregistrement de la configuration",
+      "create_admin_failed": "Échec de la création de l'utilisateur admin",
+      "complete_failed": "Échec de la finalisation de l'installation"
+    }
+  }
+}

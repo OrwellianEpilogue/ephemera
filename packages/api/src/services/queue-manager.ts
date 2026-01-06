@@ -33,6 +33,7 @@ import { db } from "../db/index.js";
 import {
   downloadRequests,
   bookMetadata,
+  user as userTable,
   type Download,
   type BookMetadata,
 } from "../db/schema.js";
@@ -76,6 +77,27 @@ export class QueueManager extends EventEmitter {
     }
     // Resume incomplete downloads on startup
     this.resumeIncompleteDownloads();
+  }
+
+  /**
+   * Helper to get user locale from database
+   */
+  private async getUserLocale(userId: string | null): Promise<string> {
+    if (!userId) return "en";
+    try {
+      const result = await db
+        .select({ locale: userTable.locale })
+        .from(userTable)
+        .where(eq(userTable.id, userId))
+        .limit(1);
+      return result[0]?.locale || "en";
+    } catch (error) {
+      logger.error(
+        `[QueueManager] Failed to fetch locale for user ${userId}:`,
+        error,
+      );
+      return "en";
+    }
   }
 
   /**
@@ -241,13 +263,20 @@ export class QueueManager extends EventEmitter {
     // Emit queue update
     this.emitQueueUpdate();
 
+    // Get user locale for notification
+    const userLocale = await this.getUserLocale(userId);
+
     // Send Apprise notification for book queued
-    await appriseService.send("book_queued", {
-      title,
-      authors: book?.authors,
-      md5,
-      position,
-    });
+    await appriseService.send(
+      "book_queued",
+      {
+        title,
+        authors: book?.authors,
+        md5,
+        position,
+      },
+      userLocale,
+    );
 
     // Start processing if not already
     if (!this.isProcessing) {
@@ -343,6 +372,9 @@ export class QueueManager extends EventEmitter {
       return;
     }
 
+    // Fetch user locale for notifications
+    const userLocale = await this.getUserLocale(download.userId);
+
     // Fetch book data for author information in notifications
     const book = await bookService.getBook(md5);
 
@@ -434,13 +466,17 @@ export class QueueManager extends EventEmitter {
           );
 
           // Send Apprise notification for delayed download
-          await appriseService.send("delayed", {
-            title: item.title,
-            authors: book?.authors,
-            md5,
-            nextRetryAt,
-            delayedRetryCount: currentDelayedRetryCount + 1,
-          });
+          await appriseService.send(
+            "delayed",
+            {
+              title: item.title,
+              authors: book?.authors,
+              md5,
+              nextRetryAt,
+              delayedRetryCount: currentDelayedRetryCount + 1,
+            },
+            userLocale,
+          );
 
           // Re-queue for later retry
           this.queue.push(item);
@@ -480,13 +516,17 @@ export class QueueManager extends EventEmitter {
         this.emitQueueUpdate();
 
         // Send Apprise notification for download error
-        await appriseService.send("download_error", {
-          title: item.title,
-          authors: book?.authors,
-          md5,
-          error: errorMessage,
-          retryCount: currentRetryCount,
-        });
+        await appriseService.send(
+          "download_error",
+          {
+            title: item.title,
+            authors: book?.authors,
+            md5,
+            error: errorMessage,
+            retryCount: currentRetryCount,
+          },
+          userLocale,
+        );
       }
 
       return;
@@ -722,17 +762,21 @@ export class QueueManager extends EventEmitter {
       }
 
       // Send Apprise notification for download available
-      await appriseService.send("available", {
-        title: item.title,
-        authors: book?.authors,
-        md5,
-        finalPath: movedToFinal
-          ? finalPath
-          : postDownloadUploadToBooklore
-            ? "Booklore"
-            : result.filePath,
-        format: download.format,
-      });
+      await appriseService.send(
+        "available",
+        {
+          title: item.title,
+          authors: book?.authors,
+          md5,
+          finalPath: movedToFinal
+            ? finalPath
+            : postDownloadUploadToBooklore
+              ? "Booklore"
+              : result.filePath,
+          format: download.format,
+        },
+        userLocale,
+      );
 
       // Auto-send to the downloader's recipients with auto-send enabled
       // Only send if keepInDownloads is enabled (file must be accessible)
@@ -747,18 +791,22 @@ export class QueueManager extends EventEmitter {
               logger.info(
                 `[Auto-Email] Sending "${title}" to ${recipient.email}`,
               );
-              await emailService.sendBook(recipient.id, md5);
+              await emailService.sendBook(recipient.id, md5, userLocale);
               logger.success(
                 `[Auto-Email] Sent "${title}" to ${recipient.email}`,
               );
 
               // Send notification for book sent via email
-              await appriseService.send("email_sent", {
-                bookTitle: title,
-                bookAuthors: book?.authors,
-                recipientEmail: recipient.email,
-                recipientName: recipient.name,
-              });
+              await appriseService.send(
+                "email_sent",
+                {
+                  bookTitle: title,
+                  bookAuthors: book?.authors,
+                  recipientEmail: recipient.email,
+                  recipientName: recipient.name,
+                },
+                userLocale,
+              );
             } catch (emailError) {
               logger.error(
                 `[Auto-Email] Failed to send to ${recipient.email}:`,
@@ -808,11 +856,15 @@ export class QueueManager extends EventEmitter {
               );
 
               // Send notification for book uploaded to Tolino
-              await appriseService.send("tolino_uploaded", {
-                bookTitle: title,
-                bookAuthors: book?.authors,
-                collectionName,
-              });
+              await appriseService.send(
+                "tolino_uploaded",
+                {
+                  bookTitle: title,
+                  bookAuthors: book?.authors,
+                  collectionName,
+                },
+                userLocale,
+              );
             } else {
               logger.error(
                 `[Auto-Tolino] Failed to upload "${title}": ${uploadResult.message}`,
@@ -1082,17 +1134,16 @@ export class QueueManager extends EventEmitter {
 
     try {
       const { db } = await import("../db/index.js");
-      const { user } = await import("../db/schema.js");
       const { inArray } = await import("drizzle-orm");
 
       const users = await db
         .select({
-          id: user.id,
-          name: user.name,
-          email: user.email,
+          id: userTable.id,
+          name: userTable.name,
+          email: userTable.email,
         })
-        .from(user)
-        .where(inArray(user.id, userIds));
+        .from(userTable)
+        .where(inArray(userTable.id, userIds));
 
       return users;
     } catch (error) {

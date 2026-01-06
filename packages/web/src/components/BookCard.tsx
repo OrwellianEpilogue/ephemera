@@ -35,6 +35,7 @@ import {
 import { useCalibreStatus } from "../hooks/useCalibre";
 import { TolinoUploadDialog } from "./TolinoUploadDialog";
 import { memo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 // Tolino Cloud accepts EPUB and PDF directly
 const TOLINO_NATIVE_FORMATS = ["epub", "pdf"];
@@ -52,6 +53,7 @@ interface LiveCountdownBadgeProps {
 // Separate component for the live countdown badge that re-renders every second
 const LiveCountdownBadge = memo(
   ({ md5, status, progress }: LiveCountdownBadgeProps) => {
+    const { t } = useTranslation("translation", { keyPrefix: "book.status" });
     const { remainingCountdown } = useBookStatus(md5);
 
     if (
@@ -66,7 +68,7 @@ const LiveCountdownBadge = memo(
           color="blue"
           leftSection={<IconClock size={12} />}
         >
-          {`Waiting ${remainingCountdown}s...`}
+          {t("waiting", { seconds: remainingCountdown })}
         </Badge>
       );
     }
@@ -79,7 +81,7 @@ const LiveCountdownBadge = memo(
           color="cyan"
           leftSection={<IconDownload size={12} />}
         >
-          {`Downloading ${Math.round(progress)}%`}
+          {t("downloading_percent", { percent: Math.round(progress) })}
         </Badge>
       );
     }
@@ -95,68 +97,77 @@ const formatFileSize = (bytes?: number): string => {
   return `${mb.toFixed(1)} MB`;
 };
 
-const getDownloadStatusBadge = (
-  status: string | null | undefined,
-  _progress?: number,
-  _remainingCountdown?: number | null,
-) => {
-  if (!status) return null;
+// Hook for status badge translation
+const useStatusBadge = () => {
+  const { t } = useTranslation("translation", { keyPrefix: "book.status" });
 
-  switch (status) {
-    case "available":
-      return (
-        <Badge
-          size="sm"
-          variant="light"
-          color="green"
-          leftSection={<IconCheck size={12} />}
-        >
-          Downloaded
-        </Badge>
-      );
-    case "queued":
-      return (
-        <Badge
-          size="sm"
-          variant="light"
-          color="blue"
-          leftSection={<IconClock size={12} />}
-        >
-          Queued
-        </Badge>
-      );
-    case "downloading":
-      // Handled separately by LiveCountdownBadge to avoid re-rendering entire card
-      return null;
-    case "delayed":
-      return (
-        <Badge
-          size="sm"
-          variant="light"
-          color="orange"
-          leftSection={<IconClock size={12} />}
-        >
-          Delayed
-        </Badge>
-      );
-    case "error":
-      return (
-        <Badge
-          size="sm"
-          variant="light"
-          color="red"
-          leftSection={<IconAlertCircle size={12} />}
-        >
-          Error
-        </Badge>
-      );
-    default:
-      return null;
-  }
+  const getDownloadStatusBadge = (
+    status: string | null | undefined,
+    _progress?: number,
+    _remainingCountdown?: number | null,
+  ) => {
+    if (!status) return null;
+
+    switch (status) {
+      case "available":
+        return (
+          <Badge
+            size="sm"
+            variant="light"
+            color="green"
+            leftSection={<IconCheck size={12} />}
+          >
+            {t("downloaded")}
+          </Badge>
+        );
+      case "queued":
+        return (
+          <Badge
+            size="sm"
+            variant="light"
+            color="blue"
+            leftSection={<IconClock size={12} />}
+          >
+            {t("queued")}
+          </Badge>
+        );
+      case "downloading":
+        // Handled separately by LiveCountdownBadge to avoid re-rendering entire card
+        return null;
+      case "delayed":
+        return (
+          <Badge
+            size="sm"
+            variant="light"
+            color="orange"
+            leftSection={<IconClock size={12} />}
+          >
+            {t("delayed")}
+          </Badge>
+        );
+      case "error":
+        return (
+          <Badge
+            size="sm"
+            variant="light"
+            color="red"
+            leftSection={<IconAlertCircle size={12} />}
+          >
+            {t("error")}
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return getDownloadStatusBadge;
 };
 
 // Memoize BookCard to prevent re-renders when parent changes but book prop is stable
 export const BookCard = memo(function BookCard({ book }: BookCardProps) {
+  const { t } = useTranslation("translation", { keyPrefix: "book" });
+  const getDownloadStatusBadge = useStatusBadge();
   const queueDownload = useQueueDownload();
   const downloadFile = useDownloadFile();
   const createRequest = useCreateRequest();
@@ -189,7 +200,7 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
   const keepInDownloads = config?.keepInDownloads ?? false;
   const fileAccessDisabled = !keepInDownloads;
   const fileAccessTooltip = fileAccessDisabled
-    ? 'Enable "Keep copy in downloads folder" in Settings to use browser downloads and email'
+    ? t("tooltips.file_access_disabled")
     : undefined;
 
   // Get live status from queue (reactive to SSE updates)
@@ -346,12 +357,12 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
               color="green"
               leftSection={<IconCheck size={14} />}
             >
-              Downloaded
+              {t("status.downloaded")}
             </Badge>
             <Group gap={4} wrap="nowrap">
               {/* Download file button */}
               <Tooltip
-                label={fileAccessTooltip || "Download file"}
+                label={fileAccessTooltip || t("tooltips.download_file")}
                 color={fileAccessDisabled ? "orange" : undefined}
               >
                 <ActionIcon
@@ -383,7 +394,10 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
                   </Tooltip>
                 ) : emailRecipients.length === 1 && emailRecipients[0] ? (
                   <Tooltip
-                    label={`Send to ${emailRecipients[0].name || emailRecipients[0].email}`}
+                    label={t("tooltips.send_to", {
+                      recipient:
+                        emailRecipients[0].name || emailRecipients[0].email,
+                    })}
                   >
                     <ActionIcon
                       color="blue"
@@ -403,7 +417,7 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
                 ) : (
                   <Menu shadow="md" width={250}>
                     <Menu.Target>
-                      <Tooltip label="Send via email">
+                      <Tooltip label={t("tooltips.send_via_email")}>
                         <ActionIcon
                           color="blue"
                           variant="subtle"
@@ -415,7 +429,7 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
                       </Tooltip>
                     </Menu.Target>
                     <Menu.Dropdown>
-                      <Menu.Label>Send to:</Menu.Label>
+                      <Menu.Label>{t("menu.send_to")}</Menu.Label>
                       {isAdmin ? (
                         <>
                           {emailRecipients
@@ -486,8 +500,8 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
                       fileAccessDisabled
                         ? fileAccessTooltip
                         : needsConversion
-                          ? "Upload to Tolino Cloud (will convert to EPUB)"
-                          : "Upload to Tolino Cloud"
+                          ? t("tooltips.upload_tolino_convert")
+                          : t("tooltips.upload_tolino")
                     }
                     color={fileAccessDisabled ? "orange" : undefined}
                   >
@@ -517,21 +531,24 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
             color={isError ? "red" : undefined}
           >
             {isDownloading
-              ? `Downloading ${progress !== undefined ? `${Math.round(progress)}%` : "..."}`
+              ? t("buttons.downloading", {
+                  percent:
+                    progress !== undefined ? `${Math.round(progress)}%` : "...",
+                })
               : isQueued
-                ? "In Queue"
+                ? t("buttons.in_queue")
                 : isDelayed
-                  ? "Delayed"
+                  ? t("buttons.delayed")
                   : isError
-                    ? "Retry Download"
-                    : "Download"}
+                    ? t("buttons.retry_download")
+                    : t("buttons.download")}
           </Button>
         ) : (
           <Tooltip
             label={
               isAlreadyRequested
-                ? "You have already requested this book"
-                : "Your request will be reviewed by an administrator"
+                ? t("tooltips.already_requested")
+                : t("tooltips.request_review")
             }
             multiline
             w={200}
@@ -549,10 +566,10 @@ export const BookCard = memo(function BookCard({ book }: BookCardProps) {
               color={isAlreadyRequested ? "yellow" : "orange"}
             >
               {isInQueue
-                ? "In Queue"
+                ? t("buttons.in_queue")
                 : isAlreadyRequested
-                  ? "Already Requested"
-                  : "Request"}
+                  ? t("buttons.already_requested")
+                  : t("buttons.request")}
             </Button>
           </Tooltip>
         )}

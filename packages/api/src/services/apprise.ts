@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { appriseSettings, type AppriseSettings } from "../db/schema.js";
 import type { AppriseNotificationType } from "@ephemera/shared";
+import { getFixedT } from "../utils/i18n.js";
 
 export type NotificationEvent =
   | "new_request"
@@ -114,95 +115,16 @@ class AppriseService {
     updates: Partial<AppriseSettings>,
   ): Promise<AppriseSettings> {
     try {
-      const existing = await db
-        .select()
-        .from(appriseSettings)
-        .where(eq(appriseSettings.id, 1))
-        .limit(1);
-
+      const existing = await this.getSettings();
       const settingsData = {
+        ...this.getDefaults(),
+        ...existing,
+        ...updates,
         id: 1,
-        enabled: updates.enabled ?? existing[0]?.enabled ?? false,
-        serverUrl:
-          updates.serverUrl !== undefined
-            ? updates.serverUrl
-            : (existing[0]?.serverUrl ?? null),
-        customHeaders:
-          updates.customHeaders !== undefined
-            ? updates.customHeaders
-            : (existing[0]?.customHeaders ?? null),
-        notifyOnNewRequest:
-          updates.notifyOnNewRequest ?? existing[0]?.notifyOnNewRequest ?? true,
-        notifyOnDownloadError:
-          updates.notifyOnDownloadError ??
-          existing[0]?.notifyOnDownloadError ??
-          true,
-        notifyOnAvailable:
-          updates.notifyOnAvailable ?? existing[0]?.notifyOnAvailable ?? true,
-        notifyOnDelayed:
-          updates.notifyOnDelayed ?? existing[0]?.notifyOnDelayed ?? true,
-        notifyOnUpdateAvailable:
-          updates.notifyOnUpdateAvailable ??
-          existing[0]?.notifyOnUpdateAvailable ??
-          true,
-        notifyOnRequestFulfilled:
-          updates.notifyOnRequestFulfilled ??
-          existing[0]?.notifyOnRequestFulfilled ??
-          true,
-        notifyOnBookQueued:
-          updates.notifyOnBookQueued ??
-          existing[0]?.notifyOnBookQueued ??
-          false,
-        notifyOnRequestPendingApproval:
-          updates.notifyOnRequestPendingApproval ??
-          existing[0]?.notifyOnRequestPendingApproval ??
-          true,
-        notifyOnRequestApproved:
-          updates.notifyOnRequestApproved ??
-          existing[0]?.notifyOnRequestApproved ??
-          true,
-        notifyOnRequestRejected:
-          updates.notifyOnRequestRejected ??
-          existing[0]?.notifyOnRequestRejected ??
-          true,
-        notifyOnListCreated:
-          updates.notifyOnListCreated ??
-          existing[0]?.notifyOnListCreated ??
-          true,
-        notifyOnTolinoConfigured:
-          updates.notifyOnTolinoConfigured ??
-          existing[0]?.notifyOnTolinoConfigured ??
-          true,
-        notifyOnEmailRecipientAdded:
-          updates.notifyOnEmailRecipientAdded ??
-          existing[0]?.notifyOnEmailRecipientAdded ??
-          true,
-        notifyOnOidcAccountCreated:
-          updates.notifyOnOidcAccountCreated ??
-          existing[0]?.notifyOnOidcAccountCreated ??
-          true,
-        notifyOnOidcRoleUpdated:
-          updates.notifyOnOidcRoleUpdated ??
-          existing[0]?.notifyOnOidcRoleUpdated ??
-          true,
-        notifyOnServiceUnhealthy:
-          updates.notifyOnServiceUnhealthy ??
-          existing[0]?.notifyOnServiceUnhealthy ??
-          true,
-        notifyOnServiceRecovered:
-          updates.notifyOnServiceRecovered ??
-          existing[0]?.notifyOnServiceRecovered ??
-          true,
-        notifyOnEmailSent:
-          updates.notifyOnEmailSent ?? existing[0]?.notifyOnEmailSent ?? false,
-        notifyOnTolinoUploaded:
-          updates.notifyOnTolinoUploaded ??
-          existing[0]?.notifyOnTolinoUploaded ??
-          false,
         updatedAt: Date.now(),
       };
 
-      if (existing.length > 0) {
+      if (existing.id) {
         // Update existing settings
         await db
           .update(appriseSettings)
@@ -238,33 +160,7 @@ class AppriseService {
         .limit(1);
 
       if (result.length === 0) {
-        console.log("[Apprise] Initializing default settings (disabled)");
-        await db.insert(appriseSettings).values({
-          id: 1,
-          enabled: false,
-          serverUrl: null,
-          customHeaders: null,
-          notifyOnNewRequest: true,
-          notifyOnDownloadError: true,
-          notifyOnAvailable: true,
-          notifyOnDelayed: true,
-          notifyOnUpdateAvailable: true,
-          notifyOnRequestFulfilled: true,
-          notifyOnBookQueued: false,
-          notifyOnRequestPendingApproval: true,
-          notifyOnRequestApproved: true,
-          notifyOnRequestRejected: true,
-          notifyOnListCreated: true,
-          notifyOnTolinoConfigured: true,
-          notifyOnEmailRecipientAdded: true,
-          notifyOnOidcAccountCreated: true,
-          notifyOnOidcRoleUpdated: true,
-          notifyOnServiceUnhealthy: true,
-          notifyOnServiceRecovered: true,
-          notifyOnEmailSent: false,
-          notifyOnTolinoUploaded: false,
-          updatedAt: Date.now(),
-        });
+        await db.insert(appriseSettings).values(this.getDefaults());
       }
     } catch (error) {
       console.error("[Apprise] Error initializing defaults:", error);
@@ -311,48 +207,29 @@ class AppriseService {
       return false;
     }
 
-    switch (event) {
-      case "new_request":
-        return settings.notifyOnNewRequest;
-      case "download_error":
-        return settings.notifyOnDownloadError;
-      case "available":
-        return settings.notifyOnAvailable;
-      case "delayed":
-        return settings.notifyOnDelayed;
-      case "update_available":
-        return settings.notifyOnUpdateAvailable;
-      case "request_fulfilled":
-        return settings.notifyOnRequestFulfilled;
-      case "book_queued":
-        return settings.notifyOnBookQueued;
-      case "request_pending_approval":
-        return settings.notifyOnRequestPendingApproval;
-      case "request_approved":
-        return settings.notifyOnRequestApproved;
-      case "request_rejected":
-        return settings.notifyOnRequestRejected;
-      case "list_created":
-        return settings.notifyOnListCreated;
-      case "tolino_configured":
-        return settings.notifyOnTolinoConfigured;
-      case "email_recipient_added":
-        return settings.notifyOnEmailRecipientAdded;
-      case "oidc_account_created":
-        return settings.notifyOnOidcAccountCreated;
-      case "oidc_role_updated":
-        return settings.notifyOnOidcRoleUpdated;
-      case "service_unhealthy":
-        return settings.notifyOnServiceUnhealthy;
-      case "service_recovered":
-        return settings.notifyOnServiceRecovered;
-      case "email_sent":
-        return settings.notifyOnEmailSent;
-      case "tolino_uploaded":
-        return settings.notifyOnTolinoUploaded;
-      default:
-        return false;
-    }
+    const mapping: Record<NotificationEvent, keyof AppriseSettings> = {
+      new_request: "notifyOnNewRequest",
+      download_error: "notifyOnDownloadError",
+      available: "notifyOnAvailable",
+      delayed: "notifyOnDelayed",
+      update_available: "notifyOnUpdateAvailable",
+      request_fulfilled: "notifyOnRequestFulfilled",
+      book_queued: "notifyOnBookQueued",
+      request_pending_approval: "notifyOnRequestPendingApproval",
+      request_approved: "notifyOnRequestApproved",
+      request_rejected: "notifyOnRequestRejected",
+      list_created: "notifyOnListCreated",
+      tolino_configured: "notifyOnTolinoConfigured",
+      email_recipient_added: "notifyOnEmailRecipientAdded",
+      oidc_account_created: "notifyOnOidcAccountCreated",
+      oidc_role_updated: "notifyOnOidcRoleUpdated",
+      service_unhealthy: "notifyOnServiceUnhealthy",
+      service_recovered: "notifyOnServiceRecovered",
+      email_sent: "notifyOnEmailSent",
+      tolino_uploaded: "notifyOnTolinoUploaded",
+    };
+
+    return !!settings[mapping[event]];
   }
 
   /**
@@ -361,6 +238,7 @@ class AppriseService {
   async send(
     event: NotificationEvent,
     data: Record<string, unknown>,
+    locale: string = "en",
   ): Promise<void> {
     try {
       // Check if we should send this notification
@@ -377,17 +255,16 @@ class AppriseService {
       }
 
       // Build notification content based on event type
-      const notification = this.buildNotification(event, data);
+      const t = getFixedT(locale);
+      const notification = this.buildNotification(event, data, t);
 
-      // Send via Apprise
       await this.sendToApprise(
         settings.serverUrl,
         notification,
         settings.customHeaders,
       );
-
       console.log(
-        `[Apprise] Sent ${event} notification: ${notification.title}`,
+        `[Apprise] Sent ${event} notification [${locale}]: ${notification.title}`,
       );
     } catch (error) {
       // Log error but don't throw - notifications shouldn't break core functionality
@@ -401,60 +278,87 @@ class AppriseService {
   private buildNotification(
     event: NotificationEvent,
     data: Record<string, unknown>,
+    t: (key: string, params?: Record<string, unknown>) => string,
   ): NotificationData {
+    const prefix = t("prefix");
     // Helper to format book info with author(s)
     const formatBookInfo = (
       title: string,
       authors?: string | string[],
     ): string => {
-      if (authors) {
-        // Handle both string and array of strings
-        const authorStr = Array.isArray(authors) ? authors.join(", ") : authors;
-        if (authorStr) {
-          return `"${title}" by ${authorStr}`;
-        }
-      }
-      return `"${title}"`;
+      const authorStr = Array.isArray(authors) ? authors.join(", ") : authors;
+      if (title && authorStr)
+        return t("parts.book_by", { title, author: authorStr });
+      return title || t("parts.unknown_book");
     };
 
     switch (event) {
-      case "new_request": {
-        const userInfo = data.username ? ` by ${data.username}` : "";
-        const listInfo = data.listName
-          ? `\nFrom list: ${data.listName} (${data.listServiceName})`
-          : "";
+      case "new_request":
         return {
-          title: "Ephemera: New Download Request Created",
-          body: `Request for: ${data.query || "unknown query"}${userInfo}${listInfo}`,
+          title: t("events.new_request.title", { prefix }),
+          body: t("events.new_request.body", {
+            query: data.query || "...",
+            userInfo: data.username ? t("parts.by") + data.username : "",
+            listInfo: data.listName
+              ? t("parts.from_list", {
+                  listName: data.listName,
+                  source: data.listServiceName,
+                })
+              : "",
+          }),
           type: "info",
         };
-      }
 
       case "download_error":
         return {
-          title: "Ephemera: Download Failed",
-          body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} failed to download\nError: ${data.error || "Unknown error"}`,
+          title: t("events.download_error.title", { prefix }),
+          body: t("events.download_error.body", {
+            bookInfo: formatBookInfo(
+              data.title as string,
+              data.authors as string | string[],
+            ),
+            error: data.error || "...",
+          }),
           type: "failure",
         };
 
       case "available":
         return {
-          title: "Ephemera: Download Complete",
-          body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} is now available${data.format ? ` (${data.format})` : ""}`,
+          title: t("events.available.title", { prefix }),
+          body: t("events.available.body", {
+            bookInfo: formatBookInfo(
+              data.title as string,
+              data.authors as string | string[],
+            ),
+            formatInfo: data.format
+              ? t("parts.format_info", { format: data.format })
+              : "",
+          }),
           type: "success",
         };
 
       case "delayed":
         return {
-          title: "Ephemera: Download Delayed - Quota Exhausted",
-          body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} delayed due to quota limits${data.nextRetryAt ? `\nNext retry: ${new Date(data.nextRetryAt as number).toLocaleString()}` : ""}`,
+          title: t("events.delayed.title", { prefix }),
+          body: t("events.delayed.body", {
+            bookInfo: formatBookInfo(
+              data.title as string,
+              data.authors as string | string[],
+            ),
+            nextRetry: data.nextRetryAt
+              ? new Date(data.nextRetryAt as number).toLocaleString()
+              : "...",
+          }),
           type: "warning",
         };
 
       case "update_available":
         return {
-          title: "Ephemera: Update Available",
-          body: `Version ${data.latestVersion} is now available${data.currentVersion ? ` (current: ${data.currentVersion})` : ""}`,
+          title: t("events.update_available.title", { prefix }),
+          body: t("events.update_available.body", {
+            latestVersion: data.latestVersion,
+            currentVersion: data.currentVersion,
+          }),
           type: "info",
         };
 
@@ -463,123 +367,166 @@ class AppriseService {
         let requestDescription = data.query as string;
         if (!requestDescription) {
           const parts = [];
-          if (data.title) parts.push(`Title: "${data.title}"`);
-          if (data.author) parts.push(`Author: ${data.author}`);
-          requestDescription = parts.join(", ") || "unknown query";
+          if (data.title) parts.push(data.title);
+          if (data.author) parts.push(data.author);
+          requestDescription = parts.join(", ");
         }
-
         return {
-          title: "Ephemera: Request Fulfilled",
-          body: `Found and queued: ${formatBookInfo((data.bookTitle as string) || "Unknown book", (data.bookAuthors || data.authors) as string | string[])}\nRequest: ${requestDescription}`,
+          title: t("events.request_fulfilled.title", { prefix }),
+          body: t("events.request_fulfilled.body", {
+            bookInfo: formatBookInfo(
+              (data.bookTitle || data.title) as string,
+              (data.bookAuthors || data.authors) as string | string[],
+            ),
+            requestDescription,
+          }),
           type: "success",
         };
       }
 
       case "book_queued":
         return {
-          title: "Ephemera: Book Queued for Download",
-          body: `${formatBookInfo((data.title as string) || "Unknown book", data.authors as string | string[])} added to download queue`,
+          title: t("events.book_queued.title", { prefix }),
+          body: t("events.book_queued.body", {
+            bookInfo: formatBookInfo(
+              data.title as string,
+              data.authors as string | string[],
+            ),
+          }),
           type: "info",
         };
 
-      case "request_pending_approval": {
-        const queryDesc =
-          (data.query as string) || (data.title as string) || "unknown query";
+      case "request_pending_approval":
         return {
-          title: "Ephemera: Request Needs Approval",
-          body: `New request from ${(data.requesterName as string) || "a user"}: ${queryDesc}`,
+          title: t("events.request_pending_approval.title", { prefix }),
+          body: t("events.request_pending_approval.body", {
+            user: data.requesterName || "...",
+            description: data.query || data.title || "...",
+          }),
           type: "info",
         };
-      }
 
-      case "request_approved": {
-        const queryDesc =
-          (data.query as string) || (data.title as string) || "unknown query";
+      case "request_approved":
         return {
-          title: "Ephemera: Request Approved",
-          body: `Your request for "${queryDesc}" has been approved and will be processed`,
+          title: t("events.request_approved.title", { prefix }),
+          body: t("events.request_approved.body", {
+            query: data.query || data.title || "...",
+          }),
           type: "success",
         };
-      }
 
-      case "request_rejected": {
-        const queryDesc =
-          (data.query as string) || (data.title as string) || "unknown query";
-        const reason = data.reason ? `: ${data.reason}` : "";
+      case "request_rejected":
         return {
-          title: "Ephemera: Request Rejected",
-          body: `Your request for "${queryDesc}" was rejected${reason}`,
+          title: t("events.request_rejected.title", { prefix }),
+          body: t("events.request_rejected.body", {
+            query: data.query || data.title || "...",
+            reason: data.reason ? t("parts.reason_prefix") + data.reason : "",
+          }),
           type: "warning",
         };
-      }
 
       case "list_created":
         return {
-          title: "Ephemera: New Import List Created",
-          body: `List "${data.listName}" (${data.source}) created by ${data.userName}`,
+          title: t("events.list_created.title", { prefix }),
+          body: t("events.list_created.body", {
+            listName: data.listName,
+            source: data.source,
+            userName: data.userName,
+          }),
           type: "info",
         };
 
       case "tolino_configured":
         return {
-          title: "Ephemera: Tolino Cloud Configured",
-          body: `${data.userName} connected Tolino Cloud (${data.reseller})`,
+          title: t("events.tolino_configured.title", { prefix }),
+          body: t("events.tolino_configured.body", {
+            userName: data.userName,
+            reseller: data.reseller,
+          }),
           type: "info",
         };
 
       case "email_recipient_added":
         return {
-          title: "Ephemera: Email Recipient Added",
-          body: `${data.userName} added email recipient: ${data.recipientName || data.recipientEmail}`,
+          title: t("events.email_recipient_added.title", { prefix }),
+          body: t("events.email_recipient_added.body", {
+            userName: data.userName,
+            recipient: data.recipientName || data.recipientEmail,
+          }),
           type: "info",
         };
 
       case "oidc_account_created":
         return {
-          title: "Ephemera: New User Auto-Provisioned",
-          body: `User ${data.userName} (${data.email}) was created via ${data.providerName}`,
+          title: t("events.oidc_account_created.title", { prefix }),
+          body: t("events.oidc_account_created.body", {
+            userName: data.userName,
+            email: data.email,
+            providerName: data.providerName,
+          }),
           type: "info",
         };
 
       case "oidc_role_updated":
         return {
-          title: "Ephemera: User Role Changed",
-          body: `${data.userName}'s role changed from ${data.oldRole} to ${data.newRole} (via ${data.groupClaim} claim)`,
+          title: t("events.oidc_role_updated.title", { prefix }),
+          body: t("events.oidc_role_updated.body", {
+            userName: data.userName,
+            oldRole: data.oldRole,
+            newRole: data.newRole,
+            groupClaim: data.groupClaim,
+          }),
           type: "info",
         };
 
       case "service_unhealthy":
         return {
-          title: "Ephemera: Service Unavailable",
-          body: `FlareSolverr has become unavailable.${data.reason ? `\n${data.reason}` : ""}`,
+          title: t("events.service_unhealthy.title", { prefix }),
+          body: t("events.service_unhealthy.body", {
+            reason: data.reason || "",
+          }),
           type: "warning",
         };
 
       case "service_recovered":
         return {
-          title: "Ephemera: Service Recovered",
-          body: "FlareSolverr is available again",
+          title: t("events.service_recovered.title", { prefix }),
+          body: t("events.service_recovered.body"),
           type: "success",
         };
 
       case "email_sent":
         return {
-          title: "Ephemera: Book Sent via Email",
-          body: `${formatBookInfo((data.bookTitle as string) || "Unknown book", data.bookAuthors as string | string[])} sent to ${data.recipientName || data.recipientEmail}`,
+          title: t("events.email_sent.title", { prefix }),
+          body: t("events.email_sent.body", {
+            bookInfo: formatBookInfo(
+              data.bookTitle as string,
+              data.bookAuthors as string | string[],
+            ),
+            recipient: data.recipientName || data.recipientEmail,
+          }),
           type: "success",
         };
 
       case "tolino_uploaded":
         return {
-          title: "Ephemera: Book Uploaded to Tolino Cloud",
-          body: `${formatBookInfo((data.bookTitle as string) || "Unknown book", data.bookAuthors as string | string[])} uploaded${data.collectionName ? ` to collection "${data.collectionName}"` : ""}`,
+          title: t("events.tolino_uploaded.title", { prefix }),
+          body: t("events.tolino_uploaded.body", {
+            bookInfo: formatBookInfo(
+              data.bookTitle as string,
+              data.bookAuthors as string | string[],
+            ),
+            collectionInfo: data.collectionName
+              ? t("parts.collection_info", { name: data.collectionName })
+              : "",
+          }),
           type: "success",
         };
 
       default:
         return {
-          title: "Ephemera: Notification",
-          body: "Unknown event",
+          title: `${prefix}: Notification`,
+          body: "...",
           type: "info",
         };
     }
@@ -599,14 +546,8 @@ class AppriseService {
     formData.append("type", notification.type);
     formData.append("tags", "all");
 
-    const headers: Record<string, string> = {};
-
     // Add custom headers if provided
-    if (customHeaders) {
-      Object.entries(customHeaders).forEach(([key, value]) => {
-        headers[key] = value;
-      });
-    }
+    const headers: Record<string, string> = { ...customHeaders };
 
     const response = await fetch(serverUrl, {
       method: "POST",

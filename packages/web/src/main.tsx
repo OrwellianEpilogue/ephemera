@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { MantineProvider, createTheme } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { configureClient, getApiBasePath } from "@ephemera/shared";
+import "./i18n";
 
 // Import Mantine styles
 import "@mantine/core/styles.css";
@@ -143,16 +144,30 @@ const cssVariablesResolver = () => ({
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <MantineProvider
-        theme={theme}
-        defaultColorScheme="auto"
-        cssVariablesResolver={cssVariablesResolver}
-      >
-        <Notifications position="top-right" />
-        <RouterProvider router={router} />
-        <ReactQueryDevtools initialIsOpen={false} />
-      </MantineProvider>
-    </QueryClientProvider>
+    <Suspense
+      fallback={
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginTop: "2rem",
+          }}
+        >
+          Loading...
+        </div>
+      }
+    >
+      <QueryClientProvider client={queryClient}>
+        <MantineProvider
+          theme={theme}
+          defaultColorScheme="auto"
+          cssVariablesResolver={cssVariablesResolver}
+        >
+          <Notifications position="top-right" />
+          <RouterProvider router={router} />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </MantineProvider>
+      </QueryClientProvider>
+    </Suspense>
   </StrictMode>,
 );

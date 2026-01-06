@@ -87,6 +87,7 @@ const CurrentUserSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
+  locale: z.string(),
   role: z.enum(["admin", "user"]),
   hasPassword: z.boolean(),
   hasOIDC: z.boolean(),
@@ -96,6 +97,7 @@ const CurrentUserSchema = z.object({
 const UpdateProfileSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
+  locale: z.string().min(2).max(5).optional(),
 });
 
 // Schema for admin password reset
@@ -410,6 +412,7 @@ app.openapi(getCurrentUserRoute, async (c) => {
         id: userWithAccounts.id,
         name: userWithAccounts.name,
         email: userWithAccounts.email,
+        locale: userWithAccounts.locale,
         role: (userWithAccounts.role || "user") as "admin" | "user",
         hasPassword:
           userWithAccounts.accounts?.some(
@@ -537,7 +540,7 @@ app.openapi(updateCurrentUserRoute, async (c) => {
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (body.name) updateData.name = body.name;
     if (body.email) updateData.email = body.email;
-
+    if (body.locale) updateData.locale = body.locale;
     // Update user
     await db.update(user).set(updateData).where(eq(user.id, currentUser.id));
 
@@ -567,6 +570,7 @@ app.openapi(updateCurrentUserRoute, async (c) => {
         name: updatedUser.name,
         email: updatedUser.email,
         role: (updatedUser.role || "user") as "admin" | "user",
+        locale: updatedUser.locale,
         hasPassword:
           updatedUser.accounts?.some((a) => a.providerId === "credential") ??
           false,

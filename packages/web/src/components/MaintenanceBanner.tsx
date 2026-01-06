@@ -8,6 +8,7 @@ import {
   Code,
 } from "@mantine/core";
 import { IconAlertTriangle, IconWorldOff } from "@tabler/icons-react";
+import { useTranslation, Trans } from "react-i18next";
 
 interface MaintenanceBannerProps {
   flareSolverrDown: boolean;
@@ -24,20 +25,22 @@ export const MaintenanceBanner = ({
   searcherBlocked,
   reason,
 }: MaintenanceBannerProps) => {
+  const { t } = useTranslation("translation", { keyPrefix: "maintenance" });
+
   // Determine which failure type to display
   const isSearcherIssue = searcherBlocked && !flareSolverrDown;
 
   const title = isSearcherIssue
-    ? "Search Service Blocked"
-    : "Service Temporarily Unavailable";
+    ? t("searcher_blocked.title")
+    : t("service_unavailable.title");
 
   const Icon = isSearcherIssue ? IconWorldOff : IconAlertTriangle;
 
   const defaultMessage = flareSolverrDown
-    ? "FlareSolverr is unavailable and no API key is configured. Search and downloads are temporarily disabled."
+    ? t("service_unavailable.flaresolverr_down")
     : searcherBlocked
-      ? "The search service appears to be blocked."
-      : "The service is temporarily unavailable. Please try again later.";
+      ? t("searcher_blocked.message")
+      : t("service_unavailable.generic_message");
 
   return (
     <Container size="sm" py="xl">
@@ -58,17 +61,17 @@ export const MaintenanceBanner = ({
         {isSearcherIssue && (
           <Stack gap="xs" maw={450}>
             <Text size="sm" fw={500} ta="center">
-              Try one of these solutions:
+              {t("suggestions.title")}
             </Text>
             <List size="sm" c="dimmed" spacing="xs">
               <List.Item>
-                Change your DNS server to Cloudflare (<Code>1.1.1.1</Code>) or
-                Google (<Code>8.8.8.8</Code>)
+                <Trans
+                  i18nKey="maintenance.suggestions.dns"
+                  components={{ code: <Code /> }}
+                />
               </List.Item>
-              <List.Item>Use a VPN to bypass the network restriction</List.Item>
-              <List.Item>
-                Check if your network administrator is blocking the site
-              </List.Item>
+              <List.Item>{t("suggestions.vpn")}</List.Item>
+              <List.Item>{t("suggestions.admin")}</List.Item>
             </List>
           </Stack>
         )}
@@ -76,7 +79,7 @@ export const MaintenanceBanner = ({
         <Stack align="center" gap="xs" mt="md">
           <Loader size="sm" />
           <Text size="sm" c="dimmed">
-            Checking for recovery...
+            {t("checking_recovery")}
           </Text>
         </Stack>
       </Stack>

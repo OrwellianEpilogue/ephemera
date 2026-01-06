@@ -40,6 +40,7 @@ import {
   apiFetch,
 } from "@ephemera/shared";
 import { useCreateRequest } from "../hooks/useRequests";
+import { useTranslation } from "react-i18next";
 
 // URL search params schema
 type SearchParams = {
@@ -55,7 +56,10 @@ type SearchParams = {
 };
 
 function SearchPage() {
-  usePageTitle("Search");
+  const { t } = useTranslation("translation", {
+    keyPrefix: "search",
+  });
+  usePageTitle(t("title"));
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const urlParams = Route.useSearch();
@@ -421,7 +425,7 @@ function SearchPage() {
     return (
       <Container size="xl">
         <Stack gap="lg">
-          <Title order={1}>Search Books</Title>
+          <Title order={1}>{t("title")}</Title>
           <MaintenanceBanner
             flareSolverrDown={config.flareSolverrDown}
             searcherBlocked={config.searcherBlocked}
@@ -435,14 +439,14 @@ function SearchPage() {
   return (
     <Container size="xl">
       <Stack gap="lg">
-        <Title order={1}>Search Books</Title>
+        <Title order={1}>{t("title")}</Title>
 
         {/* Search Bar */}
         <Paper p="md" withBorder>
           <Stack gap="md">
             <Group gap="sm" wrap="nowrap">
               <TextInput
-                placeholder="Search for books, authors, ISBN..."
+                placeholder={t("placeholder")}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={handleKeyPress}
@@ -455,7 +459,7 @@ function SearchPage() {
                 disabled={!searchInput && !authorInput && !titleInput}
                 size="md"
               >
-                Search
+                {t("button")}
               </Button>
             </Group>
 
@@ -463,15 +467,15 @@ function SearchPage() {
             <Accordion>
               <Accordion.Item value="filters">
                 <Accordion.Control icon={<IconFilter size={16} />}>
-                  Filter Options
+                  {t("filters.toggle")}
                 </Accordion.Control>
                 <Accordion.Panel>
                   <Stack gap="md">
                     <Grid gutter="md">
                       <Grid.Col span={{ base: 12, xs: 6 }}>
                         <TextInput
-                          label="Author"
-                          placeholder="Author name"
+                          label={t("filters.author.label")}
+                          placeholder={t("filters.author.placeholder")}
                           value={authorInput}
                           onChange={(e) => setAuthorInput(e.target.value)}
                           onKeyDown={handleKeyPress}
@@ -491,8 +495,8 @@ function SearchPage() {
                       </Grid.Col>
                       <Grid.Col span={{ base: 12, xs: 6 }}>
                         <TextInput
-                          label="Title"
-                          placeholder="Book title"
+                          label={t("filters.title.label")}
+                          placeholder={t("filters.title.placeholder")}
                           value={titleInput}
                           onChange={(e) => setTitleInput(e.target.value)}
                           onKeyDown={handleKeyPress}
@@ -512,8 +516,8 @@ function SearchPage() {
                       </Grid.Col>
                       <Grid.Col span={{ base: 12, xs: 6 }}>
                         <NumberInput
-                          label="Year"
-                          placeholder="Publication year"
+                          label={t("filters.year.label")}
+                          placeholder={t("filters.year.placeholder")}
                           value={yearInput ?? ""}
                           onChange={(value) =>
                             setYearInput(
@@ -540,8 +544,8 @@ function SearchPage() {
                       </Grid.Col>
                       <Grid.Col span={{ base: 12, xs: 6 }}>
                         <Select
-                          label="Sort by"
-                          placeholder="Most relevant"
+                          label={t("filters.sort.label")}
+                          placeholder={t("filters.sort.placeholder")}
                           value={urlParams.sort || "relevant"}
                           onChange={(value) =>
                             updateSearchParams({ sort: value || "relevant" })
@@ -552,8 +556,8 @@ function SearchPage() {
 
                       <Grid.Col span={{ base: 12, xs: 6 }}>
                         <MultiSelect
-                          label="File Format"
-                          placeholder="Any format"
+                          label={t("filters.format.label")}
+                          placeholder={t("filters.format.placeholder")}
                           value={urlParams.ext || []}
                           onChange={(value) =>
                             updateSearchParams({ ext: value })
@@ -566,8 +570,8 @@ function SearchPage() {
 
                       <Grid.Col span={{ base: 12, xs: 6 }}>
                         <MultiSelect
-                          label="Language"
-                          placeholder="Any language"
+                          label={t("filters.language.label")}
+                          placeholder={t("filters.language.placeholder")}
                           value={urlParams.lang || []}
                           onChange={(value) =>
                             updateSearchParams({ lang: value })
@@ -580,8 +584,8 @@ function SearchPage() {
 
                       <Grid.Col span={{ base: 12, xs: 6 }}>
                         <MultiSelect
-                          label="Content Type"
-                          placeholder="Any type"
+                          label={t("filters.content_type.label")}
+                          placeholder={t("filters.content_type.placeholder")}
                           value={urlParams.content || []}
                           onChange={(value) =>
                             updateSearchParams({ content: value })
@@ -594,7 +598,7 @@ function SearchPage() {
                     </Grid>
 
                     <Checkbox
-                      label="Search in descriptions and metadata"
+                      label={t("filters.deep_search")}
                       checked={urlParams.desc || false}
                       onChange={(e) =>
                         updateSearchParams({ desc: e.currentTarget.checked })
@@ -606,7 +610,7 @@ function SearchPage() {
                       onClick={handleClearFilters}
                       fullWidth
                     >
-                      Reset all filters
+                      {t("filters.reset")}
                     </Button>
                   </Stack>
                 </Accordion.Panel>
@@ -624,7 +628,7 @@ function SearchPage() {
 
         {isError && (
           <Center p="xl">
-            <Text c="red">Error loading results. Please try again.</Text>
+            <Text c="red">{t("error")}</Text>
           </Center>
         )}
 
@@ -636,13 +640,17 @@ function SearchPage() {
                 <>
                   <Group justify="space-between">
                     <Text size="sm" c="dimmed">
-                      Found {totalResults ? `${totalResults}+` : "many"} results
-                      {urlParams.q && ` for "${urlParams.q}"`}
-                      {urlParams.author && ` by ${urlParams.author}`}
-                      {urlParams.title && ` titled "${urlParams.title}"`}
+                      {t("results.found_count", {
+                        total: totalResults || "many", // Renommé de 'count' à 'total'
+                        query: urlParams.q ? ` "${urlParams.q}"` : "",
+                        author: urlParams.author ? ` ${urlParams.author}` : "",
+                        title: urlParams.title ? ` "${urlParams.title}"` : "",
+                      })}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Showing {allBooks.length} books
+                      {t("results.showing_count", {
+                        count: allBooks.length,
+                      })}
                     </Text>
                   </Group>
 
@@ -668,14 +676,14 @@ function SearchPage() {
                       <Center p="md">
                         <Stack gap="xs" align="center">
                           <Text size="sm" c="red">
-                            Failed to load more results
+                            {t("load_more_error")}
                           </Text>
                           <Button
                             size="xs"
                             variant="light"
                             onClick={() => fetchNextPageRef.current()}
                           >
-                            Retry
+                            {t("common:actions.retry")}
                           </Button>
                         </Stack>
                       </Center>
@@ -685,7 +693,7 @@ function SearchPage() {
                   {!hasNextPage && allBooks.length > 0 && (
                     <Center p="md">
                       <Text size="sm" c="dimmed">
-                        No more results
+                        {t("no_more_results")}
                       </Text>
                     </Center>
                   )}
@@ -695,18 +703,19 @@ function SearchPage() {
                   <Stack align="center" gap="md">
                     <IconFilter size={48} opacity={0.3} />
                     <Text c="dimmed">
-                      No results found
-                      {urlParams.q && ` for "${urlParams.q}"`}
-                      {urlParams.author && ` by ${urlParams.author}`}
-                      {urlParams.title && ` titled "${urlParams.title}"`}
+                      {t("no_results.title", {
+                        query: urlParams.q ? ` "${urlParams.q}"` : "",
+                        author: urlParams.author ? ` ${urlParams.author}` : "",
+                        title: urlParams.title ? ` "${urlParams.title}"` : "",
+                      })}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Try adjusting your filters or search terms
+                      {t("no_results.suggestion")}
                     </Text>
                     {existingRequestId ? (
                       <>
                         <Text size="sm" c="dimmed">
-                          You already have an active request for this search
+                          {t("no_results.request_exists")}
                         </Text>
                         <Button
                           component={Link}
@@ -714,7 +723,7 @@ function SearchPage() {
                           leftSection={<IconBookmark size={16} />}
                           variant="light"
                         >
-                          View your requests
+                          {t("no_results.view_requests")}
                         </Button>
                       </>
                     ) : (
@@ -725,15 +734,14 @@ function SearchPage() {
                           onClick={handleSaveRequest}
                           loading={createRequest.isPending}
                         >
-                          Save this search as a request
+                          {t("no_results.save_request")}
                         </Button>
                         <Text
                           size="xs"
                           c="dimmed"
                           style={{ maxWidth: "400px", textAlign: "center" }}
                         >
-                          Ephemera will automatically check for new results and
-                          download the book when it becomes available
+                          {t("no_results.request_info")}
                         </Text>
                       </>
                     )}
@@ -750,7 +758,7 @@ function SearchPage() {
             <Center p="xl">
               <Stack align="center" gap="sm">
                 <IconSearch size={48} opacity={0.3} />
-                <Text c="dimmed">Enter a search term to get started</Text>
+                <Text c="dimmed">{t("start_prompt")}</Text>
               </Stack>
             </Center>
           )}

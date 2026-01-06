@@ -47,6 +47,7 @@ import {
 import { useCalibreStatus } from "../hooks/useCalibre";
 import { TolinoUploadDialog } from "./TolinoUploadDialog";
 import { useState, useEffect, memo } from "react";
+import { useTranslation } from "react-i18next";
 
 // Tolino Cloud accepts EPUB and PDF directly
 const TOLINO_NATIVE_FORMATS = ["epub", "pdf"];
@@ -63,6 +64,9 @@ interface CountdownTimerProps {
 // Separate component that re-renders every second for countdown
 const CountdownTimer = memo(
   ({ countdownSeconds, countdownStartedAt }: CountdownTimerProps) => {
+    const { t } = useTranslation("translation", {
+      keyPrefix: "download.countdown",
+    });
     const [, setTick] = useState(0);
 
     useEffect(() => {
@@ -84,7 +88,7 @@ const CountdownTimer = memo(
 
     return (
       <Text size="sm" c="dimmed" fs="italic">
-        Waiting for download to start… {remaining}s remaining
+        {t("waiting", { seconds: remaining })}
       </Text>
     );
   },
@@ -105,25 +109,30 @@ const formatTime = (seconds?: number): string => {
   return `${minutes}m ${secs}s`;
 };
 
-const getStatusColor = (status: string): string => {
-  switch (status) {
-    case "available":
-      return "green";
-    case "downloading":
-      return "blue";
-    case "done":
-      return "teal";
-    case "queued":
-      return "gray";
-    case "delayed":
-      return "yellow";
-    case "error":
-      return "red";
-    case "cancelled":
-      return "orange";
-    default:
-      return "gray";
-  }
+// Hook for status badge translation
+const useStatusBadge = () => {
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case "available":
+        return "green";
+      case "downloading":
+        return "blue";
+      case "done":
+        return "teal";
+      case "queued":
+        return "gray";
+      case "delayed":
+        return "yellow";
+      case "error":
+        return "red";
+      case "cancelled":
+        return "orange";
+      default:
+        return "gray";
+    }
+  };
+
+  return { getStatusColor };
 };
 
 const getStatusIcon = (status: string) => {
@@ -168,20 +177,14 @@ const getSourceColor = (source?: string) => {
   }
 };
 
-const getSourceLabel = (source?: string) => {
-  switch (source) {
-    case "web":
-      return "Web";
-    case "indexer":
-      return "Indexer";
-    case "api":
-      return "API";
-    default:
-      return source || "Unknown";
-  }
-};
-
 const DownloadItemComponent = ({ item }: DownloadItemProps) => {
+  const { t } = useTranslation("translation", { keyPrefix: "download" });
+  const { t: tBookStatus } = useTranslation("translation", {
+    keyPrefix: "book.status",
+  });
+  const { t: tCommon } = useTranslation("common");
+  const { getStatusColor } = useStatusBadge();
+
   const cancelDownload = useCancelDownload();
   const retryDownload = useRetryDownload();
   const deleteDownload = useDeleteDownload();
@@ -268,12 +271,25 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
   const keepInDownloads = config?.keepInDownloads ?? false;
   const fileAccessDisabled = canDownload && !keepInDownloads;
   const fileAccessTooltip = fileAccessDisabled
-    ? 'Enable "Keep copy in downloads folder" in Settings to use browser downloads and email'
+    ? t("tooltips.file_access_disabled")
     : undefined;
 
   // Use config for date/time formatting, fall back to defaults
   const timeFormat = config?.timeFormat ?? "24h";
   const dateFormat = config?.dateFormat ?? "us";
+
+  const getSourceLabel = (source?: string) => {
+    switch (source) {
+      case "web":
+        return t("source.web");
+      case "indexer":
+        return t("source.indexer");
+      case "api":
+        return t("source.api");
+      default:
+        return source || t("source.unknown");
+    }
+  };
 
   return (
     <Card withBorder padding="md">
@@ -309,7 +325,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
             </div>
             <Group gap="xs">
               {canCancel && hasDeletePermission && (
-                <Tooltip label="Cancel download">
+                <Tooltip label={t("tooltips.cancel")}>
                   <ActionIcon
                     color="red"
                     variant="subtle"
@@ -322,7 +338,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               )}
               {canDownload && (
                 <Tooltip
-                  label={fileAccessTooltip || "Download file"}
+                  label={fileAccessTooltip || t("tooltips.download")}
                   color={fileAccessDisabled ? "orange" : undefined}
                 >
                   <ActionIcon
@@ -350,7 +366,10 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                 ) : emailRecipients.length === 1 && emailRecipients[0] ? (
                   // Single recipient - direct send without dropdown
                   <Tooltip
-                    label={`Send to ${emailRecipients[0].name || emailRecipients[0].email}`}
+                    label={t("tooltips.send_to", {
+                      recipient:
+                        emailRecipients[0].name || emailRecipients[0].email,
+                    })}
                   >
                     <ActionIcon
                       color="blue"
@@ -370,7 +389,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                   // Multiple recipients - show dropdown
                   <Menu shadow="md" width={250}>
                     <Menu.Target>
-                      <Tooltip label="Send via email">
+                      <Tooltip label={t("tooltips.send_via_email")}>
                         <ActionIcon
                           color="blue"
                           variant="subtle"
@@ -381,7 +400,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                       </Tooltip>
                     </Menu.Target>
                     <Menu.Dropdown>
-                      <Menu.Label>Send to:</Menu.Label>
+                      <Menu.Label>{t("menu.send_to")}</Menu.Label>
                       {/* For admins: show own emails first, then divider, then others */}
                       {isAdmin ? (
                         <>
@@ -457,8 +476,8 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                       fileAccessDisabled
                         ? fileAccessTooltip
                         : needsConversion
-                          ? "Upload to Tolino Cloud (will convert to EPUB)"
-                          : "Upload to Tolino Cloud"
+                          ? t("tooltips.upload_tolino_convert")
+                          : t("tooltips.upload_tolino")
                     }
                     color={fileAccessDisabled ? "orange" : undefined}
                   >
@@ -474,7 +493,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                   </Tooltip>
                 )}
               {canDelete && hasDeletePermission && (
-                <Tooltip label="Delete download">
+                <Tooltip label={t("tooltips.delete")}>
                   <ActionIcon
                     color="red"
                     variant="subtle"
@@ -495,7 +514,9 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               color={getStatusColor(item.status)}
               leftSection={getStatusIcon(item.status)}
             >
-              {item.status.toUpperCase()}
+              {tBookStatus(item.status, {
+                defaultValue: item.status.toUpperCase(),
+              })}
             </Badge>
 
             {item.downloadSource && (
@@ -529,7 +550,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
 
             {item.uploadStatus && (
               <Badge size="sm" variant="light" color="violet">
-                Upload: {item.uploadStatus}
+                {t("upload_status", { status: item.uploadStatus })}
               </Badge>
             )}
           </Group>
@@ -567,7 +588,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
               ) : item.size ? (
                 formatBytes(item.size)
               ) : (
-                "Size unknown"
+                t("size_unknown")
               )}
             </Text>
 
@@ -579,7 +600,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
 
             {showProgress && item.eta && (
               <Text size="xs" c="dimmed">
-                ETA: {formatTime(item.eta)}
+                {t("eta", { time: formatTime(item.eta) })}
               </Text>
             )}
           </Group>
@@ -589,11 +610,13 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
             <Group gap="xs">
               <IconClock size={14} />
               <Text size="xs" c="dimmed">
-                Next retry: {formatTimeOfDay(item.nextRetryAt, timeFormat)}
+                {t("next_retry", {
+                  time: formatTimeOfDay(item.nextRetryAt, timeFormat),
+                })}
               </Text>
               {item.downloadsLeft !== undefined && (
                 <Text size="xs" c="dimmed">
-                  ({item.downloadsLeft} downloads left today)
+                  ({t("downloads_left", { count: item.downloadsLeft })})
                 </Text>
               )}
             </Group>
@@ -604,7 +627,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
             <Stack gap="xs">
               {item.error && (
                 <Text size="xs" c="red" lineClamp={2}>
-                  Error: {item.error}
+                  {t("error_message", { message: item.error })}
                 </Text>
               )}
               <div>
@@ -616,7 +639,7 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
                   onClick={handleRetry}
                   loading={retryDownload.isPending}
                 >
-                  Retry Download
+                  {t("buttons.retry")}
                 </Button>
               </div>
             </Stack>
@@ -625,13 +648,16 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
           {/* Timestamps and user info */}
           <Group gap="md" justify="space-between">
             <Text size="xs" c="dimmed">
-              Queued: {formatDate(item.queuedAt, dateFormat, timeFormat)}
+              {t("queued_at", {
+                date: formatDate(item.queuedAt, dateFormat, timeFormat),
+              })}
             </Text>
             <Group gap="xs">
               {item.completedAt && (
                 <Text size="xs" c="dimmed">
-                  Completed:{" "}
-                  {formatDate(item.completedAt, dateFormat, timeFormat)}
+                  {t("completed_at", {
+                    date: formatDate(item.completedAt, dateFormat, timeFormat),
+                  })}
                 </Text>
               )}
               {(isAdmin || permissions?.canSeeDownloadOwner) && item.userId && (
@@ -650,43 +676,42 @@ const DownloadItemComponent = ({ item }: DownloadItemProps) => {
       <Modal
         opened={deleteModalOpened}
         onClose={() => setDeleteModalOpened(false)}
-        title="Delete Download"
+        title={t("modals.delete.title")}
         centered
       >
         <Stack gap="md">
-          <Text size="sm">
-            Are you sure you want to delete this download record?
-          </Text>
+          <Text size="sm">{t("modals.delete.confirmation")}</Text>
           <Stack gap="xs">
             <Text size="sm" fw={500}>
               {item.title}
             </Text>
             {item.authors && item.authors.length > 0 && (
               <Text size="xs" c="dimmed">
-                by {item.authors.join(", ")}
+                {t("modals.delete.by_author", {
+                  author: item.authors.join(", "),
+                })}
               </Text>
             )}
             <Text size="xs" c="dimmed">
-              Status: {item.status.toUpperCase()}
+              {t("modals.delete.status", { status: item.status.toUpperCase() })}
             </Text>
           </Stack>
           <Text size="xs" c="dimmed" fs="italic">
-            Note: This will only remove the download record. The downloaded file
-            (if any) will remain on disk.
+            {t("modals.delete.note")}
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button
               variant="default"
               onClick={() => setDeleteModalOpened(false)}
             >
-              Cancel
+              {tCommon("actions.cancel")}
             </Button>
             <Button
               color="red"
               onClick={handleDelete}
               loading={deleteDownload.isPending}
             >
-              Delete
+              {t("modals.delete.confirm")}
             </Button>
           </Group>
         </Stack>

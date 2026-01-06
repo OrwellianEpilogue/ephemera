@@ -17,6 +17,7 @@ import {
 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
 import { useTolinoCollections } from "../hooks/useTolino";
+import { useTranslation, Trans } from "react-i18next";
 
 interface TolinoUploadDialogProps {
   opened: boolean;
@@ -37,6 +38,14 @@ export function TolinoUploadDialog({
   needsConversion,
   suggestedCollection,
 }: TolinoUploadDialogProps) {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "settings.tolino.upload",
+  });
+  // Use non-prefixed t for common translations
+  const { t: tCommon } = useTranslation("translation", {
+    keyPrefix: "common",
+  });
+
   const { data: collectionsData, isLoading: loadingCollections } =
     useTolinoCollections(opened);
 
@@ -92,15 +101,15 @@ export function TolinoUploadDialog({
   };
 
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title="Upload to Tolino Cloud"
-      centered
-    >
+    <Modal opened={opened} onClose={onClose} title={t("title")} centered>
       <Stack gap="md">
         <Text size="sm">
-          Upload <strong>{bookTitle}</strong> to your Tolino Cloud library.
+          <Trans
+            t={t}
+            i18nKey="description"
+            values={{ title: bookTitle }}
+            components={{ strong: <strong /> }}
+          />
         </Text>
 
         {needsConversion && (
@@ -109,16 +118,14 @@ export function TolinoUploadDialog({
             color="blue"
             variant="light"
           >
-            <Text size="sm">
-              This file will be converted to EPUB format before uploading.
-            </Text>
+            <Text size="sm">{t("conversion_alert")}</Text>
           </Alert>
         )}
 
         <Select
           label={
             <Group gap="xs">
-              <span>Add to collection (optional)</span>
+              <span>{t("collection.label")}</span>
               {suggestedCollection && (
                 <Badge
                   size="xs"
@@ -126,24 +133,28 @@ export function TolinoUploadDialog({
                   color="grape"
                   leftSection={<IconBooks size={10} />}
                 >
-                  Series detected
+                  {t("collection.series_detected")}
                 </Badge>
               )}
             </Group>
           }
           description={
             suggestedCollection
-              ? `Suggested from series: "${suggestedCollection}"`
-              : "Select an existing collection or create a new one"
+              ? t("collection.suggested_desc", { series: suggestedCollection })
+              : t("collection.default_desc")
           }
-          placeholder={loadingCollections ? "Loading collections..." : "None"}
+          placeholder={
+            loadingCollections
+              ? t("collection.loading")
+              : t("collection.placeholder")
+          }
           data={[
-            { value: "", label: "None (no collection)" },
+            { value: "", label: t("collection.none") },
             ...collections.map((c) => ({
               value: c,
               label: c,
             })),
-            { value: "__new__", label: "+ Create new collection..." },
+            { value: "__new__", label: t("collection.create_new") },
           ]}
           value={showNewInput ? "__new__" : selectedCollection || ""}
           onChange={handleCollectionChange}
@@ -154,8 +165,8 @@ export function TolinoUploadDialog({
 
         {showNewInput && (
           <TextInput
-            label="New collection name"
-            placeholder="Enter collection name"
+            label={t("new_collection.label")}
+            placeholder={t("new_collection.placeholder")}
             value={newCollectionName}
             onChange={(e) => setNewCollectionName(e.target.value)}
             disabled={isUploading}
@@ -164,7 +175,7 @@ export function TolinoUploadDialog({
 
         <Group justify="flex-end" gap="sm" mt="md">
           <Button variant="default" onClick={onClose} disabled={isUploading}>
-            Cancel
+            {tCommon("actions.cancel")}
           </Button>
           <Button
             color="cyan"
@@ -173,7 +184,7 @@ export function TolinoUploadDialog({
             loading={isUploading}
             disabled={showNewInput && !newCollectionName.trim()}
           >
-            Upload
+            {t("buttons.upload")}
           </Button>
         </Group>
       </Stack>

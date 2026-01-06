@@ -47,6 +47,7 @@ const listSourceSchema = z.enum([
   "storygraph",
   "hardcover",
   "openlibrary",
+  "babelio",
 ]);
 
 const importListWithUserSchema = z.object({

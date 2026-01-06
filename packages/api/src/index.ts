@@ -20,6 +20,7 @@ import {
 import { proxyAuthMiddleware } from "./middleware/proxy-auth.js";
 import { maintenanceGuard } from "./middleware/maintenance.js";
 import type { Context, Next } from "hono";
+import { initI18n } from "./utils/i18n.js";
 
 // Helper to compose auth middleware with permission/admin checks
 const withAuth = (
@@ -136,6 +137,9 @@ await indexerSettingsService.getSettings();
 
 // Initialize Email settings with defaults
 await emailSettingsService.initializeDefaults();
+
+// Initialize i18n backend translations
+await initI18n();
 
 // Start Booklore token refresher service
 bookloreTokenRefresher.start();

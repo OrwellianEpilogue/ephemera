@@ -239,6 +239,20 @@
       "when": 1767046777161,
       "tag": "0033_small_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1767705099067,
+      "tag": "0034_redundant_gorilla_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1767733334307,
+      "tag": "0035_red_katie_power",
+      "breakpoints": true
     }
   ]
 }

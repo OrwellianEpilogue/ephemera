@@ -149,6 +149,16 @@ export const LIST_SOURCES = [
     requiresApiKey: false,
     requiresFlareSolverr: false,
   },
+  {
+    id: "babelio",
+    name: "Babelio",
+    icon: "BB",
+    color: "#F5A623",
+    textColor: "#fff",
+    description: "Import depuis les listes publiques Babelio",
+    requiresApiKey: false,
+    requiresFlareSolverr: false,
+  },
 ] as const;
 
 export type ListSourceId = (typeof LIST_SOURCES)[number]["id"];
