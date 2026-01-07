@@ -10,6 +10,7 @@ import {
   normalizeAuthor,
 } from "./types.js";
 import { logger } from "../../utils/logger.js";
+import * as cheerio from "cheerio";
 
 const BABELIO_BASE_URL = "https://www.babelio.com";
 
@@ -30,26 +31,15 @@ export class BabelioFetcher implements ListFetcher {
     try {
       const url = `${BABELIO_BASE_URL}/liste/${listId}/`;
       const response = await this.fetchWithTimeout(url);
-
-      if (!response.ok) {
-        return {
-          valid: false,
-          error: `Liste introuvable (Status: ${response.status})`,
-        };
-      }
-
-      return { valid: true };
-    } catch (error) {
-      logger.error("[Babelio] Validation error:", error);
+      return { valid: response.ok };
+    } catch {
       return { valid: false, error: "Échec de la connexion à Babelio" };
     }
   }
 
   async parseProfileUrl(url: string): Promise<{ userId: string } | null> {
     const match = url.match(/\/liste\/(\d+)/);
-    if (match) {
-      return { userId: match[1] };
-    }
+    if (match) return { userId: match[1] };
     return null;
   }
 
@@ -61,82 +51,96 @@ export class BabelioFetcher implements ListFetcher {
     const listId =
       babelioConfig.listId || (config as { userId?: string }).userId;
 
-    if (!listId) {
-      return { books: [], hasMore: false, error: "ID de liste manquant" };
-    }
-
     try {
       const url = `${BABELIO_BASE_URL}/liste/${listId}/?page=${page}`;
       const response = await this.fetchWithTimeout(url);
 
-      if (!response.ok) {
+      if (!response.ok)
         return {
           books: [],
           hasMore: false,
           error: `Erreur HTTP ${response.status}`,
         };
+
+      const html = await this.decodeHtml(response);
+
+      const { books: basicBooks, hasNext } = this.parseListItems(html);
+
+      const enrichedBooks: ListBook[] = [];
+
+      for (const book of basicBooks) {
+        if (book.sourceUrl) {
+          try {
+            const details = await this.fetchBookDetails(book.sourceUrl);
+            enrichedBooks.push({ ...book, ...details });
+          } catch (_) {
+            logger.warn(
+              `[Babelio] Impossible d'enrichir ${book.title}, ajout version de base.`,
+            );
+            enrichedBooks.push(book);
+          }
+        } else {
+          enrichedBooks.push(book);
+        }
       }
 
-      const buffer = await response.arrayBuffer();
-      const decoder = new TextDecoder("iso-8859-1");
-      const html = decoder.decode(buffer);
-
-      const books = this.parseBooks(html);
-      const hasMore =
-        html.includes(`page=${page + 1}`) ||
-        html.includes(`href="/liste/${listId}/?page=${page + 1}"`);
-
       return {
-        books,
-        hasMore,
-        nextPage: hasMore ? page + 1 : undefined,
+        books: enrichedBooks,
+        hasMore: hasNext,
+        nextPage: hasNext ? page + 1 : undefined,
       };
     } catch (error) {
       logger.error("[Babelio] Fetch error:", error);
       return {
         books: [],
         hasMore: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "Erreur lors de la récupération",
       };
     }
   }
 
-  private parseBooks(html: string): ListBook[] {
+  private parseListItems(html: string): {
+    books: ListBook[];
+    hasNext: boolean;
+  } {
     const books: ListBook[] = [];
-    const itemRegex =
-      /<div class="liste_item">([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/g;
-    let match;
+    const $ = cheerio.load(html);
 
-    while ((match = itemRegex.exec(html)) !== null) {
-      const section = match[1];
+    $(".liste_item").each((_, element) => {
+      const el = $(element);
 
-      const titleMatch = section.match(
-        /href="\/livres\/[^/]+\/(\d+)"[^>]*class="titre_v2"[^>]*>([\s\S]*?)<\/a>/i,
-      );
-      if (!titleMatch) continue;
+      const titleLink = el.find("a.titre_v2").first();
 
-      const sourceBookId = titleMatch[1];
-      const rawTitle = titleMatch[2].trim();
+      if (titleLink.length === 0) return;
 
-      const authorMatch = section.match(
-        /class="auteur_v2"[^>]*>([\s\S]*?)<\/a>/i,
-      );
-      const rawAuthor = authorMatch ? authorMatch[1].trim() : "Auteur inconnu";
+      const rawTitle = titleLink.text().trim();
+      const relativeUrl = titleLink.attr("href");
 
-      const coverMatch = section.match(
-        /src="(https:\/\/www\.babelio\.com\/couv\/[^"]+)"/i,
-      );
-      const coverUrl = coverMatch ? coverMatch[1] : undefined;
+      if (!relativeUrl) return;
 
-      const ratingMatch = section.match(/(\d+\.\d+)&#9733;/);
-      const averageRating = ratingMatch
-        ? parseFloat(ratingMatch[1])
-        : undefined;
+      const idMatch = relativeUrl.match(/\/(\d+)$/);
+      const sourceBookId = idMatch ? idMatch[1] : "";
 
-      const descMatch = section.match(
-        /class="liste_txt"[^>]*>([\s\S]*?)<\/div>/i,
-      );
-      const description = descMatch ? this.cleanHtml(descMatch[1]) : undefined;
+      const authorLink = el.find("a.auteur_v2").first();
+      const rawAuthor = authorLink.length
+        ? authorLink.text().trim()
+        : "Auteur inconnu";
+
+      let coverUrl = el.find(".liste_couv img").attr("src");
+      if (!coverUrl || coverUrl.includes("couv-defaut")) {
+        coverUrl = undefined;
+      } else if (coverUrl && !coverUrl.startsWith("http")) {
+        coverUrl = `${BABELIO_BASE_URL}${coverUrl}`;
+      }
+
+      const fullText = el.text();
+      const ratingMatch = fullText.match(/(\d+[.,]\d+)★/);
+      let averageRating: number | undefined;
+      if (ratingMatch) {
+        averageRating = parseFloat(ratingMatch[1].replace(",", "."));
+      }
+
+      const description = el.find(".liste_txt").text().trim();
 
       const title = normalizeTitle(rawTitle);
       const author = normalizeAuthor(rawAuthor);
@@ -146,22 +150,61 @@ export class BabelioFetcher implements ListFetcher {
         author,
         hash: createBookHash(title, author),
         sourceBookId,
-        sourceUrl: `${BABELIO_BASE_URL}/livres/x/${sourceBookId}`,
+        sourceUrl: `${BABELIO_BASE_URL}${relativeUrl}`,
         coverUrl,
         averageRating,
-        description,
+        description: description || undefined,
       });
-    }
-
-    return books;
+    });
+    return {
+      books,
+      hasNext:
+        html.includes("page=") && !html.includes('class="no_active">Suivant'),
+    };
   }
 
-  private cleanHtml(html: string): string {
-    return html
-      .replace(/<[^>]*>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+  private async fetchBookDetails(url: string): Promise<Partial<ListBook>> {
+    try {
+      const response = await this.fetchWithTimeout(url);
+      if (!response.ok) return {};
+
+      const html = await this.decodeHtml(response);
+      const $ = cheerio.load(html);
+      const details: Partial<ListBook> = {};
+
+      const refsText = $(".livre_refs").text();
+
+      const eanMatch = refsText.match(/EAN\s*:\s*([\dX]{10,13})/i);
+      if (eanMatch) {
+        details.isbn = eanMatch[1].trim();
+      }
+
+      const bodyText = $("body").text();
+      const pagesMatch = bodyText.match(/(\d+)\s*pages/i);
+      if (pagesMatch) {
+        details.pages = parseInt(pagesMatch[1], 10);
+      }
+
+      const dateMatch = refsText.match(/\(\d{2}\/\d{2}\/(\d{4})\)/);
+      if (dateMatch) {
+        details.publishedYear = parseInt(dateMatch[1], 10);
+      } else {
+        const yearMatch = refsText.match(/\b(19|20)\d{2}\b/);
+        if (yearMatch) {
+          details.publishedYear = parseInt(yearMatch[0], 10);
+        }
+      }
+
+      return details;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  private async decodeHtml(response: Response): Promise<string> {
+    const buffer = await response.arrayBuffer();
+    const decoder = new TextDecoder("iso-8859-1");
+    return decoder.decode(buffer);
   }
 
   private async fetchWithTimeout(url: string): Promise<Response> {
