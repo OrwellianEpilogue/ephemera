@@ -1,0 +1,1 @@
+ALTER TABLE `app_settings` ADD `locale` text DEFAULT 'en' NOT NULL;
