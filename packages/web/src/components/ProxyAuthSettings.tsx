@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import {
   Stack,
   Paper,
@@ -22,6 +23,9 @@ import {
 import type { ProxyAuthUserIdentifier } from "@ephemera/shared";
 
 export default function ProxyAuthSettings() {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "settings.proxy_auth",
+  });
   const { data: settings, isLoading } = useProxyAuthSettings();
   const updateSettings = useUpdateProxyAuthSettings();
 
@@ -81,18 +85,17 @@ export default function ProxyAuthSettings() {
               <Title order={3}>
                 <Group gap="xs">
                   <IconShieldCheck size={24} />
-                  Reverse Proxy Authentication
+                  {t("title")}
                 </Group>
               </Title>
               <Text size="sm" c="dimmed">
-                Authenticate users via trusted proxy headers (Authelia,
-                Authentik, Traefik, etc.)
+                {t("description")}
               </Text>
             </div>
             <Switch
               checked={enabled}
               onChange={(e) => setEnabled(e.currentTarget.checked)}
-              label="Enabled"
+              label={t("enabled")}
               size="lg"
               disabled={!canEnable && !enabled}
             />
@@ -106,32 +109,23 @@ export default function ProxyAuthSettings() {
           >
             <Stack gap="xs">
               <Text size="sm" fw={600}>
-                Security Warning - Read Before Enabling
+                {t("security_warning.title")}
               </Text>
-              <Text size="sm">
-                This feature allows bypassing normal authentication using HTTP
-                headers. Only enable if:
-              </Text>
+              <Text size="sm">{t("security_warning.message")}</Text>
               <List size="sm" spacing="xs">
                 <List.Item>
-                  Your application is ONLY accessible through a trusted reverse
-                  proxy
+                  {t("security_warning.list.trusted_proxy")}
                 </List.Item>
                 <List.Item>
-                  The proxy strips the auth header from ALL incoming external
-                  requests
+                  {t("security_warning.list.strips_header")}
                 </List.Item>
+                <List.Item>{t("security_warning.list.sets_header")}</List.Item>
                 <List.Item>
-                  The proxy only sets the header after successful authentication
-                </List.Item>
-                <List.Item>
-                  Direct access to this application is blocked at the network
-                  level
+                  {t("security_warning.list.blocked_direct")}
                 </List.Item>
               </List>
               <Text size="sm" c="dimmed" mt="xs">
-                API endpoints are NOT affected by proxy auth for security
-                reasons. Only the web UI uses header authentication.
+                {t("security_warning.api_notice")}
               </Text>
             </Stack>
           </Alert>
@@ -139,35 +133,42 @@ export default function ProxyAuthSettings() {
           {/* Configuration Fields */}
           <Stack gap="sm">
             <TextInput
-              label="Header Name"
-              description="HTTP header containing the authenticated username or email"
+              label={t("form.header_name.label")}
+              description={t("form.header_name.description")}
               placeholder="Remote-User"
               value={headerName}
               onChange={(e) => setHeaderName(e.target.value)}
               error={
                 headerName && !headerNameValid
-                  ? "Header name must start with a letter and contain only letters, numbers, and hyphens"
+                  ? t("form.header_name.error")
                   : undefined
               }
               required
             />
             <Text size="xs" c="dimmed">
-              Common headers: <Code>Remote-User</Code>,{" "}
-              <Code>X-Forwarded-User</Code>, <Code>X-Authentik-Username</Code>,{" "}
-              <Code>X-Authelia-Username</Code>
+              <Trans
+                t={t}
+                i18nKey="proxy_auth.form.header_name.common"
+                components={[
+                  <Code key="0">Remote-User</Code>,
+                  <Code key="1">X-Forwarded-User</Code>,
+                  <Code key="2">X-Authentik-Username</Code>,
+                  <Code key="3">X-Authelia-Username</Code>,
+                ]}
+              />
             </Text>
 
             <Select
-              label="User Identifier"
-              description="How to match the header value to users in the system"
+              label={t("form.user_identifier.label")}
+              description={t("form.user_identifier.description")}
               data={[
                 {
                   value: "email",
-                  label: "Email Address",
+                  label: t("form.user_identifier.options.email"),
                 },
                 {
                   value: "username",
-                  label: "Username (name field)",
+                  label: t("form.user_identifier.options.username"),
                 },
               ]}
               value={userIdentifier}
@@ -177,8 +178,8 @@ export default function ProxyAuthSettings() {
             />
 
             <Textarea
-              label="Trusted Proxy IPs"
-              description="Comma-separated list of IP addresses or CIDR ranges allowed to send authentication headers"
+              label={t("form.trusted_proxies.label")}
+              description={t("form.trusted_proxies.description")}
               placeholder="172.17.0.1, 10.0.0.0/8, 192.168.1.100"
               value={trustedProxies}
               onChange={(e) => setTrustedProxies(e.target.value)}
@@ -186,19 +187,25 @@ export default function ProxyAuthSettings() {
               required
               error={
                 enabled && !trustedProxiesValid
-                  ? "At least one trusted proxy IP is required"
+                  ? t("form.trusted_proxies.error")
                   : undefined
               }
             />
             <Text size="xs" c="dimmed">
-              Examples: <Code>172.17.0.1</Code> (single IP),{" "}
-              <Code>10.0.0.0/8</Code> (CIDR range), <Code>192.168.0.0/16</Code>{" "}
-              (private network)
+              <Trans
+                t={t}
+                i18nKey="proxy_auth.form.trusted_proxies.examples"
+                components={[
+                  <Code key="0">172.17.0.1</Code>,
+                  <Code key="1">10.0.0.0/8</Code>,
+                  <Code key="2">192.168.0.0/16</Code>,
+                ]}
+              />
             </Text>
 
             <TextInput
-              label="Logout Redirect URL (Optional)"
-              description="URL to redirect users to after logout (e.g., your proxy's logout endpoint)"
+              label={t("form.logout_url.label")}
+              description={t("form.logout_url.description")}
               placeholder="https://auth.example.com/logout"
               value={logoutRedirectUrl}
               onChange={(e) => setLogoutRedirectUrl(e.target.value)}
@@ -213,13 +220,17 @@ export default function ProxyAuthSettings() {
               variant="light"
             >
               <Text size="sm">
-                Proxy authentication is currently{" "}
-                <Text component="span" fw={600}>
-                  enabled
-                </Text>
-                . Users connecting from trusted proxies with the{" "}
-                <Code>{settings.headerName}</Code> header will be automatically
-                authenticated.
+                <Trans
+                  t={t}
+                  i18nKey="proxy_auth.status.enabled"
+                  values={{ header: settings.headerName }}
+                  components={[
+                    <Text key="0" component="span" fw={600}>
+                      enabled
+                    </Text>,
+                    <Code key="1">{settings.headerName}</Code>,
+                  ]}
+                />
               </Text>
             </Alert>
           )}
@@ -228,29 +239,32 @@ export default function ProxyAuthSettings() {
           <Alert icon={<IconShieldCheck size={16} />} color="blue">
             <Stack gap="xs">
               <Text size="sm" fw={600}>
-                How Proxy Authentication Works
+                {t("how_it_works.title")}
               </Text>
               <List size="sm" spacing="xs">
+                <List.Item>{t("how_it_works.list.visits")}</List.Item>
+                <List.Item>{t("how_it_works.list.authenticates")}</List.Item>
                 <List.Item>
-                  User visits your app through the reverse proxy
+                  <Trans
+                    t={t}
+                    i18nKey="proxy_auth.how_it_works.list.adds_header"
+                    values={{
+                      header: headerName || "Remote-User",
+                      identifier:
+                        userIdentifier === "email"
+                          ? t("form.user_identifier.options.email")
+                          : t("form.user_identifier.options.username"),
+                    }}
+                    components={[
+                      <Code key="0">{headerName || "Remote-User"}</Code>,
+                    ]}
+                  />
                 </List.Item>
-                <List.Item>
-                  Proxy authenticates user (via Authelia, Authentik, etc.)
-                </List.Item>
-                <List.Item>
-                  Proxy adds the <Code>{headerName || "Remote-User"}</Code>{" "}
-                  header with the authenticated user's{" "}
-                  {userIdentifier === "email" ? "email" : "username"}
-                </List.Item>
-                <List.Item>
-                  This app validates the request IP and looks up the user
-                </List.Item>
-                <List.Item>
-                  A session cookie is created and the user is logged in
-                </List.Item>
+                <List.Item>{t("how_it_works.list.validates")}</List.Item>
+                <List.Item>{t("how_it_works.list.session")}</List.Item>
               </List>
               <Text size="sm" c="dimmed" mt="xs">
-                Users must already exist in the system - no auto-provisioning.
+                {t("how_it_works.no_provisioning")}
               </Text>
             </Stack>
           </Alert>
@@ -261,7 +275,7 @@ export default function ProxyAuthSettings() {
               disabled={!hasChanges || (enabled && !canEnable)}
               loading={updateSettings.isPending}
             >
-              Save Settings
+              {t("save_button")}
             </Button>
           </Group>
         </Stack>

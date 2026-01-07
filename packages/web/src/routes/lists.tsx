@@ -38,7 +38,6 @@ import {
 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
 import { useDisclosure, useDebouncedValue } from "@mantine/hooks";
-import { formatDistanceToNow } from "date-fns";
 import {
   useLists,
   useCreateList,
@@ -57,6 +56,8 @@ import {
 } from "../hooks/useLists";
 import { notifications } from "@mantine/notifications";
 import { SOURCE_CONFIG } from "@ephemera/shared";
+import { useTranslation } from "react-i18next";
+import { formatDistanceToNowLocalized } from "../utils/date-utils";
 
 // List card component
 function ListCard({
@@ -66,24 +67,27 @@ function ListCard({
   list: ImportList;
   onRefresh: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const deleteList = useDeleteList();
   const updateList = useUpdateList();
   const refreshList = useRefreshList();
   const [showDetails, { toggle: toggleDetails }] = useDisclosure(false);
 
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this list?")) {
+    if (confirm(t("lists.card.confirm_delete"))) {
       deleteList.mutate(list.id, {
         onSuccess: () => {
           notifications.show({
-            title: "List deleted",
-            message: `"${list.name}" has been deleted`,
+            title: t("lists.notifications.deleted.title"),
+            message: t("lists.notifications.deleted.message", {
+              name: list.name,
+            }),
             color: "green",
           });
         },
         onError: (error) => {
           notifications.show({
-            title: "Error",
+            title: t("lists.notifications.error"),
             message: error.message,
             color: "red",
           });
@@ -97,9 +101,18 @@ function ListCard({
       { id: list.id, data: { enabled: !list.enabled } },
       {
         onSuccess: () => {
+          const isEnabled = !list.enabled;
           notifications.show({
-            title: list.enabled ? "List disabled" : "List enabled",
-            message: `"${list.name}" is now ${list.enabled ? "disabled" : "enabled"}`,
+            title: isEnabled
+              ? t("lists.notifications.state_change.title_enabled")
+              : t("lists.notifications.state_change.title_disabled"),
+            message: isEnabled
+              ? t("lists.notifications.state_change.message_enabled", {
+                  name: list.name,
+                })
+              : t("lists.notifications.state_change.message_disabled", {
+                  name: list.name,
+                }),
             color: "green",
           });
         },
@@ -112,14 +125,17 @@ function ListCard({
       onSuccess: (result) => {
         if (result.error) {
           notifications.show({
-            title: "Refresh failed",
+            title: t("lists.notifications.refresh.failed"),
             message: result.error,
             color: "red",
           });
         } else {
           notifications.show({
-            title: "List refreshed",
-            message: `Found ${result.newBooks} new books (${result.totalBooks} total)`,
+            title: t("lists.notifications.refresh.success_title"),
+            message: t("lists.notifications.refresh.success_message", {
+              new: result.newBooks,
+              total: result.totalBooks,
+            }),
             color: "green",
           });
           onRefresh();
@@ -127,7 +143,7 @@ function ListCard({
       },
       onError: (error) => {
         notifications.show({
-          title: "Error",
+          title: t("lists.notifications.error"),
           message: error.message,
           color: "red",
         });
@@ -162,12 +178,14 @@ function ListCard({
               variant={list.enabled ? "light" : "outline"}
               size="sm"
             >
-              {list.enabled ? "Active" : "Disabled"}
+              {list.enabled
+                ? t("lists.card.status.active")
+                : t("lists.card.status.disabled")}
             </Badge>
             {list.fetchError && (
               <Tooltip label={list.fetchError}>
                 <Badge color="red" variant="light" size="sm">
-                  Error
+                  {t("lists.card.status.error")}
                 </Badge>
               </Tooltip>
             )}
@@ -177,15 +195,21 @@ function ListCard({
         <Group gap="md" style={{ fontSize: "0.85rem" }}>
           <Group gap={4}>
             <IconBook size={14} />
-            <Text size="xs">{list.totalBooksImported} books imported</Text>
+            <Text size="xs">
+              {t("lists.card.stats.imported", {
+                count: list.totalBooksImported,
+              })}
+            </Text>
           </Group>
           {list.lastFetchedAt && (
             <Group gap={4}>
               <IconClock size={14} />
               <Text size="xs">
-                Last checked{" "}
-                {formatDistanceToNow(new Date(list.lastFetchedAt), {
-                  addSuffix: true,
+                {t("lists.card.stats.last_checked", {
+                  time: formatDistanceToNowLocalized(
+                    new Date(list.lastFetchedAt),
+                    i18n.language,
+                  ),
                 })}
               </Text>
             </Group>
@@ -206,11 +230,19 @@ function ListCard({
               }
               onClick={toggleDetails}
             >
-              {showDetails ? "Hide" : "Details"}
+              {showDetails
+                ? t("lists.card.actions.hide")
+                : t("lists.card.actions.details")}
             </Button>
           </Group>
           <Group gap="xs">
-            <Tooltip label={list.enabled ? "Disable list" : "Enable list"}>
+            <Tooltip
+              label={
+                list.enabled
+                  ? t("lists.card.actions.disable_tooltip")
+                  : t("lists.card.actions.enable_tooltip")
+              }
+            >
               <Switch
                 checked={list.enabled}
                 onChange={handleToggleEnabled}
@@ -218,7 +250,7 @@ function ListCard({
                 size="xs"
               />
             </Tooltip>
-            <Tooltip label="Refresh now">
+            <Tooltip label={t("lists.card.actions.refresh_tooltip")}>
               <ActionIcon
                 variant="subtle"
                 color="blue"
@@ -228,7 +260,7 @@ function ListCard({
                 <IconRefresh size={16} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label="Delete list">
+            <Tooltip label={t("lists.card.actions.delete_tooltip")}>
               <ActionIcon
                 variant="subtle"
                 color="red"
@@ -246,18 +278,18 @@ function ListCard({
           <Stack gap="xs">
             <Group gap="xs">
               <Text size="xs" c="dimmed" w={100}>
-                Import mode:
+                {t("lists.card.details.import_mode")}
               </Text>
               <Badge size="xs" variant="light">
                 {list.importMode === "all"
-                  ? "All books"
-                  : "Future additions only"}
+                  ? t("lists.card.details.mode_all")
+                  : t("lists.card.details.mode_future")}
               </Badge>
             </Group>
             {config.userId && (
               <Group gap="xs">
                 <Text size="xs" c="dimmed" w={100}>
-                  User ID:
+                  {t("lists.card.details.user_id")}
                 </Text>
                 <Text size="xs">{config.userId}</Text>
               </Group>
@@ -265,7 +297,7 @@ function ListCard({
             {config.username && (
               <Group gap="xs">
                 <Text size="xs" c="dimmed" w={100}>
-                  Username:
+                  {t("lists.card.details.username")}
                 </Text>
                 <Text size="xs">{config.username}</Text>
               </Group>
@@ -273,7 +305,7 @@ function ListCard({
             {config.shelfName && (
               <Group gap="xs">
                 <Text size="xs" c="dimmed" w={100}>
-                  Shelf:
+                  {t("lists.card.details.shelf")}
                 </Text>
                 <Text size="xs">{config.shelfName}</Text>
               </Group>
@@ -281,7 +313,7 @@ function ListCard({
             {config.listId && (
               <Group gap="xs">
                 <Text size="xs" c="dimmed" w={100}>
-                  List:
+                  {t("lists.card.details.list")}
                 </Text>
                 <Text size="xs">{config.listName || config.listId}</Text>
               </Group>
@@ -289,33 +321,40 @@ function ListCard({
             {list.searchDefaults && (
               <Group gap="xs" wrap="wrap">
                 <Text size="xs" c="dimmed" w={100}>
-                  Filters:
+                  {t("lists.card.details.filters")}
                 </Text>
                 {list.searchDefaults.ext && (
                   <Badge size="xs" variant="outline">
-                    Format: {list.searchDefaults.ext.join(", ")}
+                    {t("lists.card.details.format", {
+                      values: list.searchDefaults.ext.join(", "),
+                    })}
                   </Badge>
                 )}
                 {list.searchDefaults.lang && (
                   <Badge size="xs" variant="outline">
-                    Language: {list.searchDefaults.lang.join(", ")}
+                    {t("lists.card.details.language", {
+                      values: list.searchDefaults.lang.join(", "),
+                    })}
                   </Badge>
                 )}
                 {list.searchDefaults.content && (
                   <Badge size="xs" variant="outline">
-                    Content: {list.searchDefaults.content.join(", ")}
+                    {t("lists.card.details.content", {
+                      values: list.searchDefaults.content.join(", "),
+                    })}
                   </Badge>
                 )}
               </Group>
             )}
             <Group gap="xs">
               <Text size="xs" c="dimmed" w={100}>
-                Created:
+                {t("lists.card.details.created")}
               </Text>
               <Text size="xs">
-                {formatDistanceToNow(new Date(list.createdAt), {
-                  addSuffix: true,
-                })}
+                {formatDistanceToNowLocalized(
+                  new Date(list.createdAt),
+                  i18n.language,
+                )}
               </Text>
             </Group>
           </Stack>
@@ -333,6 +372,7 @@ function AddListModal({
   opened: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { data: sources } = useListSources();
   const createList = useCreateList();
   const parseUrl = useParseUrl();
@@ -399,6 +439,28 @@ function AddListModal({
     }
   }, [debouncedProfileUrl, selectedSource]);
 
+  // Auto-parse Babelio URL when entered
+  useEffect(() => {
+    if (
+      selectedSource === "babelio" &&
+      debouncedProfileUrl &&
+      debouncedProfileUrl.includes("babelio.com") &&
+      !parseUrl.isPending &&
+      !userId
+    ) {
+      parseUrl.mutate(
+        { source: "babelio", url: debouncedProfileUrl },
+        {
+          onSuccess: (result) => {
+            if (result.userId) {
+              setUserId(result.userId); // userId contains the list ID for Babelio
+            }
+          },
+        },
+      );
+    }
+  }, [debouncedProfileUrl, selectedSource]);
+
   // Validate StoryGraph username when entered (using debounced value)
   useEffect(() => {
     if (
@@ -412,7 +474,10 @@ function AddListModal({
         {
           onSuccess: (result) => setSgValidation(result),
           onError: () =>
-            setSgValidation({ valid: false, error: "Validation failed" }),
+            setSgValidation({
+              valid: false,
+              error: t("lists.validation.failed"),
+            }),
         },
       );
     } else if (selectedSource === "storygraph") {
@@ -443,11 +508,13 @@ function AddListModal({
     } else if (selectedSource === "storygraph") {
       sourceConfig.username = username;
       name = "To Read";
+    } else if (selectedSource === "babelio") {
+      sourceConfig.listId = userId;
+      name = `Babelio List ${userId}`;
     } else if (selectedSource === "hardcover") {
       sourceConfig.username = username;
       if (selectedList && selectedList !== "__want_to_read__") {
         sourceConfig.listId = selectedList;
-        // Get list name from hardcoverLists data
         const listData = hardcoverLists?.find((l) => l.id === selectedList);
         name = listData?.name || "List";
       } else {
@@ -490,15 +557,15 @@ function AddListModal({
     createList.mutate(data, {
       onSuccess: () => {
         notifications.show({
-          title: "List created",
-          message: `"${name}" has been created and will be checked periodically`,
+          title: t("lists.notifications.created.title"),
+          message: t("lists.notifications.created.message", { name }),
           color: "green",
         });
         handleClose();
       },
       onError: (error) => {
         notifications.show({
-          title: "Error creating list",
+          title: t("lists.notifications.create_error"),
           message: error.message,
           color: "red",
         });
@@ -526,6 +593,7 @@ function AddListModal({
     if (step === "source") return !!selectedSource;
     if (step === "config") {
       if (selectedSource === "goodreads") return !!userId && !!selectedShelf;
+      if (selectedSource === "babelio") return !!userId;
       if (selectedSource === "storygraph")
         return !!username && sgValidation?.valid === true;
       if (selectedSource === "hardcover") return !!username;
@@ -537,8 +605,8 @@ function AddListModal({
   const getSourceStatus = (source: ListSource) => {
     const info = sources?.find((s) => s.id === source);
     if (!info) return null;
-    if (info.requiresApiKey) return "API key required";
-    if (info.requiresFlareSolverr) return "FlareSolverr required";
+    if (info.requiresApiKey) return t("lists.source_status.api_key");
+    if (info.requiresFlareSolverr) return t("lists.source_status.flaresolverr");
     return null;
   };
 
@@ -546,7 +614,7 @@ function AddListModal({
     <Modal
       opened={opened}
       onClose={handleClose}
-      title="Add Import List"
+      title={t("lists.add_modal.title")}
       size="md"
       centered
     >
@@ -554,7 +622,7 @@ function AddListModal({
         {step === "source" && (
           <>
             <Text size="sm" c="dimmed">
-              Select the platform you want to import books from:
+              {t("lists.add_modal.steps.select_platform")}
             </Text>
             <Stack gap="xs">
               {(
@@ -563,6 +631,7 @@ function AddListModal({
                   "goodreads",
                   "storygraph",
                   "openlibrary",
+                  "babelio",
                 ] as ListSource[]
               ).map((source) => {
                 const config = SOURCE_CONFIG[source];
@@ -613,11 +682,50 @@ function AddListModal({
           </>
         )}
 
+        {step === "config" && selectedSource === "babelio" && (
+          <>
+            <TextInput
+              label={t("lists.add_modal.fields.babelio_url_id.label")}
+              placeholder={t(
+                "lists.add_modal.fields.babelio_url_id.placeholder",
+              )}
+              value={profileUrl || userId}
+              onChange={(e) => {
+                const val = e.currentTarget.value;
+                if (val.includes("babelio.com")) {
+                  setProfileUrl(val);
+                } else {
+                  setUserId(val);
+                }
+              }}
+              rightSection={
+                parseUrl.isPending ? (
+                  <Loader size="xs" />
+                ) : userId ? (
+                  <IconCheck size={16} color="green" />
+                ) : null
+              }
+            />
+            {userId && (
+              <Text size="xs" c="green">
+                {t("lists.add_modal.fields.babelio_url_id.success", {
+                  id: userId,
+                })}
+              </Text>
+            )}
+            <Alert color="blue" icon={<IconAlertCircle size={16} />}>
+              {t("lists.add_modal.alerts.babelio_info")}
+            </Alert>
+          </>
+        )}
+
         {step === "config" && selectedSource === "goodreads" && (
           <>
             <TextInput
-              label="Profile URL or User ID"
-              placeholder="https://www.goodreads.com/user/show/12345"
+              label={t("lists.add_modal.fields.profile_url_id.label")}
+              placeholder={t(
+                "lists.add_modal.fields.profile_url_id.placeholder",
+              )}
               value={profileUrl || userId}
               onChange={(e) => {
                 const val = e.currentTarget.value;
@@ -637,13 +745,17 @@ function AddListModal({
             />
             {userId && (
               <Text size="xs" c="green">
-                ✓ User ID: {userId}
+                {t("lists.add_modal.fields.profile_url_id.success", {
+                  id: userId,
+                })}
               </Text>
             )}
             <Select
-              label="Shelf"
+              label={t("lists.add_modal.fields.shelf.label")}
               placeholder={
-                shelvesLoading ? "Loading shelves..." : "Select shelf"
+                shelvesLoading
+                  ? t("lists.add_modal.fields.shelf.loading")
+                  : t("lists.add_modal.fields.shelf.placeholder")
               }
               data={
                 shelves?.map((s) => ({ value: s.id, label: s.name })) || [
@@ -661,9 +773,7 @@ function AddListModal({
               icon={<IconAlertCircle size={16} />}
               variant="light"
             >
-              Goodreads RSS feeds may have a delay of 15-60 minutes after adding
-              books. Newly added books will be imported on the next scheduled
-              check.
+              {t("lists.add_modal.alerts.goodreads_delay")}
             </Alert>
           </>
         )}
@@ -671,15 +781,15 @@ function AddListModal({
         {step === "config" && selectedSource === "storygraph" && (
           <>
             <TextInput
-              label="Username"
-              placeholder="your_username"
+              label={t("lists.add_modal.fields.username.label")}
+              placeholder={t("lists.add_modal.fields.username.placeholder")}
               value={username}
               onChange={(e) => setUsername(e.currentTarget.value)}
               description={
                 validateConfig.isPending
-                  ? "Checking list access..."
+                  ? t("lists.add_modal.fields.username.checking")
                   : sgValidation?.valid
-                    ? "List is accessible"
+                    ? t("lists.add_modal.fields.username.accessible")
                     : undefined
               }
               error={
@@ -695,8 +805,7 @@ function AddListModal({
               required
             />
             <Alert color="blue" icon={<IconAlertCircle size={16} />}>
-              StoryGraph requires FlareSolverr to bypass Cloudflare protection.
-              Only the initial page of your to-read list will be imported.
+              {t("lists.add_modal.alerts.storygraph_warning")}
             </Alert>
           </>
         )}
@@ -704,12 +813,14 @@ function AddListModal({
         {step === "config" && selectedSource === "hardcover" && (
           <>
             <TextInput
-              label="Username"
-              placeholder="your_username"
+              label={t("lists.add_modal.fields.username.label")}
+              placeholder={t("lists.add_modal.fields.username.placeholder")}
               value={username}
               onChange={(e) => setUsername(e.currentTarget.value)}
               description={
-                username && listsLoading ? "Verifying username..." : undefined
+                username && listsLoading
+                  ? t("lists.add_modal.fields.username.verifying")
+                  : undefined
               }
               required
             />
@@ -717,14 +828,15 @@ function AddListModal({
               <Group gap="xs">
                 <Loader size="xs" />
                 <Text size="sm" c="dimmed">
-                  Loading lists for {username}...
+                  {t("lists.add_modal.fields.list.loading", {
+                    username,
+                  })}
                 </Text>
               </Group>
             )}
             {username && listsError && (
               <Alert color="red" icon={<IconAlertCircle size={16} />}>
-                Could not fetch lists for this user. Please check the username
-                and try again.
+                {t("lists.add_modal.alerts.hardcover_error")}
               </Alert>
             )}
             {username &&
@@ -733,8 +845,8 @@ function AddListModal({
               hardcoverLists &&
               hardcoverLists.length > 0 && (
                 <Select
-                  label="List"
-                  placeholder="Select list"
+                  label={t("lists.add_modal.fields.list.label")}
+                  placeholder={t("lists.add_modal.fields.list.placeholder")}
                   data={hardcoverLists.map((l) => ({
                     value: l.id,
                     label: l.name,
@@ -749,12 +861,14 @@ function AddListModal({
         {step === "config" && selectedSource === "openlibrary" && (
           <>
             <TextInput
-              label="Username"
-              placeholder="your_username"
+              label={t("lists.add_modal.fields.username.label")}
+              placeholder={t("lists.add_modal.fields.username.placeholder")}
               value={username}
               onChange={(e) => setUsername(e.currentTarget.value)}
               description={
-                username && olListsLoading ? "Verifying username..." : undefined
+                username && olListsLoading
+                  ? t("lists.add_modal.fields.username.verifying")
+                  : undefined
               }
               required
             />
@@ -762,7 +876,9 @@ function AddListModal({
               <Group gap="xs">
                 <Loader size="xs" />
                 <Text size="sm" c="dimmed">
-                  Loading lists for {username}...
+                  {t("lists.add_modal.fields.list.loading", {
+                    username,
+                  })}
                 </Text>
               </Group>
             )}
@@ -771,8 +887,8 @@ function AddListModal({
               openlibraryLists &&
               openlibraryLists.length > 0 && (
                 <Select
-                  label="List"
-                  placeholder="Select list or shelf"
+                  label={t("lists.add_modal.fields.list.label")}
+                  placeholder={t("lists.add_modal.fields.list.placeholder")}
                   data={openlibraryLists.map((l) => ({
                     value: l.id,
                     label: l.name,
@@ -787,28 +903,30 @@ function AddListModal({
         {step === "options" && (
           <>
             <Select
-              label="Import Mode"
-              description="How to handle existing books on the list"
+              label={t("lists.add_modal.fields.import_mode.label")}
+              description={t("lists.add_modal.fields.import_mode.description")}
               data={[
                 {
                   value: "future",
-                  label: "Future additions only (recommended)",
+                  label: t("lists.add_modal.fields.import_mode.future"),
                 },
-                { value: "all", label: "All books (may create many requests)" },
+                {
+                  value: "all",
+                  label: t("lists.add_modal.fields.import_mode.all"),
+                },
               ]}
               value={importMode}
               onChange={(v) => setImportMode(v as "future" | "all")}
             />
             {importMode === "all" && (
               <Alert color="orange" icon={<IconAlertCircle size={16} />}>
-                This will create download requests for all books currently on
-                the list, not just new additions.
+                {t("lists.add_modal.alerts.import_all_warning")}
               </Alert>
             )}
-            <Divider label="Search Filters (Optional)" />
+            <Divider label={t("lists.add_modal.fields.formats.label")} />
             <MultiSelect
-              label="Preferred Formats"
-              placeholder="Any format"
+              label={t("lists.add_modal.fields.formats.label")}
+              placeholder={t("lists.add_modal.fields.formats.placeholder")}
               data={[
                 { value: "epub", label: "EPUB" },
                 { value: "azw3", label: "AZW3" },
@@ -820,8 +938,10 @@ function AddListModal({
             />
             {selectedSource === "hardcover" && (
               <Checkbox
-                label="Use book's language for search"
-                description="When enabled, searches use the book's language from Hardcover. Falls back to the languages below if unavailable."
+                label={t("lists.add_modal.fields.use_book_lang.label")}
+                description={t(
+                  "lists.add_modal.fields.use_book_lang.description",
+                )}
                 checked={useBookLanguage}
                 onChange={(e) => setUseBookLanguage(e.currentTarget.checked)}
               />
@@ -829,13 +949,13 @@ function AddListModal({
             <MultiSelect
               label={
                 selectedSource === "hardcover" && useBookLanguage
-                  ? "Fallback Languages"
-                  : "Preferred Languages"
+                  ? t("lists.add_modal.fields.languages.label_fallback")
+                  : t("lists.add_modal.fields.languages.label")
               }
-              placeholder="Any language"
+              placeholder={t("lists.add_modal.fields.languages.placeholder")}
               description={
                 selectedSource === "hardcover" && useBookLanguage
-                  ? "Used when book language is unavailable"
+                  ? t("lists.add_modal.fields.languages.description")
                   : undefined
               }
               data={[
@@ -858,7 +978,7 @@ function AddListModal({
               variant="default"
               onClick={() => setStep(step === "options" ? "config" : "source")}
             >
-              Back
+              {t("lists.add_modal.buttons.back")}
             </Button>
           ) : (
             <div />
@@ -869,14 +989,14 @@ function AddListModal({
               loading={createList.isPending}
               leftSection={<IconCheck size={16} />}
             >
-              Create List
+              {t("lists.add_modal.buttons.create")}
             </Button>
           ) : (
             <Button
               onClick={() => setStep(step === "source" ? "config" : "options")}
               disabled={!canProceed()}
             >
-              Next
+              {t("lists.add_modal.buttons.next")}
             </Button>
           )}
         </Group>
@@ -887,7 +1007,8 @@ function AddListModal({
 
 // Main Lists page
 function ListsPage() {
-  usePageTitle("Lists");
+  const { t } = useTranslation();
+  usePageTitle(t("lists.title"));
   const [modalOpened, { open: openModal, close: closeModal }] =
     useDisclosure(false);
   const { data: lists, isLoading, isError, refetch } = useLists();
@@ -906,7 +1027,7 @@ function ListsPage() {
     return (
       <Container size="xl">
         <Center p="xl">
-          <Text c="red">Error loading lists. Please try again.</Text>
+          <Text c="red">{t("lists.error")}</Text>
         </Center>
       </Container>
     );
@@ -920,27 +1041,26 @@ function ListsPage() {
     <Container size="xl">
       <Stack gap="lg">
         <Group justify="space-between">
-          <Title order={1}>Import Lists</Title>
+          <Title order={1}>{t("lists.header.title")}</Title>
           <Button leftSection={<IconPlus size={16} />} onClick={openModal}>
-            Add List
+            {t("lists.header.add_button")}
           </Button>
         </Group>
 
         <Group gap="xs">
           <Badge color="blue" variant="light">
-            {lists?.length || 0} lists
+            {t("lists.stats.total_lists", { count: lists?.length || 0 })}
           </Badge>
           <Badge color="green" variant="light">
-            {enabledCount} active
+            {t("lists.stats.active", { count: enabledCount })}
           </Badge>
           <Badge color="grape" variant="light">
-            {totalImported} books imported
+            {t("lists.stats.imported", { count: totalImported })}
           </Badge>
         </Group>
 
         <Text c="dimmed" size="sm">
-          Connect your "Want to Read" lists from book tracking platforms. New
-          books added to your lists will automatically create download requests.
+          {t("lists.header.description")}
         </Text>
 
         {lists && lists.length > 0 ? (
@@ -953,17 +1073,16 @@ function ListsPage() {
           <Center p="xl">
             <Stack align="center" gap="sm">
               <IconList size={48} opacity={0.3} />
-              <Text c="dimmed">No import lists configured</Text>
+              <Text c="dimmed">{t("lists.empty.title")}</Text>
               <Text size="sm" c="dimmed">
-                Add a list to automatically import books from Goodreads,
-                StoryGraph, or Hardcover
+                {t("lists.empty.description")}
               </Text>
               <Button
                 leftSection={<IconPlus size={16} />}
                 onClick={openModal}
                 mt="sm"
               >
-                Add Your First List
+                {t("lists.empty.button")}
               </Button>
             </Stack>
           </Center>

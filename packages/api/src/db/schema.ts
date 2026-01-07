@@ -22,6 +22,7 @@ export const user = sqliteTable("user", {
     .default(false)
     .notNull(),
   image: text("image"),
+  locale: text("locale").default("en").notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),
@@ -438,6 +439,7 @@ export const appSettings = sqliteTable("app_settings", {
     .notNull()
     .default(false),
   updatedAt: integer("updated_at").notNull(),
+  locale: text("locale").default("en").notNull(),
 });
 
 export const searchCache = sqliteTable("search_cache", {
@@ -797,7 +799,7 @@ export const bookMetadata = sqliteTable(
 
     // Source tracking
     source: text("source", {
-      enum: ["goodreads", "storygraph", "hardcover", "openlibrary"],
+      enum: ["goodreads", "storygraph", "hardcover", "openlibrary", "babelio"],
     }).notNull(),
     sourceBookId: text("source_book_id"), // Platform-specific ID (e.g., "43685219")
     sourceUrl: text("source_url"), // Link to book on platform
@@ -854,7 +856,7 @@ export const importLists = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     source: text("source", {
-      enum: ["goodreads", "storygraph", "hardcover", "openlibrary"],
+      enum: ["goodreads", "storygraph", "hardcover", "openlibrary", "babelio"],
     }).notNull(),
     name: text("name").notNull(),
 

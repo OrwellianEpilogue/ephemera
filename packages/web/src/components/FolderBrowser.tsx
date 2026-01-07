@@ -23,6 +23,7 @@ import {
   IconAlertCircle,
 } from "@tabler/icons-react";
 import { useDirectoryListing } from "../hooks/use-filesystem";
+import { useTranslation } from "react-i18next";
 
 interface FolderBrowserProps {
   opened: boolean;
@@ -39,14 +40,24 @@ export function FolderBrowser({
   onClose,
   onSelect,
   initialPath = "/",
-  title = "Select Folder",
-  selectButtonText = "Select",
+  title,
+  selectButtonText,
   showFiles = false,
 }: FolderBrowserProps) {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "components.folder_browser",
+  });
+  // Use non-prefixed t for common translations
+  const { t: tCommon } = useTranslation("common");
+
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [manualPath, setManualPath] = useState(initialPath);
   const [pathRedirected, setPathRedirected] = useState(false);
   const { data, isLoading, error } = useDirectoryListing(currentPath);
+
+  // Default values from translation if not provided
+  const modalTitle = title || t("title");
+  const selectLabel = selectButtonText || t("select");
 
   // Update manual path when current path changes
   useEffect(() => {
@@ -86,7 +97,7 @@ export function FolderBrowser({
   // Generate breadcrumb items from path
   const getBreadcrumbs = () => {
     const parts = currentPath.split("/").filter(Boolean);
-    const breadcrumbs = [{ title: "Root", path: "/" }];
+    const breadcrumbs = [{ title: t("root"), path: "/" }];
 
     let accumulatedPath = "";
     for (const part of parts) {
@@ -104,7 +115,7 @@ export function FolderBrowser({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={title}
+      title={modalTitle}
       size="lg"
       padding="md"
     >
@@ -115,7 +126,7 @@ export function FolderBrowser({
             flex={1}
             value={manualPath}
             onChange={(e) => setManualPath(e.currentTarget.value)}
-            placeholder="/path/to/folder"
+            placeholder={t("path_placeholder")}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleManualPathSubmit();
@@ -127,7 +138,7 @@ export function FolderBrowser({
             onClick={handleManualPathSubmit}
             disabled={isLoading}
           >
-            Browse
+            {t("browse")}
           </Button>
         </Group>
 
@@ -140,10 +151,7 @@ export function FolderBrowser({
             onClose={() => setPathRedirected(false)}
             withCloseButton
           >
-            <Text size="sm">
-              The requested path didn't exist. Showing nearest valid directory
-              instead.
-            </Text>
+            <Text size="sm">{t("redirect_notice")}</Text>
           </Alert>
         )}
 
@@ -171,8 +179,8 @@ export function FolderBrowser({
                 color="red"
                 variant="light"
               >
-                Failed to load directory:{" "}
-                {(error as Error)?.message || "Unknown error"}
+                {t("load_error")}:{" "}
+                {(error as Error)?.message || tCommon("errors.unknown")}
               </Alert>
             ) : isLoading ? (
               <Group justify="center" py="xl">
@@ -182,8 +190,10 @@ export function FolderBrowser({
               <Table highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th style={{ width: "40px" }}>Type</Table.Th>
-                    <Table.Th>Name</Table.Th>
+                    <Table.Th style={{ width: "40px" }}>
+                      {t("columns.type")}
+                    </Table.Th>
+                    <Table.Th>{t("columns.name")}</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -246,7 +256,7 @@ export function FolderBrowser({
                     <Table.Tr>
                       <Table.Td colSpan={2}>
                         <Text size="sm" c="dimmed" ta="center" py="md">
-                          No {showFiles ? "items" : "folders"} in this directory
+                          {showFiles ? t("empty.items") : t("empty.folders")}
                         </Text>
                       </Table.Td>
                     </Table.Tr>
@@ -263,20 +273,20 @@ export function FolderBrowser({
             <ActionIcon
               variant="default"
               onClick={() => handleNavigate("/")}
-              title="Go to root"
+              title={t("go_root")}
             >
               <IconHome size="1rem" />
             </ActionIcon>
             <Text size="sm" c="dimmed">
-              Current: {currentPath}
+              {t("current_path")}: {currentPath}
             </Text>
           </Group>
           <Group>
             <Button variant="default" onClick={onClose}>
-              Cancel
+              {tCommon("actions.cancel")}
             </Button>
             <Button onClick={handleSelect} disabled={isLoading || !!error}>
-              {selectButtonText}
+              {selectLabel}
             </Button>
           </Group>
         </Group>

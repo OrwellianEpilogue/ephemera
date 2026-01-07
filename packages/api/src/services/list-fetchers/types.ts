@@ -7,7 +7,8 @@ export type ListSource =
   | "goodreads"
   | "storygraph"
   | "hardcover"
-  | "openlibrary";
+  | "openlibrary"
+  | "babelio";
 
 /**
  * A book from a reading list with enriched metadata
@@ -106,11 +107,16 @@ export interface OpenLibraryConfig {
   listName?: string;
 }
 
+export interface BabelioConfig {
+  listId: string;
+}
+
 export type SourceConfig =
   | GoodreadsConfig
   | StoryGraphConfig
   | HardcoverConfig
-  | OpenLibraryConfig;
+  | OpenLibraryConfig
+  | BabelioConfig;
 
 /**
  * List Fetcher Interface

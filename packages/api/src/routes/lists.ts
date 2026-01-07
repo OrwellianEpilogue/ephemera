@@ -20,6 +20,7 @@ const listSourceSchema = z.enum([
   "storygraph",
   "hardcover",
   "openlibrary",
+  "babelio",
 ]);
 const listImportModeSchema = z.enum(["all", "future"]);
 

@@ -10,6 +10,9 @@ import { bookService } from "./book-service.js";
 import { listSettingsService } from "./list-settings.js";
 import { getErrorMessage } from "../utils/logger.js";
 import type { SearchQuery } from "@ephemera/shared";
+import { db } from "../db/index.js";
+import { user as userTable } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 
 /**
  * Convert RequestQueryParams to SearchQuery
@@ -115,6 +118,14 @@ class RequestCheckerService {
             continue;
           }
 
+          // Fetch user locale for notifications
+          const u = await db
+            .select({ locale: userTable.locale })
+            .from(userTable)
+            .where(eq(userTable.id, request.userId))
+            .limit(1);
+          const userLocale = u[0]?.locale || "en";
+
           // Update last checked timestamp
           await downloadRequestsService.updateLastChecked(request.id);
 
@@ -155,13 +166,17 @@ class RequestCheckerService {
               );
 
               // Send Apprise notification
-              await appriseService.send("request_fulfilled", {
-                query: request.queryParams.q,
-                author: request.queryParams.author,
-                title: request.queryParams.title,
-                bookTitle: request.queryParams.title || "Requested Book",
-                bookMd5: request.targetBookMd5,
-              });
+              await appriseService.send(
+                "request_fulfilled",
+                {
+                  query: request.queryParams.q,
+                  author: request.queryParams.author,
+                  title: request.queryParams.title,
+                  bookTitle: request.queryParams.title || "Requested Book",
+                  bookMd5: request.targetBookMd5,
+                },
+                userLocale,
+              );
 
               foundCount++;
             } catch (queueError: unknown) {
@@ -276,15 +291,19 @@ class RequestCheckerService {
                 `[Request Checker] Request #${request.id} fulfilled with book ${firstBook.md5} (${queueResult.status})`,
               );
 
-              // Send Apprise notification
-              await appriseService.send("request_fulfilled", {
-                query: request.queryParams.q,
-                author: request.queryParams.author,
-                title: request.queryParams.title,
-                bookTitle: firstBook.title,
-                bookAuthors: firstBook.authors,
-                bookMd5: firstBook.md5,
-              });
+              // Send Apprise notification using user's locale
+              await appriseService.send(
+                "request_fulfilled",
+                {
+                  query: request.queryParams.q,
+                  author: request.queryParams.author,
+                  title: request.queryParams.title,
+                  bookTitle: firstBook.title,
+                  bookAuthors: firstBook.authors,
+                  bookMd5: firstBook.md5,
+                },
+                userLocale,
+              );
 
               foundCount++;
             } catch (queueError: unknown) {

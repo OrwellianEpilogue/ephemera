@@ -222,6 +222,9 @@ cp packages/api/.env.example packages/api/.env
 # Edit with your searcher API key and url
 nano packages/api/.env
 
+# Create folder for db
+mkdir -p packages/api/data
+  
 # Run migrations
 cd packages/api && pnpm db:migrate
 ```
@@ -229,6 +232,9 @@ cd packages/api && pnpm db:migrate
 ### Development
 
 ```bash
+# Build shared
+pnpm --filter @ephemera/shared build
+
 # Run everything (API + Frontend)
 pnpm dev
 

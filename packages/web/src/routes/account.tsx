@@ -3,16 +3,20 @@ import { requireAuth } from "../lib/route-auth";
 import { usePageTitle } from "../hooks/use-page-title";
 import { Container, Title, Stack, Loader, Center } from "@mantine/core";
 import { lazy, Suspense } from "react";
+import { useTranslation } from "react-i18next";
 
 const AccountSettings = lazy(() => import("../components/AccountSettings"));
 
 function AccountPage() {
-  usePageTitle("Account");
+  const { t } = useTranslation("translation", {
+    keyPrefix: "account",
+  });
+  usePageTitle(t("title"));
 
   return (
     <Container size="md">
       <Stack gap="lg">
-        <Title order={1}>Account</Title>
+        <Title order={1}>{t("title")}</Title>
         <Suspense
           fallback={
             <Center p="xl">

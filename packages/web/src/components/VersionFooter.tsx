@@ -1,9 +1,12 @@
 import { Group, Text, Badge, Anchor, Box } from "@mantine/core";
 import { useVersion } from "../hooks/useVersion";
+import { useTranslation } from "react-i18next";
 
 export function VersionFooter() {
   const { data: versionInfo, isLoading, error } = useVersion();
-
+  const { t } = useTranslation("translation", {
+    keyPrefix: "layout",
+  });
   // Don't show anything if there's an error
   if (error) {
     return null;
@@ -15,7 +18,7 @@ export function VersionFooter() {
       <Box pt="md" style={{ marginLeft: 15 }}>
         <Group justify="space-between" gap="xs">
           <Text size="xs" c="dimmed">
-            Loading version...
+            {t("footer.loading")}
           </Text>
         </Group>
       </Box>
@@ -26,7 +29,7 @@ export function VersionFooter() {
     <Box pt="md" style={{ marginLeft: 15 }}>
       <Group justify="space-between" gap="xs">
         <Text size="xs" c="dimmed">
-          Ephemera v{versionInfo.currentVersion}
+          {t("app_title")} v{versionInfo.currentVersion}
         </Text>
         {versionInfo.updateAvailable && versionInfo.releaseUrl && (
           <Anchor
@@ -41,7 +44,7 @@ export function VersionFooter() {
               color="green"
               style={{ cursor: "pointer" }}
             >
-              Update Available
+              {t("footer.update_available")}
             </Badge>
           </Anchor>
         )}

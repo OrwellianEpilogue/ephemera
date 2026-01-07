@@ -25,9 +25,13 @@ import {
   IconKey,
   IconInfoCircle,
 } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 
 function SetupWizard() {
-  usePageTitle("Setup");
+  const { t } = useTranslation("translation", {
+    keyPrefix: "setup",
+  });
+  usePageTitle(t("title"));
   const navigate = useNavigate();
 
   // Stepper state
@@ -123,15 +127,15 @@ function SetupWizard() {
   // Validation
   const validateStep1 = () => {
     if (!step1.searcherBaseUrl) {
-      setError("Searcher Base URL is required");
+      setError(t("errors.searcher_url_required"));
       return false;
     }
     if (!step1.downloadFolder) {
-      setError("Download folder is required");
+      setError(t("errors.download_folder_required"));
       return false;
     }
     if (!step1.ingestFolder) {
-      setError("Ingest folder is required");
+      setError(t("errors.ingest_folder_required"));
       return false;
     }
     return true;
@@ -139,29 +143,29 @@ function SetupWizard() {
 
   const validateStep2 = () => {
     if (!adminForm.username) {
-      setError("Username is required");
+      setError(t("errors.username_required"));
       return false;
     }
     if (!adminForm.email) {
-      setError("Email is required");
+      setError(t("errors.email_required"));
       return false;
     }
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(adminForm.email)) {
-      setError("Please enter a valid email address");
+      setError(t("errors.email_invalid"));
       return false;
     }
     if (!adminForm.password) {
-      setError("Password is required");
+      setError(t("errors.password_required"));
       return false;
     }
     if (adminForm.password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setError(t("errors.password_length"));
       return false;
     }
     if (adminForm.password !== adminForm.confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("errors.passwords_mismatch"));
       return false;
     }
     return true;
@@ -183,13 +187,13 @@ function SetupWizard() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Invalid setup key");
+        throw new Error(data.error || t("errors.invalid_key"));
       }
 
       setSetupKeyValidated(true);
     } catch (err) {
       setSetupKeyError(
-        err instanceof Error ? err.message : "Validation failed",
+        err instanceof Error ? err.message : t("errors.validation_failed"),
       );
     } finally {
       setValidatingKey(false);
@@ -217,7 +221,7 @@ function SetupWizard() {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to save configuration");
+          throw new Error(t("errors.save_config_failed"));
         }
 
         setActive(1);
@@ -242,7 +246,7 @@ function SetupWizard() {
 
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.error || "Failed to create admin user");
+          throw new Error(data.error || t("errors.create_admin_failed"));
         }
 
         setActive(2);
@@ -254,14 +258,14 @@ function SetupWizard() {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to complete setup");
+          throw new Error(t("errors.complete_failed"));
         }
 
         // Redirect to login
         navigate({ to: "/login" });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : t("errors.generic"));
     } finally {
       setLoading(false);
     }
@@ -286,7 +290,7 @@ function SetupWizard() {
         <Center>
           <Stack align="center" gap="md">
             <Loader size="lg" />
-            <Text c="dimmed">Loading...</Text>
+            <Text c="dimmed">{t("loading.checking")}</Text>
           </Stack>
         </Center>
       </Box>
@@ -309,15 +313,14 @@ function SetupWizard() {
           <Paper shadow="md" p="xl" radius="md">
             <Stack gap="lg">
               <div>
-                <Title order={2}>Setup Key Required</Title>
+                <Title order={2}>{t("legacy.title")}</Title>
                 <Text c="dimmed" size="sm">
-                  An existing installation was detected
+                  {t("legacy.subtitle")}
                 </Text>
               </div>
 
               <Alert color="blue" icon={<IconInfoCircle size={16} />}>
-                For security, you need to enter the setup key from your server
-                logs. Find your setup key by running:{" "}
+                {t("legacy.alert_intro")}{" "}
                 <Text component="span" fw={600} ff="monospace">
                   docker logs ephemera
                 </Text>
@@ -332,15 +335,15 @@ function SetupWizard() {
               <form onSubmit={handleSetupKeySubmit}>
                 <Stack gap="md">
                   <PasswordInput
-                    label="Setup Key"
-                    placeholder="Enter your setup key from server logs"
+                    label={t("legacy.field.label")}
+                    placeholder={t("legacy.field.placeholder")}
                     required
                     value={setupKeyInput}
                     onChange={(e) => setSetupKeyInput(e.target.value)}
                     leftSection={<IconKey size={16} />}
                   />
                   <Button type="submit" loading={validatingKey} fullWidth>
-                    Validate Key
+                    {t("legacy.button")}
                   </Button>
                 </Stack>
               </form>
@@ -366,7 +369,7 @@ function SetupWizard() {
         <Center>
           <Stack align="center" gap="md">
             <Loader size="lg" />
-            <Text c="dimmed">Loading configuration...</Text>
+            <Text c="dimmed">{t("loading.config")}</Text>
           </Stack>
         </Center>
       </Box>
@@ -387,16 +390,16 @@ function SetupWizard() {
         <Paper shadow="md" p="xl" radius="md">
           <Stack gap="lg">
             <div>
-              <Title order={2}>Welcome to Ephemera</Title>
+              <Title order={2}>{t("welcome.title")}</Title>
               <Text c="dimmed" size="sm">
-                Let's set up your book downloader
+                {t("welcome.subtitle")}
               </Text>
             </div>
 
             {error && (
               <Alert
                 icon={<IconAlertCircle size={16} />}
-                title="Error"
+                title={t("errors.title", { defaultValue: "Error" })}
                 color="red"
               >
                 {error}
@@ -410,15 +413,15 @@ function SetupWizard() {
             >
               {/* Step 1: System Configuration */}
               <Stepper.Step
-                label="Configuration"
-                description="System settings"
+                label={t("steps.config.label")}
+                description={t("steps.config.description")}
                 icon={<IconSettings size={18} />}
               >
                 <Stack gap="md" mt="md">
                   <TextInput
-                    label="Searcher Base URL"
+                    label={t("fields.searcher_url.label")}
                     placeholder="https://archive.org"
-                    description="Base URL for your main searcher instance"
+                    description={t("fields.searcher_url.description")}
                     required
                     value={step1.searcherBaseUrl}
                     onChange={(e) =>
@@ -427,9 +430,9 @@ function SetupWizard() {
                   />
 
                   <PasswordInput
-                    label="Searcher API Key"
-                    placeholder="Optional - for faster downloads"
-                    description="API key for authenticated downloads"
+                    label={t("fields.api_key.label")}
+                    placeholder={t("fields.api_key.placeholder")}
+                    description={t("fields.api_key.description")}
                     value={step1.searcherApiKey}
                     onChange={(e) =>
                       setStep1({ ...step1, searcherApiKey: e.target.value })
@@ -437,9 +440,9 @@ function SetupWizard() {
                   />
 
                   <TextInput
-                    label="Quick Base URL"
-                    placeholder="LG URL for alternative source"
-                    description="Alternative fast download source (optional)"
+                    label={t("fields.quick_url.label")}
+                    placeholder={t("fields.quick_url.placeholder")}
+                    description={t("fields.quick_url.description")}
                     value={step1.quickBaseUrl}
                     onChange={(e) =>
                       setStep1({ ...step1, quickBaseUrl: e.target.value })
@@ -447,9 +450,9 @@ function SetupWizard() {
                   />
 
                   <TextInput
-                    label="Download Folder"
+                    label={t("fields.download_folder.label")}
                     placeholder="/app/downloads"
-                    description="Temporary download location"
+                    description={t("fields.download_folder.description")}
                     required
                     value={step1.downloadFolder}
                     onChange={(e) =>
@@ -458,9 +461,9 @@ function SetupWizard() {
                   />
 
                   <TextInput
-                    label="Ingest Folder"
+                    label={t("fields.ingest_folder.label")}
                     placeholder="/app/ingest"
-                    description="Final location for completed downloads"
+                    description={t("fields.ingest_folder.description")}
                     required
                     value={step1.ingestFolder}
                     onChange={(e) =>
@@ -472,18 +475,15 @@ function SetupWizard() {
 
               {/* Step 2: Admin Account */}
               <Stepper.Step
-                label="Admin Account"
-                description="Create first user"
+                label={t("steps.admin.label")}
+                description={t("steps.admin.description")}
                 icon={<IconUser size={18} />}
               >
                 <Stack gap="md" mt="md">
-                  <Alert color="blue">
-                    Create the first admin account. This user will have full
-                    access to all settings and features.
-                  </Alert>
+                  <Alert color="blue">{t("admin.alert")}</Alert>
 
                   <TextInput
-                    label="Username"
+                    label={t("fields.username.label")}
                     placeholder="admin"
                     required
                     value={adminForm.username}
@@ -493,7 +493,7 @@ function SetupWizard() {
                   />
 
                   <TextInput
-                    label="Email"
+                    label={t("fields.email.label")}
                     placeholder="admin@example.com"
                     type="email"
                     required
@@ -504,10 +504,10 @@ function SetupWizard() {
                   />
 
                   <PasswordInput
-                    label="Password"
-                    placeholder="Choose a strong password"
+                    label={t("fields.password.label")}
+                    placeholder={t("fields.password.placeholder")}
                     required
-                    description="Minimum 8 characters"
+                    description={t("fields.password.description")}
                     value={adminForm.password}
                     onChange={(e) =>
                       setAdminForm({ ...adminForm, password: e.target.value })
@@ -515,8 +515,8 @@ function SetupWizard() {
                   />
 
                   <PasswordInput
-                    label="Confirm Password"
-                    placeholder="Re-enter password"
+                    label={t("fields.confirm_password.label")}
+                    placeholder={t("fields.confirm_password.placeholder")}
                     required
                     value={adminForm.confirmPassword}
                     onChange={(e) =>
@@ -533,11 +533,13 @@ function SetupWizard() {
               <Stepper.Completed>
                 <Stack gap="md" mt="md" align="center">
                   <IconCheck size={48} color="green" />
-                  <Title order={3}>Setup Complete!</Title>
-                  <Text ta="center" c="dimmed">
-                    Your Ephemera instance is now configured and ready to use.
-                    <br />
-                    Click finish to proceed to the login page.
+                  <Title order={3}>{t("steps.complete.title")}</Title>
+                  <Text
+                    ta="center"
+                    c="dimmed"
+                    style={{ whiteSpace: "pre-line" }}
+                  >
+                    {t("complete.message")}
                   </Text>
                 </Stack>
               </Stepper.Completed>
@@ -550,16 +552,16 @@ function SetupWizard() {
                   onClick={handleBack}
                   disabled={loading}
                 >
-                  Back
+                  {t("buttons.back")}
                 </Button>
               )}
               {active < 2 ? (
                 <Button onClick={handleNext} loading={loading} ml="auto">
-                  {active === 1 ? "Create Admin & Continue" : "Next"}
+                  {active === 1 ? t("buttons.create_admin") : t("buttons.next")}
                 </Button>
               ) : (
                 <Button onClick={handleNext} loading={loading} ml="auto">
-                  Finish
+                  {t("buttons.finish")}
                 </Button>
               )}
             </Group>

@@ -28,6 +28,7 @@ import {
 import { signIn, authClient } from "../lib/auth-client";
 import { useAuth } from "../hooks/useAuth";
 import { apiFetch } from "@ephemera/shared";
+import { useTranslation } from "react-i18next";
 
 interface OIDCProvider {
   id: string;
@@ -46,6 +47,9 @@ interface AuthMethods {
 
 function LoginPage() {
   usePageTitle("Login");
+  const { t } = useTranslation("translation", {
+    keyPrefix: "login",
+  });
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -150,7 +154,7 @@ function LoginPage() {
       <Center h="100vh">
         <Stack align="center" gap="md">
           <Loader size="lg" />
-          <Text c="dimmed">Checking setup...</Text>
+          <Text c="dimmed">{t("loading_setup")}</Text>
         </Stack>
       </Center>
     );
@@ -288,10 +292,10 @@ function LoginPage() {
           <Stack gap="md">
             <div>
               <Title order={2} ta="center" mb="xs">
-                Welcome to Ephemera
+                {t("title")}
               </Title>
               <Text c="dimmed" size="sm" ta="center">
-                Sign in to continue
+                {t("subtitle")}
               </Text>
             </div>
 
@@ -311,7 +315,7 @@ function LoginPage() {
               <Tabs.List grow>
                 {authMethods.password && (
                   <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
-                    Email
+                    {t("tabs.email")}
                   </Tabs.Tab>
                 )}
                 {authMethods.booklore && (
@@ -319,7 +323,7 @@ function LoginPage() {
                     value="booklore"
                     leftSection={<IconBook size={16} />}
                   >
-                    Booklore
+                    {t("tabs.booklore")}
                   </Tabs.Tab>
                 )}
                 {authMethods.calibre && (
@@ -327,7 +331,7 @@ function LoginPage() {
                     value="calibre"
                     leftSection={<IconDatabase size={16} />}
                   >
-                    Calibre
+                    {t("tabs.calibre")}
                   </Tabs.Tab>
                 )}
               </Tabs.List>
@@ -338,8 +342,8 @@ function LoginPage() {
                     <Stack gap="md">
                       <TextInput
                         required
-                        label="Email"
-                        placeholder="your@email.com"
+                        label={t("fields.email.label")}
+                        placeholder={t("fields.email.placeholder")}
                         value={emailForm.email}
                         onChange={(e) =>
                           setEmailForm({ ...emailForm, email: e.target.value })
@@ -349,8 +353,8 @@ function LoginPage() {
                       />
                       <PasswordInput
                         required
-                        label="Password"
-                        placeholder="Your password"
+                        label={t("fields.password.label")}
+                        placeholder={t("fields.password.placeholder")}
                         value={emailForm.password}
                         onChange={(e) =>
                           setEmailForm({
@@ -362,7 +366,7 @@ function LoginPage() {
                         leftSection={<IconLock size={16} />}
                       />
                       <Button type="submit" fullWidth loading={loading}>
-                        Sign In
+                        {t("buttons.sign_in")}
                       </Button>
                     </Stack>
                   </form>
@@ -375,8 +379,8 @@ function LoginPage() {
                     <Stack gap="md">
                       <TextInput
                         required
-                        label="Username"
-                        placeholder="Booklore username"
+                        label={t("fields.username.label")}
+                        placeholder={t("fields.username.placeholder.booklore")}
                         value={bookloreForm.username}
                         onChange={(e) =>
                           setBookloreForm({
@@ -389,8 +393,10 @@ function LoginPage() {
                       />
                       <PasswordInput
                         required
-                        label="Password"
-                        placeholder="Booklore password"
+                        label={t("fields.password.label")}
+                        placeholder={t(
+                          "fields.password_service.placeholder.booklore",
+                        )}
                         value={bookloreForm.password}
                         onChange={(e) =>
                           setBookloreForm({
@@ -402,7 +408,7 @@ function LoginPage() {
                         leftSection={<IconLock size={16} />}
                       />
                       <Button type="submit" fullWidth loading={loading}>
-                        Sign In with Booklore
+                        {t("buttons.sign_in_with", { service: "Booklore" })}
                       </Button>
                     </Stack>
                   </form>
@@ -415,8 +421,8 @@ function LoginPage() {
                     <Stack gap="md">
                       <TextInput
                         required
-                        label="Username"
-                        placeholder="Calibre-Web username"
+                        label={t("fields.username.label")}
+                        placeholder={t("fields.username.placeholder.calibre")}
                         value={calibreForm.username}
                         onChange={(e) =>
                           setCalibreForm({
@@ -429,8 +435,10 @@ function LoginPage() {
                       />
                       <PasswordInput
                         required
-                        label="Password"
-                        placeholder="Calibre-Web password"
+                        label={t("fields.password.label")}
+                        placeholder={t(
+                          "fields.password_service.placeholder.calibre",
+                        )}
                         value={calibreForm.password}
                         onChange={(e) =>
                           setCalibreForm({
@@ -442,7 +450,7 @@ function LoginPage() {
                         leftSection={<IconLock size={16} />}
                       />
                       <Button type="submit" fullWidth loading={loading}>
-                        Sign In with Calibre-Web
+                        {t("buttons.sign_in_with", { service: "Calibre-Web" })}
                       </Button>
                     </Stack>
                   </form>

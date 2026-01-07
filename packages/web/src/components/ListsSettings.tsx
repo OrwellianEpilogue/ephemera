@@ -18,7 +18,6 @@ import {
 import { IconRefresh, IconCheck, IconAlertCircle } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useState, useEffect } from "react";
-import { formatDistanceToNow } from "date-fns";
 import {
   useListSettings,
   useUpdateListSettings,
@@ -28,6 +27,8 @@ import {
   type ListFetchInterval,
 } from "../hooks/useLists";
 import { SOURCE_COLORS } from "@ephemera/shared";
+import { useTranslation, Trans } from "react-i18next";
+import { formatDistanceToNowLocalized } from "../utils/date-utils";
 
 // Interval options
 const intervalOptions: { value: ListFetchInterval; label: string }[] = [
@@ -40,6 +41,9 @@ const intervalOptions: { value: ListFetchInterval; label: string }[] = [
 ];
 
 export default function ListsSettings() {
+  const { t, i18n } = useTranslation("translation", {
+    keyPrefix: "settings.lists",
+  });
   const { data: settings, isLoading: settingsLoading } = useListSettings();
   const { data: stats, isLoading: statsLoading } = useListStats();
   const { data: allLists, isLoading: listsLoading } = useAllLists();
@@ -96,8 +100,8 @@ export default function ListsSettings() {
 
     if (Object.keys(updates).length === 0) {
       notifications.show({
-        title: "No changes",
-        message: "No changes to save",
+        title: t("notifications.no_changes.title"),
+        message: t("notifications.no_changes.message"),
         color: "blue",
       });
       return;
@@ -106,8 +110,8 @@ export default function ListsSettings() {
     updateSettings.mutate(updates, {
       onSuccess: () => {
         notifications.show({
-          title: "Settings saved",
-          message: "List import settings have been updated",
+          title: t("notifications.save_success.title"),
+          message: t("notifications.save_success.message"),
           color: "green",
         });
         setTokenChanged(false);
@@ -115,7 +119,7 @@ export default function ListsSettings() {
       },
       onError: (error) => {
         notifications.show({
-          title: "Error",
+          title: t("notifications.error.title"),
           message: error.message,
           color: "red",
         });
@@ -127,14 +131,14 @@ export default function ListsSettings() {
     checkNow.mutate(undefined, {
       onSuccess: () => {
         notifications.show({
-          title: "Check started",
-          message: "All enabled lists are being checked for new books",
+          title: t("notifications.check_started.title"),
+          message: t("notifications.check_started.message"),
           color: "green",
         });
       },
       onError: (error) => {
         notifications.show({
-          title: "Error",
+          title: t("notifications.error.title"),
           message: error.message,
           color: "red",
         });
@@ -156,7 +160,7 @@ export default function ListsSettings() {
       <Paper p="md" withBorder>
         <Stack gap="md">
           <Group justify="space-between">
-            <Title order={3}>Import Lists Overview</Title>
+            <Title order={3}>{t("overview.title")}</Title>
             <Button
               variant="light"
               leftSection={<IconRefresh size={16} />}
@@ -164,19 +168,23 @@ export default function ListsSettings() {
               loading={checkNow.isPending || stats?.isCheckerRunning}
               disabled={stats?.isCheckerRunning}
             >
-              {stats?.isCheckerRunning ? "Checking..." : "Check All Now"}
+              {stats?.isCheckerRunning
+                ? t("overview.checking")
+                : t("overview.check_now")}
             </Button>
           </Group>
 
           <Group gap="md">
             <Badge size="lg" variant="light" color="blue">
-              {stats?.totalLists || 0} Total Lists
+              {t("overview.stats.total", { count: stats?.totalLists || 0 })}
             </Badge>
             <Badge size="lg" variant="light" color="green">
-              {stats?.enabledLists || 0} Enabled
+              {t("overview.stats.enabled", { count: stats?.enabledLists || 0 })}
             </Badge>
             <Badge size="lg" variant="light" color="grape">
-              {stats?.totalBooksImported || 0} Books Imported
+              {t("overview.stats.books", {
+                count: stats?.totalBooksImported || 0,
+              })}
             </Badge>
           </Group>
 
@@ -184,7 +192,7 @@ export default function ListsSettings() {
             Object.keys(stats.listsBySource).length > 0 && (
               <Group gap="xs">
                 <Text size="sm" c="dimmed">
-                  By source:
+                  {t("overview.by_source")}
                 </Text>
                 {Object.entries(stats.listsBySource).map(([source, count]) => {
                   const colors = SOURCE_COLORS[source] || {
@@ -212,36 +220,45 @@ export default function ListsSettings() {
       {/* Settings */}
       <Paper p="md" withBorder>
         <Stack gap="md">
-          <Title order={3}>Settings</Title>
+          <Title order={3}>{t("form.title")}</Title>
 
           <Select
-            label="Check Interval"
-            description="How often to check enabled lists for new books"
-            data={intervalOptions}
+            label={t("form.interval.label")}
+            description={t("form.interval.description")}
+            data={intervalOptions.map((opt) => ({
+              ...opt,
+              label: t(`form.interval.options.${opt.value}`),
+            }))}
             value={interval}
             onChange={(v) => setInterval(v as ListFetchInterval)}
           />
 
           <PasswordInput
-            label="Hardcover API Token"
+            label={t("form.hardcover_token.label")}
             description={
               settings?.hardcoverApiToken ? (
-                "Token is configured. Enter a new value to change it."
+                t("form.hardcover_token.description_configured")
               ) : (
-                <>
-                  Required for Hardcover list imports.{" "}
-                  <a
-                    href="https://hardcover.app/account/api"
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                  >
-                    Get your token here
-                  </a>
-                </>
+                <Trans
+                  t={t}
+                  i18nKey="form.hardcover_token.description_new"
+                  components={[
+                    <a
+                      key="0"
+                      href="https://hardcover.app/account/api"
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                    >
+                      Get your token here
+                    </a>,
+                  ]}
+                />
               )
             }
             placeholder={
-              settings?.hardcoverApiToken ? "••••••••••••" : "Enter token..."
+              settings?.hardcoverApiToken
+                ? "••••••••••••"
+                : t("form.hardcover_token.placeholder")
             }
             value={hardcoverToken}
             onChange={(e) => {
@@ -251,30 +268,30 @@ export default function ListsSettings() {
           />
 
           <Title order={4} mt="md">
-            Search Enhancement
+            {t("form.search_enhancement.title")}
           </Title>
 
           <Switch
-            label="Search by ISBN first"
-            description="When enabled, searches by ISBN first (if available from import source), then falls back to title/author if no results are found. Applies to import list requests and manual search."
+            label={t("form.search_enhancement.isbn_first.label")}
+            description={t("form.search_enhancement.isbn_first.description")}
             checked={searchByIsbnFirst}
             onChange={(e) => setSearchByIsbnFirst(e.currentTarget.checked)}
           />
 
           <Switch
-            label="Include year in search"
-            description="When enabled, includes the publication year in title/author searches (if available). This can improve result accuracy but may exclude re-releases."
+            label={t("form.search_enhancement.include_year.label")}
+            description={t("form.search_enhancement.include_year.description")}
             checked={includeYearInSearch}
             onChange={(e) => setIncludeYearInSearch(e.currentTarget.checked)}
           />
 
           <Title order={4} mt="md">
-            Post-Download Processing
+            {t("form.post_processing.title")}
           </Title>
 
           <Switch
-            label="Embed metadata in books"
-            description="When enabled, embeds enriched metadata from Goodreads, Hardcover or Storygraph (cover, series, description, etc.) into downloaded ebooks using Calibre. Requires Calibre to be installed. Supported formats: EPUB, MOBI, AZW, AZW3 (full); PDF (limited)."
+            label={t("form.post_processing.embed_metadata.label")}
+            description={t("form.post_processing.embed_metadata.description")}
             checked={embedMetadataInBooks}
             onChange={(e) => setEmbedMetadataInBooks(e.currentTarget.checked)}
           />
@@ -285,7 +302,7 @@ export default function ListsSettings() {
               loading={updateSettings.isPending}
               leftSection={<IconCheck size={16} />}
             >
-              Save Settings
+              {t("form.save_button")}
             </Button>
           </Group>
         </Stack>
@@ -294,9 +311,9 @@ export default function ListsSettings() {
       {/* All Lists Table */}
       <Paper p="md" withBorder>
         <Stack gap="md">
-          <Title order={3}>All Users' Lists</Title>
+          <Title order={3}>{t("table.title")}</Title>
           <Text size="sm" c="dimmed">
-            Overview of all import lists across all users
+            {t("table.description")}
           </Text>
 
           {listsLoading ? (
@@ -308,12 +325,12 @@ export default function ListsSettings() {
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>Name</Table.Th>
-                    <Table.Th>Source</Table.Th>
-                    <Table.Th>User</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>Books</Table.Th>
-                    <Table.Th>Last Checked</Table.Th>
+                    <Table.Th>{t("table.headers.name")}</Table.Th>
+                    <Table.Th>{t("table.headers.source")}</Table.Th>
+                    <Table.Th>{t("table.headers.user")}</Table.Th>
+                    <Table.Th>{t("table.headers.status")}</Table.Th>
+                    <Table.Th>{t("table.headers.books")}</Table.Th>
+                    <Table.Th>{t("table.headers.last_checked")}</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -350,12 +367,14 @@ export default function ListsSettings() {
                             size="xs"
                             color={list.enabled ? "green" : "gray"}
                           >
-                            {list.enabled ? "Active" : "Disabled"}
+                            {list.enabled
+                              ? t("table.status.active")
+                              : t("table.status.disabled")}
                           </Badge>
                           {list.fetchError && (
                             <Tooltip label={list.fetchError}>
                               <Badge size="xs" color="red">
-                                Error
+                                {t("table.status.error")}
                               </Badge>
                             </Tooltip>
                           )}
@@ -365,13 +384,14 @@ export default function ListsSettings() {
                       <Table.Td>
                         {list.lastFetchedAt ? (
                           <Text size="sm">
-                            {formatDistanceToNow(new Date(list.lastFetchedAt), {
-                              addSuffix: true,
-                            })}
+                            {formatDistanceToNowLocalized(
+                              new Date(list.lastFetchedAt),
+                              i18n.language,
+                            )}
                           </Text>
                         ) : (
                           <Text size="sm" c="dimmed">
-                            Never
+                            {t("table.never")}
                           </Text>
                         )}
                       </Table.Td>
@@ -382,8 +402,7 @@ export default function ListsSettings() {
             </Table.ScrollContainer>
           ) : (
             <Alert color="blue" icon={<IconAlertCircle size={16} />}>
-              No import lists have been created yet. Users can add lists from
-              the Lists page.
+              {t("table.empty")}
             </Alert>
           )}
         </Stack>

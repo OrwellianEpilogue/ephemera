@@ -2,6 +2,7 @@ import { GoodreadsFetcher } from "./goodreads.js";
 import { StoryGraphFetcher } from "./storygraph.js";
 import { HardcoverFetcher } from "./hardcover.js";
 import { OpenLibraryFetcher } from "./openlibrary.js";
+import { BabelioFetcher } from "./babelio.js";
 import type { ListFetcher, ListSource } from "./types.js";
 import { LIST_SOURCES } from "@ephemera/shared";
 
@@ -13,6 +14,7 @@ const goodreadsFetcher = new GoodreadsFetcher();
 const storyGraphFetcher = new StoryGraphFetcher();
 const hardcoverFetcher = new HardcoverFetcher();
 const openLibraryFetcher = new OpenLibraryFetcher();
+const babelioFetcher = new BabelioFetcher();
 
 /**
  * Registry of all list fetchers
@@ -22,6 +24,7 @@ export const listFetchers: Record<ListSource, ListFetcher> = {
   storygraph: storyGraphFetcher,
   hardcover: hardcoverFetcher,
   openlibrary: openLibraryFetcher,
+  babelio: babelioFetcher,
 };
 
 /**

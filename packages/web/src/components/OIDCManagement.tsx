@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -98,6 +99,9 @@ interface DiscoveryResult {
 }
 
 function OIDCProvidersPage() {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "settings.oidc",
+  });
   const queryClient = useQueryClient();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -278,7 +282,7 @@ function OIDCProvidersPage() {
   };
 
   const handleDeleteProvider = (id: string) => {
-    if (confirm("Are you sure you want to delete this OIDC provider?")) {
+    if (confirm(t("confirm_delete"))) {
       deleteProviderMutation.mutate(id);
     }
   };
@@ -334,7 +338,7 @@ function OIDCProvidersPage() {
       const response = await fetch(discoveryUrl);
       if (!response.ok) {
         setDiscoveryResult({
-          error: `Failed to fetch discovery document: ${response.status}`,
+          error: `${t("alerts.discovery_failed")}: ${response.status}`,
         });
         return;
       }
@@ -363,16 +367,16 @@ function OIDCProvidersPage() {
     <Box>
       <Group justify="space-between" mb="xl">
         <div>
-          <Title order={2}>OIDC Providers</Title>
+          <Title order={2}>{t("title")}</Title>
           <Text c="dimmed" size="sm">
-            Configure OpenID Connect identity providers
+            {t("description")}
           </Text>
         </div>
         <Button
           leftSection={<IconPlus size={16} />}
           onClick={() => setCreateModalOpen(true)}
         >
-          Add Provider
+          {t("add_button")}
         </Button>
       </Group>
 
@@ -396,7 +400,9 @@ function OIDCProvidersPage() {
           }
           color={testResult.success ? "green" : "red"}
           title={
-            testResult.success ? "Connection successful" : "Connection failed"
+            testResult.success
+              ? t("alerts.test_success")
+              : t("alerts.test_failed")
           }
           mb="md"
           onClose={() => setTestResult(null)}
@@ -411,11 +417,11 @@ function OIDCProvidersPage() {
           <Table>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Provider</Table.Th>
-                <Table.Th>Issuer</Table.Th>
-                <Table.Th>Domain</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th>Actions</Table.Th>
+                <Table.Th>{t("table.provider")}</Table.Th>
+                <Table.Th>{t("table.issuer")}</Table.Th>
+                <Table.Th>{t("table.domain")}</Table.Th>
+                <Table.Th>{t("table.status")}</Table.Th>
+                <Table.Th>{t("table.actions")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -423,8 +429,7 @@ function OIDCProvidersPage() {
                 <Table.Tr>
                   <Table.Td colSpan={5}>
                     <Text ta="center" c="dimmed" py="xl">
-                      No OIDC providers configured. Click "Add Provider" to get
-                      started.
+                      {t("table.empty")}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
@@ -449,18 +454,20 @@ function OIDCProvidersPage() {
                         <Text size="sm">{provider.domain}</Text>
                       ) : (
                         <Text size="sm" c="dimmed">
-                          None
+                          {t("table.none")}
                         </Text>
                       )}
                     </Table.Td>
                     <Table.Td>
                       <Badge color={provider.enabled ? "green" : "gray"}>
-                        {provider.enabled ? "Enabled" : "Disabled"}
+                        {provider.enabled
+                          ? t("table.enabled")
+                          : t("table.disabled")}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
                       <Group gap="xs">
-                        <Tooltip label="Test connection">
+                        <Tooltip label={t("tooltips.test")}>
                           <ActionIcon
                             variant="subtle"
                             color="blue"
@@ -470,7 +477,7 @@ function OIDCProvidersPage() {
                             <IconPlugConnected size={16} />
                           </ActionIcon>
                         </Tooltip>
-                        <Tooltip label="Edit provider">
+                        <Tooltip label={t("tooltips.edit")}>
                           <ActionIcon
                             variant="subtle"
                             onClick={() => handleEditProvider(provider)}
@@ -478,7 +485,7 @@ function OIDCProvidersPage() {
                             <IconEdit size={16} />
                           </ActionIcon>
                         </Tooltip>
-                        <Tooltip label="Delete provider">
+                        <Tooltip label={t("tooltips.delete")}>
                           <ActionIcon
                             variant="subtle"
                             color="red"
@@ -506,13 +513,13 @@ function OIDCProvidersPage() {
           setTestResult(null);
           setDiscoveryResult(null);
         }}
-        title="Add OIDC Provider"
+        title={t("add_button")}
         size="lg"
       >
         <Stack gap="md">
           <TextInput
-            label="Provider ID"
-            description="Unique identifier (lowercase, numbers, hyphens only)"
+            label={t("form.provider_id.label")}
+            description={t("form.provider_id.description")}
             placeholder="keycloak"
             required
             value={createForm.providerId}
@@ -522,7 +529,7 @@ function OIDCProvidersPage() {
           />
 
           <TextInput
-            label="Display Name"
+            label={t("form.display_name.label")}
             placeholder="Keycloak"
             value={createForm.name}
             onChange={(e) =>
@@ -531,8 +538,8 @@ function OIDCProvidersPage() {
           />
 
           <Input.Wrapper
-            label="Issuer URL"
-            description="Base URL of your OIDC provider. The discovery endpoint will be derived automatically."
+            label={t("form.issuer_url.label")}
+            description={t("form.issuer_url.description")}
             required
           >
             <Group gap={0} mt={4}>
@@ -588,8 +595,8 @@ function OIDCProvidersPage() {
           <Stack gap="xs">
             <Group align="flex-end" gap="xs">
               <TextInput
-                label="Discovery URL"
-                description="Auto-derived from Issuer URL. Override only if your provider uses a non-standard path."
+                label={t("form.discovery_url.label")}
+                description={t("form.discovery_url.description")}
                 placeholder="https://id.example.com/.well-known/openid-configuration"
                 value={createForm.discoveryUrl}
                 onChange={(e) => {
@@ -607,7 +614,7 @@ function OIDCProvidersPage() {
                 loading={fetchingDiscovery}
                 disabled={!createForm.discoveryUrl}
               >
-                Test Discovery
+                {t("form.discovery_url.test_button")}
               </Button>
             </Group>
             {discoveryResult && (
@@ -622,8 +629,8 @@ function OIDCProvidersPage() {
                 color={discoveryResult.error ? "red" : "teal"}
                 title={
                   discoveryResult.error
-                    ? "Discovery Failed"
-                    : "Discovered Issuer"
+                    ? t("alerts.discovery_failed")
+                    : t("alerts.discovered_issuer")
                 }
               >
                 <Text size="sm" style={{ wordBreak: "break-all" }}>
@@ -631,8 +638,7 @@ function OIDCProvidersPage() {
                 </Text>
                 {discoveryResult.issuer && (
                   <Text size="xs" c="dimmed" mt="xs">
-                    This is the authoritative issuer URL that will be stored and
-                    used for token validation.
+                    {t("alerts.discovered_issuer_desc")}
                   </Text>
                 )}
               </Alert>
@@ -640,8 +646,8 @@ function OIDCProvidersPage() {
           </Stack>
 
           <TextInput
-            label="Domain (Optional)"
-            description="Auto-route users with this email domain to this provider"
+            label={t("form.domain.label")}
+            description={t("form.domain.description")}
             placeholder="example.com"
             value={createForm.domain}
             onChange={(e) =>
@@ -650,7 +656,7 @@ function OIDCProvidersPage() {
           />
 
           <TextInput
-            label="Client ID"
+            label={t("form.client_id")}
             placeholder="ephemera-client"
             required
             value={createForm.clientId}
@@ -660,7 +666,7 @@ function OIDCProvidersPage() {
           />
 
           <TextInput
-            label="Client Secret"
+            label={t("form.client_secret")}
             type="password"
             placeholder="••••••••"
             required
@@ -671,20 +677,20 @@ function OIDCProvidersPage() {
           />
 
           <TagsInput
-            label="Scopes"
-            description="OAuth scopes to request. Type to add custom scopes."
+            label={t("form.scopes.label")}
+            description={t("form.scopes.description")}
             data={["openid", "email", "profile", "groups", "offline_access"]}
             value={createForm.scopes}
             onChange={(value) =>
               setCreateForm({ ...createForm, scopes: value })
             }
-            placeholder="Add scope..."
+            placeholder={t("form.scopes.placeholder")}
             splitChars={[",", " "]}
           />
 
           <Switch
-            label="Allow auto-provisioning"
-            description="Automatically create accounts for new users. If disabled, users must exist before they can sign in."
+            label={t("form.auto_provision.label")}
+            description={t("form.auto_provision.description")}
             checked={createForm.allowAutoProvision}
             onChange={(e) =>
               setCreateForm({
@@ -695,8 +701,8 @@ function OIDCProvidersPage() {
           />
 
           <Switch
-            label="Enable provider"
-            description="Users can sign in with this provider"
+            label={t("form.enabled.label")}
+            description={t("form.enabled.description")}
             checked={createForm.enabled}
             onChange={(e) =>
               setCreateForm({ ...createForm, enabled: e.currentTarget.checked })
@@ -716,23 +722,23 @@ function OIDCProvidersPage() {
             }
             onClick={() => setShowAdvanced(!showAdvanced)}
           >
-            {showAdvanced ? "Hide" : "Show"} Advanced Options
+            {showAdvanced ? t("form.advanced.hide") : t("form.advanced.show")}
           </Button>
 
           {showAdvanced && (
             <Card withBorder p="md">
               <Text size="sm" fw={500}>
-                Auto-Admin from Group Claims
+                {t("form.advanced.group_claims.title")}
               </Text>
               <Text size="xs" c="dimmed" mb="md">
-                Automatically grant admin role to users who have a specific
-                group claim in their OIDC token. The role will sync on each
-                login (users can be promoted or demoted based on IdP groups).
+                {t("form.advanced.group_claims.description")}
               </Text>
 
               <TextInput
-                label="Group Claim Name"
-                description="Name of the claim containing user groups (e.g., groups, roles, memberOf)"
+                label={t("form.advanced.group_claims.claim_name.label")}
+                description={t(
+                  "form.advanced.group_claims.claim_name.description",
+                )}
                 placeholder="groups"
                 value={createForm.groupClaimName}
                 onChange={(e) =>
@@ -744,8 +750,10 @@ function OIDCProvidersPage() {
               />
 
               <TextInput
-                label="Admin Group Value"
-                description="Users with this group will be granted admin role"
+                label={t("form.advanced.group_claims.admin_value.label")}
+                description={t(
+                  "form.advanced.group_claims.admin_value.description",
+                )}
                 placeholder="ephemera-admins"
                 mt="sm"
                 value={createForm.adminGroupValue}
@@ -758,17 +766,16 @@ function OIDCProvidersPage() {
               />
 
               <Text size="sm" fw={500} mt="lg">
-                Default Permissions for New Users
+                {t("form.advanced.permissions.title")}
               </Text>
               <Text size="xs" c="dimmed" mb="md">
-                Override the default permissions for users created via this
-                provider. Unset options will use global defaults.
+                {t("form.advanced.permissions.description")}
               </Text>
 
               <Stack gap="xs">
                 <Group grow>
                   <Switch
-                    label="Can manage requests"
+                    label={t("form.advanced.permissions.manage_requests")}
                     checked={
                       createForm.defaultPermissions?.canManageRequests ?? true
                     }
@@ -783,7 +790,7 @@ function OIDCProvidersPage() {
                     }
                   />
                   <Switch
-                    label="Can start downloads"
+                    label={t("form.advanced.permissions.start_downloads")}
                     checked={
                       createForm.defaultPermissions?.canStartDownloads ?? true
                     }
@@ -801,7 +808,7 @@ function OIDCProvidersPage() {
 
                 <Group grow>
                   <Switch
-                    label="Can delete downloads"
+                    label={t("form.advanced.permissions.delete_downloads")}
                     checked={
                       createForm.defaultPermissions?.canDeleteDownloads ?? false
                     }
@@ -816,7 +823,7 @@ function OIDCProvidersPage() {
                     }
                   />
                   <Switch
-                    label="Can manage lists"
+                    label={t("form.advanced.permissions.manage_lists")}
                     checked={
                       createForm.defaultPermissions?.canManageLists ?? true
                     }
@@ -834,7 +841,7 @@ function OIDCProvidersPage() {
 
                 <Group grow>
                   <Switch
-                    label="Can configure Tolino"
+                    label={t("form.advanced.permissions.configure_tolino")}
                     checked={
                       createForm.defaultPermissions?.canConfigureTolino ?? true
                     }
@@ -849,7 +856,7 @@ function OIDCProvidersPage() {
                     }
                   />
                   <Switch
-                    label="Can see download owner"
+                    label={t("form.advanced.permissions.see_owner")}
                     checked={
                       createForm.defaultPermissions?.canSeeDownloadOwner ??
                       false
@@ -868,7 +875,9 @@ function OIDCProvidersPage() {
 
                 <Group grow>
                   <Switch
-                    label="Can configure notifications"
+                    label={t(
+                      "form.advanced.permissions.configure_notifications",
+                    )}
                     checked={
                       createForm.defaultPermissions
                         ?.canConfigureNotifications ?? false
@@ -884,7 +893,7 @@ function OIDCProvidersPage() {
                     }
                   />
                   <Switch
-                    label="Can manage API keys"
+                    label={t("form.advanced.permissions.manage_api_keys")}
                     checked={
                       createForm.defaultPermissions?.canManageApiKeys ?? false
                     }
@@ -902,7 +911,7 @@ function OIDCProvidersPage() {
 
                 <Group grow>
                   <Switch
-                    label="Can configure app"
+                    label={t("form.advanced.permissions.configure_app")}
                     checked={
                       createForm.defaultPermissions?.canConfigureApp ?? false
                     }
@@ -917,7 +926,9 @@ function OIDCProvidersPage() {
                     }
                   />
                   <Switch
-                    label="Can configure integrations"
+                    label={t(
+                      "form.advanced.permissions.configure_integrations",
+                    )}
                     checked={
                       createForm.defaultPermissions?.canConfigureIntegrations ??
                       false
@@ -936,7 +947,7 @@ function OIDCProvidersPage() {
 
                 <Group grow>
                   <Switch
-                    label="Can configure email"
+                    label={t("form.advanced.permissions.configure_email")}
                     checked={
                       createForm.defaultPermissions?.canConfigureEmail ?? false
                     }
@@ -968,8 +979,8 @@ function OIDCProvidersPage() {
               color={testResult.success ? "green" : "red"}
               title={
                 testResult.success
-                  ? "Connection successful"
-                  : "Connection failed"
+                  ? t("alerts.test_success")
+                  : t("alerts.test_failed")
               }
             >
               {testResult.message}
@@ -985,13 +996,13 @@ function OIDCProvidersPage() {
                 setTestResult(null);
               }}
             >
-              Cancel
+              {t("form.cancel")}
             </Button>
             <Button
               onClick={handleCreateProvider}
               loading={createProviderMutation.isPending}
             >
-              Create Provider
+              {t("form.create")}
             </Button>
           </Group>
         </Stack>
@@ -1006,13 +1017,13 @@ function OIDCProvidersPage() {
           setError(null);
           setTestResult(null);
         }}
-        title="Edit OIDC Provider"
+        title={t("form.save")}
         size="lg"
       >
         {selectedProvider && (
           <Stack gap="md">
             <TextInput
-              label="Display Name"
+              label={t("form.display_name.label")}
               placeholder="Keycloak"
               value={selectedProvider.name || ""}
               onChange={(e) =>
@@ -1024,8 +1035,8 @@ function OIDCProvidersPage() {
             />
 
             <Input.Wrapper
-              label="Issuer URL"
-              description="Base URL of your OIDC provider"
+              label={t("form.issuer_url.label")}
+              description={t("form.issuer_url.description")}
             >
               <Group gap={0} mt={4}>
                 <Select
@@ -1081,8 +1092,8 @@ function OIDCProvidersPage() {
             </Input.Wrapper>
 
             <TextInput
-              label="Discovery URL"
-              description="Override only if your provider uses a non-standard path"
+              label={t("form.discovery_url.label")}
+              description={t("form.discovery_url.description")}
               value={selectedProvider.oidcConfig.discoveryUrl || ""}
               onChange={(e) =>
                 setSelectedProvider({
@@ -1096,7 +1107,7 @@ function OIDCProvidersPage() {
             />
 
             <TextInput
-              label="Domain (Optional)"
+              label={t("form.domain.label")}
               value={selectedProvider.domain || ""}
               onChange={(e) =>
                 setSelectedProvider({
@@ -1107,7 +1118,7 @@ function OIDCProvidersPage() {
             />
 
             <TextInput
-              label="Client ID"
+              label={t("form.client_id")}
               value={selectedProvider.oidcConfig.clientId}
               onChange={(e) =>
                 setSelectedProvider({
@@ -1121,7 +1132,7 @@ function OIDCProvidersPage() {
             />
 
             <TextInput
-              label="Client Secret"
+              label={t("form.client_secret")}
               type="password"
               placeholder="••••••••"
               value={selectedProvider.oidcConfig.clientSecret}
@@ -1137,8 +1148,8 @@ function OIDCProvidersPage() {
             />
 
             <TagsInput
-              label="Scopes"
-              description="OAuth scopes to request. Type to add custom scopes."
+              label={t("form.scopes.label")}
+              description={t("form.scopes.description")}
               data={["openid", "email", "profile", "groups", "offline_access"]}
               value={selectedProvider.oidcConfig.scopes}
               onChange={(value) =>
@@ -1150,13 +1161,13 @@ function OIDCProvidersPage() {
                   },
                 })
               }
-              placeholder="Add scope..."
+              placeholder={t("form.scopes.placeholder")}
               splitChars={[",", " "]}
             />
 
             <Switch
-              label="Allow auto-provisioning"
-              description="Automatically create accounts for new users. If disabled, users must exist before they can sign in."
+              label={t("form.auto_provision.label")}
+              description={t("form.auto_provision.description")}
               checked={selectedProvider.allowAutoProvision}
               onChange={(e) =>
                 setSelectedProvider({
@@ -1167,7 +1178,7 @@ function OIDCProvidersPage() {
             />
 
             <Switch
-              label="Enable provider"
+              label={t("form.enabled.label")}
               checked={selectedProvider.enabled}
               onChange={(e) =>
                 setSelectedProvider({
@@ -1190,23 +1201,25 @@ function OIDCProvidersPage() {
               }
               onClick={() => setShowEditAdvanced(!showEditAdvanced)}
             >
-              {showEditAdvanced ? "Hide" : "Show"} Advanced Options
+              {showEditAdvanced
+                ? t("form.advanced.hide")
+                : t("form.advanced.show")}
             </Button>
 
             {showEditAdvanced && (
               <Card withBorder p="md">
                 <Text size="sm" fw={500}>
-                  Auto-Admin from Group Claims
+                  {t("form.advanced.group_claims.title")}
                 </Text>
                 <Text size="xs" c="dimmed" mb="md">
-                  Automatically grant admin role to users who have a specific
-                  group claim in their OIDC token. The role will sync on each
-                  login (users can be promoted or demoted based on IdP groups).
+                  {t("form.advanced.group_claims.description")}
                 </Text>
 
                 <TextInput
-                  label="Group Claim Name"
-                  description="Name of the claim containing user groups (e.g., groups, roles, memberOf)"
+                  label={t("form.advanced.group_claims.claim_name.label")}
+                  description={t(
+                    "form.advanced.group_claims.claim_name.description",
+                  )}
                   placeholder="groups"
                   value={selectedProvider.groupClaimName || ""}
                   onChange={(e) =>
@@ -1218,8 +1231,10 @@ function OIDCProvidersPage() {
                 />
 
                 <TextInput
-                  label="Admin Group Value"
-                  description="Users with this group will be granted admin role"
+                  label={t("form.advanced.group_claims.admin_value.label")}
+                  description={t(
+                    "form.advanced.group_claims.admin_value.description",
+                  )}
                   placeholder="ephemera-admins"
                   mt="sm"
                   value={selectedProvider.adminGroupValue || ""}
@@ -1232,17 +1247,16 @@ function OIDCProvidersPage() {
                 />
 
                 <Text size="sm" fw={500} mt="lg">
-                  Default Permissions for New Users
+                  {t("form.advanced.permissions.title")}
                 </Text>
                 <Text size="xs" c="dimmed" mb="md">
-                  Override the default permissions for users created via this
-                  provider. Unset options will use global defaults.
+                  {t("form.advanced.permissions.description")}
                 </Text>
 
                 <Stack gap="xs">
                   <Group grow>
                     <Switch
-                      label="Can manage requests"
+                      label={t("form.advanced.permissions.manage_requests")}
                       checked={
                         selectedProvider.defaultPermissions
                           ?.canManageRequests ?? true
@@ -1258,7 +1272,7 @@ function OIDCProvidersPage() {
                       }
                     />
                     <Switch
-                      label="Can start downloads"
+                      label={t("form.advanced.permissions.start_downloads")}
                       checked={
                         selectedProvider.defaultPermissions
                           ?.canStartDownloads ?? true
@@ -1277,7 +1291,7 @@ function OIDCProvidersPage() {
 
                   <Group grow>
                     <Switch
-                      label="Can delete downloads"
+                      label={t("form.advanced.permissions.delete_downloads")}
                       checked={
                         selectedProvider.defaultPermissions
                           ?.canDeleteDownloads ?? false
@@ -1293,7 +1307,7 @@ function OIDCProvidersPage() {
                       }
                     />
                     <Switch
-                      label="Can manage lists"
+                      label={t("form.advanced.permissions.manage_lists")}
                       checked={
                         selectedProvider.defaultPermissions?.canManageLists ??
                         true
@@ -1312,7 +1326,7 @@ function OIDCProvidersPage() {
 
                   <Group grow>
                     <Switch
-                      label="Can configure Tolino"
+                      label={t("form.advanced.permissions.configure_tolino")}
                       checked={
                         selectedProvider.defaultPermissions
                           ?.canConfigureTolino ?? true
@@ -1328,7 +1342,7 @@ function OIDCProvidersPage() {
                       }
                     />
                     <Switch
-                      label="Can see download owner"
+                      label={t("form.advanced.permissions.see_owner")}
                       checked={
                         selectedProvider.defaultPermissions
                           ?.canSeeDownloadOwner ?? false
@@ -1347,7 +1361,9 @@ function OIDCProvidersPage() {
 
                   <Group grow>
                     <Switch
-                      label="Can configure notifications"
+                      label={t(
+                        "form.advanced.permissions.configure_notifications",
+                      )}
                       checked={
                         selectedProvider.defaultPermissions
                           ?.canConfigureNotifications ?? false
@@ -1363,7 +1379,7 @@ function OIDCProvidersPage() {
                       }
                     />
                     <Switch
-                      label="Can manage API keys"
+                      label={t("form.advanced.permissions.manage_api_keys")}
                       checked={
                         selectedProvider.defaultPermissions?.canManageApiKeys ??
                         false
@@ -1382,7 +1398,7 @@ function OIDCProvidersPage() {
 
                   <Group grow>
                     <Switch
-                      label="Can configure app"
+                      label={t("form.advanced.permissions.configure_app")}
                       checked={
                         selectedProvider.defaultPermissions?.canConfigureApp ??
                         false
@@ -1398,7 +1414,9 @@ function OIDCProvidersPage() {
                       }
                     />
                     <Switch
-                      label="Can configure integrations"
+                      label={t(
+                        "form.advanced.permissions.configure_integrations",
+                      )}
                       checked={
                         selectedProvider.defaultPermissions
                           ?.canConfigureIntegrations ?? false
@@ -1417,7 +1435,7 @@ function OIDCProvidersPage() {
 
                   <Group grow>
                     <Switch
-                      label="Can configure email"
+                      label={t("form.advanced.permissions.configure_email")}
                       checked={
                         selectedProvider.defaultPermissions
                           ?.canConfigureEmail ?? false
@@ -1450,8 +1468,8 @@ function OIDCProvidersPage() {
                 color={testResult.success ? "green" : "red"}
                 title={
                   testResult.success
-                    ? "Connection successful"
-                    : "Connection failed"
+                    ? t("alerts.test_success")
+                    : t("alerts.test_failed")
                 }
               >
                 {testResult.message}
@@ -1465,7 +1483,7 @@ function OIDCProvidersPage() {
                 onClick={() => handleTestConnection(selectedProvider.id)}
                 loading={testing}
               >
-                Test Connection
+                {t("form.test_connection")}
               </Button>
               <Group>
                 <Button
@@ -1477,13 +1495,13 @@ function OIDCProvidersPage() {
                     setTestResult(null);
                   }}
                 >
-                  Cancel
+                  {t("form.cancel")}
                 </Button>
                 <Button
                   onClick={handleUpdateProvider}
                   loading={updateProviderMutation.isPending}
                 >
-                  Save Changes
+                  {t("form.save")}
                 </Button>
               </Group>
             </Group>

@@ -1,3 +1,4 @@
+import { useTranslation, Trans } from "react-i18next"; // Ajout de Trans
 import {
   Paper,
   Stack,
@@ -43,6 +44,9 @@ interface TolinoSettingsProps {
 }
 
 export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "settings.tolino",
+  });
   const { data: settings, isLoading: loadingSettings } = useTolinoSettings();
   const { data: resellers } = useTolinoResellers();
   const { data: collectionsData, isLoading: loadingCollections } =
@@ -124,10 +128,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
   };
 
   const handleAutoUploadCollectionChange = async (value: string | null) => {
-    // Handle "new" option - don't save yet
-    if (value === "__new__") {
-      return;
-    }
+    if (value === "__new__") return;
 
     setAutoUploadCollection(value);
     if (settings?.configured) {
@@ -169,7 +170,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
       <Paper p="md" withBorder>
         <Stack align="center" gap="md" py="xl">
           <Loader size="lg" />
-          <Text c="dimmed">Loading Tolino settings...</Text>
+          <Text c="dimmed">{t("loading")}</Text>
         </Stack>
       </Paper>
     );
@@ -192,7 +193,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMs < 0) return "Expired";
+    if (diffMs < 0) return t("status.expired");
     if (diffMins < 60) return `${diffMins} min`;
     if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m`;
     return `${diffDays}d ${diffHours % 24}h`;
@@ -208,20 +209,20 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
         <Group justify="space-between" align="flex-start">
           <div>
             <Group gap="sm">
-              <Title order={3}>Tolino Cloud</Title>
+              <Title order={3}>{t("title")}</Title>
               {isConnected && (
                 <Badge color="green" leftSection={<IconCheck size={12} />}>
-                  Connected
+                  {t("status.connected")}
                 </Badge>
               )}
               {settings?.configured && !settings?.isConnected && (
                 <Badge color="red" leftSection={<IconX size={12} />}>
-                  Session Expired
+                  {t("status.expired")}
                 </Badge>
               )}
             </Group>
             <Text size="sm" c="dimmed">
-              Upload books directly to your Tolino e-reader via the Tolino Cloud
+              {t("description")}
             </Text>
           </div>
           <IconCloud size={32} style={{ opacity: 0.5 }} />
@@ -231,46 +232,43 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
           <Alert
             icon={<IconAlertTriangle size={16} />}
             color="orange"
-            title="File access disabled"
+            title={t("alerts.file_access_disabled.title")}
           >
             <Text size="sm">
-              Enable <strong>"Keep copy in downloads folder"</strong> in the
-              General tab under Post-Download Actions to use Tolino Cloud
-              upload. Without this setting, downloaded files may not be
-              available for upload.
+              <Trans
+                t={t}
+                i18nKey="alerts.file_access_disabled.message"
+                components={{ 1: <strong /> }}
+              />
             </Text>
           </Alert>
         )}
 
         <Alert icon={<IconInfoCircle size={16} />} color="blue">
           <Text size="sm">
-            Tolino Cloud only accepts EPUB and PDF files.
+            {t("alerts.formats.message")}
             {calibreStatus?.available
-              ? " Other formats will be automatically converted using Calibre."
-              : " Install Calibre to enable automatic format conversion for other formats."}
+              ? ` ${t("alerts.formats.calibre_available")}`
+              : ` ${t("alerts.formats.calibre_missing")}`}
           </Text>
         </Alert>
 
         <Alert icon={<IconInfoCircle size={16} />} color="gray" variant="light">
           <Text size="sm">
-            <strong>Tip:</strong> We recommend creating a free{" "}
-            <a
-              href="https://www.buchhandlung.de"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Buchhandlung.de
-            </a>{" "}
-            account and linking it to your existing Tolino account. This
-            provides the most reliable connection for automated uploads.
+            <Trans
+              t={t}
+              i18nKey="alerts.tip.label"
+              components={{ 1: <strong /> }}
+            />{" "}
+            {t("alerts.tip.message")}
           </Text>
         </Alert>
 
         <Divider />
 
         <Select
-          label="Reseller"
-          description="Select your Tolino book store"
+          label={t("form.reseller.label")}
+          description={t("form.reseller.description")}
           data={resellerOptions}
           value={resellerId}
           onChange={(value) => {
@@ -280,8 +278,8 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
         />
 
         <TextInput
-          label="Email"
-          description="Your Tolino account email"
+          label={t("form.email.label")}
+          description={t("form.email.description")}
           placeholder="email@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -289,14 +287,14 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
         />
 
         <PasswordInput
-          label="Password"
+          label={t("form.password.label")}
           description={
             settings?.configured
-              ? "Leave empty to keep current password, or enter new password to update"
-              : "Your Tolino account password"
+              ? t("form.password.description.update")
+              : t("form.password.description.new")
           }
           placeholder={
-            settings?.configured ? "••••••••" : "Enter your password"
+            settings?.configured ? "••••••••" : t("form.password.placeholder")
           }
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -304,8 +302,8 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
         />
 
         <Switch
-          label="Auto-upload to Tolino Cloud"
-          description="Automatically upload books to Tolino Cloud when download completes"
+          label={t("form.auto_upload.label")}
+          description={t("form.auto_upload.description")}
           checked={autoUpload}
           onChange={(e) => handleAutoUploadToggle(e.currentTarget.checked)}
           disabled={!keepInDownloads}
@@ -321,18 +319,26 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
             }}
           >
             <Select
-              label="Default collection for auto-uploads"
-              description="Automatically add auto-uploaded books to this collection"
+              label={t("form.auto_upload_collection.label")}
+              description={t("form.auto_upload_collection.description")}
               placeholder={
-                loadingCollections ? "Loading..." : "None (no collection)"
+                loadingCollections
+                  ? t("status.loading_collections")
+                  : t("form.auto_upload_collection.placeholder")
               }
               data={[
-                { value: "", label: "None (no collection)" },
+                {
+                  value: "",
+                  label: t("form.auto_upload_collection.placeholder"),
+                },
                 ...(collectionsData?.collections?.map((c) => ({
                   value: c,
                   label: c,
                 })) || []),
-                { value: "__new__", label: "+ Create new collection..." },
+                {
+                  value: "__new__",
+                  label: t("form.auto_upload_collection.new"),
+                },
               ]}
               value={
                 autoUploadCollection === "__new__"
@@ -352,7 +358,9 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
             {autoUploadCollection === "__new__" && (
               <Group gap="xs">
                 <TextInput
-                  placeholder="New collection name"
+                  placeholder={t(
+                    "tolino.form.auto_upload_collection.new_placeholder",
+                  )}
                   value={newCollectionName}
                   onChange={(e) => setNewCollectionName(e.target.value)}
                   style={{ flex: 1 }}
@@ -362,7 +370,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
                   onClick={handleCreateNewCollection}
                   disabled={!newCollectionName.trim()}
                 >
-                  Create
+                  {t("form.auto_upload_collection.create")}
                 </Button>
               </Group>
             )}
@@ -375,12 +383,12 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
 
             <Group gap="xs" align="center">
               <IconFolders size={20} style={{ opacity: 0.7 }} />
-              <Text fw={500}>Collection Options</Text>
+              <Text fw={500}>{t("form.collection_options.title")}</Text>
             </Group>
 
             <Switch
-              label="Ask for collection on manual upload"
-              description="Show a dialog to select or create a collection when manually uploading books"
+              label={t("form.ask_collection.label")}
+              description={t("form.ask_collection.description")}
               checked={askCollectionOnUpload}
               onChange={(e) =>
                 handleAskCollectionToggle(e.currentTarget.checked)
@@ -389,8 +397,8 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
             />
 
             <Switch
-              label="Use series name as collection"
-              description="Automatically add books to a collection matching the series name (from import list metadata). Falls back to default collection if no series info. Applies to both auto and manual upload."
+              label={t("form.use_series.label")}
+              description={t("form.use_series.description")}
               checked={useSeriesAsCollection}
               onChange={(e) =>
                 handleSeriesCollectionToggle(e.currentTarget.checked)
@@ -408,7 +416,9 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
               disabled={!email || (!password && !settings?.configured)}
               leftSection={<IconCloudUpload size={16} />}
             >
-              {settings?.configured ? "Update Settings" : "Connect"}
+              {settings?.configured
+                ? t("buttons.update")
+                : t("buttons.connect")}
             </Button>
             {settings?.configured && (
               <>
@@ -417,11 +427,11 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
                   onClick={handleTest}
                   loading={testConnection.isPending}
                 >
-                  Test Connection
+                  {t("buttons.test")}
                 </Button>
                 {tokenExpiry && (
                   <Text size="xs" c="dimmed">
-                    Token expires in {tokenExpiry} (auto-renews)
+                    {t("buttons.token_expiry", { expiry: tokenExpiry })}
                   </Text>
                 )}
               </>
@@ -436,7 +446,7 @@ export function TolinoSettings({ keepInDownloads }: TolinoSettingsProps) {
               loading={deleteSettings.isPending}
               leftSection={<IconTrash size={16} />}
             >
-              Disconnect
+              {t("buttons.disconnect")}
             </Button>
           )}
         </Group>

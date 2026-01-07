@@ -1,0 +1,100 @@
+{
+  "prefix": "Ephemera",
+  "parts": {
+    "by": " by ",
+    "reason_prefix": ": ",
+    "format_info": " ({{format}})",
+    "collection_info": " to collection \"{{name}}\"",
+    "from_list": "\nFrom list: {{listName}} ({{source}})",
+    "book_by": "\"{{title}}\" by {{author}}",
+    "unknown_book": "Unknown book"
+  },
+  "events": {
+    "new_request": {
+      "title": "{{prefix}}: New Download Request Created",
+      "body": "Request for: {{query}}{{userInfo}}{{listInfo}}"
+    },
+    "download_error": {
+      "title": "{{prefix}}: Download Failed",
+      "body": "{{bookInfo}} failed to download\nError: {{error}}"
+    },
+    "available": {
+      "title": "{{prefix}}: Download Complete",
+      "body": "{{bookInfo}} is now available{{formatInfo}}"
+    },
+    "delayed": {
+      "title": "{{prefix}}: Download Delayed - Quota Exhausted",
+      "body": "{{bookInfo}} delayed due to quota limits\nNext retry: {{nextRetry}}"
+    },
+    "update_available": {
+      "title": "{{prefix}}: Update Available",
+      "body": "Version {{latestVersion}} is now available (current: {{currentVersion}})"
+    },
+    "request_fulfilled": {
+      "title": "{{prefix}}: Request Fulfilled",
+      "body": "Found and queued: {{bookInfo}}\nRequest: {{description}}"
+    },
+    "book_queued": {
+      "title": "{{prefix}}: Book Queued for Download",
+      "body": "{{bookInfo}} added to download queue"
+    },
+    "request_pending_approval": {
+      "title": "{{prefix}}: Request Needs Approval",
+      "body": "New request from {{user}}: {{description}}"
+    },
+    "request_approved": {
+      "title": "{{prefix}}: Request Approved",
+      "body": "Your request for \"{{query}}\" has been approved and will be processed"
+    },
+    "request_rejected": {
+      "title": "{{prefix}}: Request Rejected",
+      "body": "Your request for \"{{query}}\" was rejected{{reason}}"
+    },
+    "list_created": {
+      "title": "{{prefix}}: New Import List Created",
+      "body": "List \"{{listName}}\" ({{source}}) created by {{userName}}"
+    },
+    "tolino_configured": {
+      "title": "{{prefix}}: Tolino Cloud Configured",
+      "body": "{{userName}} connected Tolino Cloud ({{reseller}})"
+    },
+    "email_recipient_added": {
+      "title": "{{prefix}}: Email Recipient Added",
+      "body": "{{userName}} added email recipient: {{recipient}}"
+    },
+    "oidc_account_created": {
+      "title": "{{prefix}}: New User Auto-Provisioned",
+      "body": "User {{userName}} ({{email}}) was created via {{providerName}}"
+    },
+    "oidc_role_updated": {
+      "title": "{{prefix}}: User Role Changed",
+      "body": "{{userName}}'s role changed from {{oldRole}} to {{newRole}} (via {{groupClaim}} claim)"
+    },
+    "service_unhealthy": {
+      "title": "{{prefix}}: Service Unavailable",
+      "body": "FlareSolverr has become unavailable.\n{{reason}}"
+    },
+    "service_recovered": {
+      "title": "{{prefix}}: Service Recovered",
+      "body": "FlareSolverr is available again"
+    },
+    "email_sent": {
+      "title": "{{prefix}}: Book Sent via Email",
+      "body": "{{bookInfo}} sent to {{recipient}}"
+    },
+    "tolino_uploaded": {
+      "title": "{{prefix}}: Book Uploaded to Tolino Cloud",
+      "body": "{{bookInfo}} uploaded{{collectionInfo}}"
+    }
+  },
+  "email": {
+    "subject": "Book: {{title}}",
+    "text": "Here is your requested book: {{title}}{{author}}",
+    "html": {
+      "title": "Your Book",
+      "label_title": "Title",
+      "label_author": "Author",
+      "footer": "The book is attached to this email."
+    }
+  }
+}

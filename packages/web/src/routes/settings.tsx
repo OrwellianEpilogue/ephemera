@@ -57,6 +57,7 @@ import {
 } from "../hooks/useSettings";
 import { useFrontendConfig } from "../hooks/useConfig";
 import { useState, useEffect } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import type {
   TimeFormat,
   DateFormat,
@@ -116,7 +117,14 @@ const settingsSearchSchema = z.object({
 });
 
 function SettingsComponent() {
-  usePageTitle("Settings");
+  const { t } = useTranslation("translation", {
+    keyPrefix: "settings",
+  });
+  // Use non-prefixed t for common translations
+  const { t: tCommon } = useTranslation("translation", {
+    keyPrefix: "common",
+  });
+  usePageTitle(t("title"));
   const navigate = useNavigate({ from: "/settings" });
   const { tab } = Route.useSearch();
   const { isAdmin } = useAuth();
@@ -559,16 +567,16 @@ function SettingsComponent() {
     // Validate required fields before testing
     if (!smtpHost) {
       notifications.show({
-        title: "Missing Configuration",
-        message: "Please enter SMTP host",
+        title: tCommon("errors.missing_config"),
+        message: t("email.notifications.missing_config.smtp_host"),
         color: "red",
       });
       return;
     }
     if (!senderEmail) {
       notifications.show({
-        title: "Missing Configuration",
-        message: "Please enter sender email",
+        title: tCommon("errors.missing_config"),
+        message: t("email.notifications.missing_config.sender_email"),
         color: "red",
       });
       return;
@@ -717,8 +725,12 @@ function SettingsComponent() {
   if (isSettingsError) {
     return (
       <Container size="md">
-        <Alert icon={<IconInfoCircle size={16} />} title="Error" color="red">
-          Failed to load settings. Please try again.
+        <Alert
+          icon={<IconInfoCircle size={16} />}
+          title={tCommon("errors.title")}
+          color="red"
+        >
+          {t("errors.loading_failed")}
         </Alert>
       </Container>
     );
@@ -727,7 +739,7 @@ function SettingsComponent() {
   return (
     <Container fluid>
       <Stack gap="lg">
-        <Title order={1}>Settings</Title>
+        <Title order={1}>{t("title")}</Title>
 
         <Tabs
           value={tab}
@@ -755,16 +767,16 @@ function SettingsComponent() {
                 value="general"
                 leftSection={<IconSettings size={16} />}
               >
-                General
+                {t("tabs.general")}
               </Tabs.Tab>
             )}
             {isAdmin && (
               <>
                 <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
-                  Users
+                  {t("tabs.users")}
                 </Tabs.Tab>
                 <Tabs.Tab value="lists" leftSection={<IconList size={16} />}>
-                  Lists
+                  {t("tabs.lists")}
                 </Tabs.Tab>
               </>
             )}
@@ -773,12 +785,12 @@ function SettingsComponent() {
                 value="notifications"
                 leftSection={<IconBell size={16} />}
               >
-                Notifications
+                {t("tabs.notifications")}
               </Tabs.Tab>
             )}
             {/* Email tab accessible to all users for managing their own recipients */}
             <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
-              Email
+              {t("tabs.email")}
             </Tabs.Tab>
             {isAdmin && (
               <>
@@ -786,13 +798,13 @@ function SettingsComponent() {
                   value="oidc"
                   leftSection={<IconPlugConnected size={16} />}
                 >
-                  OIDC
+                  {t("tabs.oidc")}
                 </Tabs.Tab>
                 <Tabs.Tab
                   value="proxy-auth"
                   leftSection={<IconShieldCheck size={16} />}
                 >
-                  Proxy Auth
+                  {t("tabs.proxy_auth")}
                 </Tabs.Tab>
               </>
             )}
@@ -802,20 +814,20 @@ function SettingsComponent() {
                   value="booklore"
                   leftSection={<IconUpload size={16} />}
                 >
-                  Booklore
+                  {t("tabs.booklore")}
                 </Tabs.Tab>
                 <Tabs.Tab
                   value="indexer"
                   leftSection={<IconServer size={16} />}
                 >
-                  Indexer
+                  {t("tabs.indexer")}
                 </Tabs.Tab>
               </>
             )}
             {/* Tolino tab for users with canConfigureTolino permission */}
             {canConfigureTolino && (
               <Tabs.Tab value="tolino" leftSection={<IconCloud size={16} />}>
-                Tolino
+                {t("tabs.tolino")}
               </Tabs.Tab>
             )}
           </Tabs.List>
@@ -826,10 +838,9 @@ function SettingsComponent() {
                 {/* Post-Download Actions */}
                 <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Title order={3}>Post-Download Actions</Title>
+                    <Title order={3}>{t("general.post_download.title")}</Title>
                     <Text size="sm" c="dimmed">
-                      Configure what happens after a book is successfully
-                      downloaded
+                      {t("general.post_download.description")}
                     </Text>
 
                     <Stack gap="md">
@@ -840,8 +851,10 @@ function SettingsComponent() {
                             event.currentTarget.checked,
                           )
                         }
-                        label="Move to Ingest"
-                        description="Move downloaded files to your configured ingest folder"
+                        label={t("general.post_download.move_to_ingest.label")}
+                        description={t(
+                          "general.post_download.move_to_ingest.description",
+                        )}
                       />
 
                       <Checkbox
@@ -851,8 +864,12 @@ function SettingsComponent() {
                             event.currentTarget.checked,
                           )
                         }
-                        label="Keep copy in downloads folder"
-                        description="Keep the original file in the downloads folder for email/browser downloads (copies instead of moves)"
+                        label={t(
+                          "general.post_download.keep_in_downloads.label",
+                        )}
+                        description={t(
+                          "general.post_download.keep_in_downloads.description",
+                        )}
                         disabled={!postDownloadMoveToIngest}
                       />
 
@@ -863,8 +880,12 @@ function SettingsComponent() {
                             event.currentTarget.checked,
                           )
                         }
-                        label="Upload to Booklore"
-                        description="Upload to Booklore library (requires Booklore configuration)"
+                        label={t(
+                          "general.post_download.upload_to_booklore.label",
+                        )}
+                        description={t(
+                          "general.post_download.upload_to_booklore.description",
+                        )}
                         disabled={
                           !bookloreSettings?.enabled ||
                           !bookloreSettings?.connected
@@ -878,8 +899,10 @@ function SettingsComponent() {
                             event.currentTarget.checked,
                           )
                         }
-                        label="Move to Indexer Directory"
-                        description="Move to separate directory for indexer downloads (SABnzbd/Readarr)"
+                        label={t("general.post_download.move_to_indexer.label")}
+                        description={t(
+                          "general.post_download.move_to_indexer.description",
+                        )}
                         disabled={
                           !indexerSettings?.newznabEnabled &&
                           !indexerSettings?.sabnzbdEnabled
@@ -893,14 +916,20 @@ function SettingsComponent() {
                             event.currentTarget.checked,
                           )
                         }
-                        label="Normalize EPUBs for Kindle"
-                        description="Run EPUBs through Calibre to fix encoding issues (requires Calibre)"
+                        label={t("general.post_download.normalize_epub.label")}
+                        description={t(
+                          "general.post_download.normalize_epub.description",
+                        )}
                       />
 
                       <Select
-                        label="Convert to Format"
-                        description="Automatically convert all downloads to this format (requires Calibre)"
-                        placeholder="No conversion"
+                        label={t("general.post_download.convert.label")}
+                        description={t(
+                          "general.post_download.convert.description",
+                        )}
+                        placeholder={t(
+                          "general.post_download.convert.placeholder",
+                        )}
                         value={postDownloadConvertFormat}
                         onChange={(value) =>
                           setPostDownloadConvertFormat(
@@ -921,10 +950,10 @@ function SettingsComponent() {
                       !bookloreSettings?.connected) && (
                       <Alert icon={<IconInfoCircle size={16} />} color="blue">
                         <Text size="sm">
-                          <strong>Note:</strong>{" "}
+                          <strong>{tCommon("note")}:</strong>{" "}
                           {!bookloreSettings?.enabled
-                            ? "Enable and configure Booklore to use upload options."
-                            : "Authenticate with Booklore below to enable upload options."}
+                            ? t("general.post_download.booklore_note.disabled")
+                            : t("general.post_download.booklore_note.enabled")}
                         </Text>
                       </Alert>
                     )}
@@ -934,15 +963,19 @@ function SettingsComponent() {
                 {/* Requests */}
                 <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Title order={3}>Requests</Title>
+                    <Title order={3}>{t("general.requests.title")}</Title>
                     <Text size="sm" c="dimmed">
-                      Configure how saved book requests are checked
+                      {t("general.requests.description")}
                     </Text>
 
                     <Select
-                      label="Request Check Interval"
-                      description="How often to automatically check saved book requests for new results"
-                      placeholder="Select interval"
+                      label={t("general.requests.check_interval.label")}
+                      description={t(
+                        "general.requests.check_interval.description",
+                      )}
+                      placeholder={t(
+                        "general.requests.check_interval.placeholder",
+                      )}
                       value={requestCheckInterval}
                       onChange={(value) =>
                         setRequestCheckInterval(value as RequestCheckInterval)
@@ -950,15 +983,36 @@ function SettingsComponent() {
                       data={[
                         {
                           value: "1min",
-                          label: "Every minute (Not recommended)",
+                          label: t("general.requests.intervals.1min"),
                         },
-                        { value: "15min", label: "Every 15 minutes" },
-                        { value: "30min", label: "Every 30 minutes" },
-                        { value: "1h", label: "Every hour" },
-                        { value: "6h", label: "Every 6 hours" },
-                        { value: "12h", label: "Every 12 hours" },
-                        { value: "24h", label: "Every 24 hours" },
-                        { value: "weekly", label: "Weekly" },
+                        {
+                          value: "15min",
+                          label: t("general.requests.intervals.15min"),
+                        },
+                        {
+                          value: "30min",
+                          label: t("general.requests.intervals.30min"),
+                        },
+                        {
+                          value: "1h",
+                          label: t("general.requests.intervals.1h"),
+                        },
+                        {
+                          value: "6h",
+                          label: t("general.requests.intervals.6h"),
+                        },
+                        {
+                          value: "12h",
+                          label: t("general.requests.intervals.12h"),
+                        },
+                        {
+                          value: "24h",
+                          label: t("general.requests.intervals.24h"),
+                        },
+                        {
+                          value: "weekly",
+                          label: t("general.requests.intervals.weekly"),
+                        },
                       ]}
                       required
                     />
@@ -966,9 +1020,8 @@ function SettingsComponent() {
                     {requestCheckInterval === "1min" && (
                       <Alert icon={<IconInfoCircle size={16} />} color="red">
                         <Text size="sm">
-                          <strong>Warning:</strong> Checking every minute may
-                          result in excessive requests and could get you banned
-                          from the service. Use at your own risk.
+                          <strong>{tCommon("warning")}:</strong>{" "}
+                          {t("general.requests.check_interval.warning")}
                         </Text>
                       </Alert>
                     )}
@@ -978,48 +1031,53 @@ function SettingsComponent() {
                 {/* Display Preferences */}
                 <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Title order={3}>Display Preferences</Title>
+                    <Title order={3}>{t("general.display.title")}</Title>
                     <Text size="sm" c="dimmed">
-                      Customize how dates and times are displayed throughout the
-                      application
+                      {t("general.display.description")}
                     </Text>
 
                     <Radio.Group
-                      label="Time Format"
-                      description="Choose how times are displayed"
+                      label={t("general.display.time_format.label")}
+                      description={t("general.display.time_format.description")}
                       value={timeFormat}
                       onChange={(value) => setTimeFormat(value as TimeFormat)}
                     >
                       <Stack gap="sm" mt="xs">
                         <Radio
                           value="24h"
-                          label="24 Hours"
-                          description="Display times in 24 hours format (e.g., 14:30)"
+                          label={t("general.display.time_format.h24")}
+                          description={t(
+                            "general.display.time_format.h24_desc",
+                          )}
                         />
                         <Radio
                           value="ampm"
-                          label="12 Hours (AM/PM)"
-                          description="Display times in 12 hours format with AM/PM (e.g., 2:30 PM)"
+                          label={t("general.display.time_format.ampm")}
+                          description={t(
+                            "general.display.time_format.ampm_desc",
+                          )}
                         />
                       </Stack>
                     </Radio.Group>
 
                     <Radio.Group
-                      label="Date Format"
-                      description="Choose how dates are displayed"
+                      label={t("general.display.date_format.label")}
+                      description={t("general.display.date_format.description")}
                       value={dateFormat}
                       onChange={(value) => setDateFormat(value as DateFormat)}
                     >
                       <Stack gap="sm" mt="xs">
                         <Radio
                           value="eur"
-                          label="EUR Format"
-                          description="DD.MM.YYYY (e.g., 31.12.2023)"
+                          label={t("general.display.date_format.eur")}
+                          description={t(
+                            "general.display.date_format.eur_desc",
+                          )}
                         />
                         <Radio
                           value="us"
-                          label="US Format"
-                          description="MM/DD/YYYY (e.g., 12/31/2023)"
+                          label={t("general.display.date_format.us")}
+                          description={t("general.display.date_format.us_desc")}
                         />
                       </Stack>
                     </Radio.Group>
@@ -1029,23 +1087,24 @@ function SettingsComponent() {
                 {/* Library Link */}
                 <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Title order={3}>Library Link</Title>
+                    <Title order={3}>{t("general.library_link.title")}</Title>
                     <Text size="sm" c="dimmed">
-                      Add a link to your external library (e.g., BookLore,
-                      Calibre-Web-Automated or other book management system)
+                      {t("general.library_link.description")}
                     </Text>
 
                     <TextInput
-                      label="Library URL"
-                      placeholder="https://booklore.example.com"
+                      label={t("general.library_link.url.label")}
+                      placeholder={t("general.library_link.url.placeholder")}
                       value={libraryUrl}
                       onChange={(e) => setLibraryUrl(e.target.value)}
-                      description="Enter the full URL to your library"
+                      description={t("general.library_link.url.description")}
                     />
 
                     <Radio.Group
-                      label="Link Location"
-                      description="Choose where to display the library link"
+                      label={t("general.library_link.location.label")}
+                      description={t(
+                        "general.library_link.location.description",
+                      )}
                       value={libraryLinkLocation}
                       onChange={(value) =>
                         setLibraryLinkLocation(value as LibraryLinkLocation)
@@ -1054,18 +1113,24 @@ function SettingsComponent() {
                       <Stack gap="sm" mt="xs">
                         <Radio
                           value="sidebar"
-                          label="Sidebar"
-                          description="Display the link in the sidebar navigation"
+                          label={t("general.library_link.location.sidebar")}
+                          description={t(
+                            "general.library_link.location.sidebar_desc",
+                          )}
                         />
                         <Radio
                           value="header"
-                          label="Header"
-                          description="Display the link in the header next to the theme toggle"
+                          label={t("general.library_link.location.header")}
+                          description={t(
+                            "general.library_link.location.header_desc",
+                          )}
                         />
                         <Radio
                           value="both"
-                          label="Sidebar & Header"
-                          description="Display the link in both the sidebar and header"
+                          label={t("general.library_link.location.both")}
+                          description={t(
+                            "general.library_link.location.both_desc",
+                          )}
                         />
                       </Stack>
                     </Radio.Group>
@@ -1075,14 +1140,14 @@ function SettingsComponent() {
                 {/* Cache */}
                 <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Title order={3}>Cache</Title>
+                    <Title order={3}>{t("general.cache.title")}</Title>
                     <Text size="sm" c="dimmed">
-                      Configure cache retention settings
+                      {t("general.cache.description")}
                     </Text>
 
                     <NumberInput
-                      label="Book Cache Retention Period"
-                      description="Number of days to keep book search and download cache before auto-deleting them (0 = never delete, cleanup runs daily)"
+                      label={t("general.cache.retention.label")}
+                      description={t("general.cache.retention.description")}
                       placeholder="30"
                       value={bookRetentionDays}
                       onChange={(value) =>
@@ -1094,8 +1159,8 @@ function SettingsComponent() {
                     />
 
                     <NumberInput
-                      label="Book Search Cache Days"
-                      description="Number of days to keep books from search results in cache before auto-deleting them (0 = never delete, cleanup runs daily)"
+                      label={t("general.cache.search_days.label")}
+                      description={t("general.cache.search_days.description")}
                       placeholder="7"
                       value={bookSearchCacheDays}
                       onChange={(value) =>
@@ -1111,35 +1176,38 @@ function SettingsComponent() {
                 {/* Archive/Searcher Settings */}
                 <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Title order={3}>Archive Settings</Title>
+                    <Title order={3}>{t("general.archive.title")}</Title>
                     <Text size="sm" c="dimmed">
-                      Configure the archive service for book searches and
-                      downloads
+                      {t("general.archive.description")}
                     </Text>
 
                     <TextInput
-                      label="Searcher Base URL"
-                      description="Base URL for the archive/searcher service (e.g., Anna's Archive)"
+                      label={t("general.archive.searcher_url.label")}
+                      description={t(
+                        "general.archive.searcher_url.description",
+                      )}
                       value={searcherBaseUrl}
                       onChange={(e) => setSearcherBaseUrl(e.target.value)}
-                      placeholder="https://archive.org"
+                      placeholder={t(
+                        "general.archive.searcher_url.placeholder",
+                      )}
                       required
                     />
 
                     <PasswordInput
-                      label="Searcher API Key"
-                      description="API key for authenticated downloads (optional, for faster downloads)"
+                      label={t("general.archive.api_key.label")}
+                      description={t("general.archive.api_key.description")}
                       value={searcherApiKey}
                       onChange={(e) => setSearcherApiKey(e.target.value)}
-                      placeholder="Optional API key"
+                      placeholder={t("general.archive.api_key.placeholder")}
                     />
 
                     <TextInput
-                      label="Quick Download URL"
-                      description="Alternative fast download source (optional)"
+                      label={t("general.archive.quick_url.label")}
+                      description={t("general.archive.quick_url.description")}
                       value={quickBaseUrl}
                       onChange={(e) => setQuickBaseUrl(e.target.value)}
-                      placeholder="Optional alternative source"
+                      placeholder={t("general.archive.quick_url.placeholder")}
                     />
                   </Stack>
                 </Paper>
@@ -1147,25 +1215,25 @@ function SettingsComponent() {
                 {/* Folder Paths */}
                 <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Title order={3}>Folder Paths</Title>
+                    <Title order={3}>{t("general.folders.title")}</Title>
                     <Text size="sm" c="dimmed">
-                      Configure where downloaded files are stored
+                      {t("general.folders.description")}
                     </Text>
 
                     <TextInput
-                      label="Download Folder"
-                      description="Temporary folder for downloads in progress"
+                      label={t("general.folders.download.label")}
+                      description={t("general.folders.download.description")}
                       value={downloadFolder}
                       onChange={(e) => setDownloadFolder(e.target.value)}
-                      placeholder="./downloads"
+                      placeholder={t("general.folders.download.placeholder")}
                     />
 
                     <TextInput
-                      label="Ingest Folder"
-                      description="Final destination for completed downloads"
+                      label={t("general.folders.ingest.label")}
+                      description={t("general.folders.ingest.description")}
                       value={ingestFolder}
                       onChange={(e) => setIngestFolder(e.target.value)}
-                      placeholder="/path/to/final/books"
+                      placeholder={t("general.folders.ingest.placeholder")}
                     />
                   </Stack>
                 </Paper>
@@ -1173,14 +1241,20 @@ function SettingsComponent() {
                 {/* Download Settings */}
                 <Paper p="md" withBorder>
                   <Stack gap="md">
-                    <Title order={3}>Download Settings</Title>
+                    <Title order={3}>
+                      {t("general.download_settings.title")}
+                    </Title>
                     <Text size="sm" c="dimmed">
-                      Configure download behavior and retry settings
+                      {t("general.download_settings.description")}
                     </Text>
 
                     <NumberInput
-                      label="Max Concurrent Downloads"
-                      description="Maximum number of downloads that can run simultaneously (1-5)"
+                      label={t(
+                        "general.download_settings.max_concurrent.label",
+                      )}
+                      description={t(
+                        "general.download_settings.max_concurrent.description",
+                      )}
                       value={maxConcurrentDownloads}
                       onChange={(val) =>
                         setMaxConcurrentDownloads(Number(val) || 1)
@@ -1190,8 +1264,12 @@ function SettingsComponent() {
                     />
 
                     <NumberInput
-                      label="Retry Attempts"
-                      description="Number of times to retry a failed download (1-10)"
+                      label={t(
+                        "general.download_settings.retry_attempts.label",
+                      )}
+                      description={t(
+                        "general.download_settings.retry_attempts.description",
+                      )}
                       value={retryAttempts}
                       onChange={(val) => setRetryAttempts(Number(val) || 3)}
                       min={1}
@@ -1199,8 +1277,10 @@ function SettingsComponent() {
                     />
 
                     <NumberInput
-                      label="Request Timeout (ms)"
-                      description="Timeout for API requests in milliseconds (5000-300000)"
+                      label={t("general.download_settings.timeout.label")}
+                      description={t(
+                        "general.download_settings.timeout.description",
+                      )}
                       value={requestTimeout}
                       onChange={(val) =>
                         setRequestTimeout(Number(val) || 30000)
@@ -1211,8 +1291,10 @@ function SettingsComponent() {
                     />
 
                     <NumberInput
-                      label="Search Cache TTL (seconds)"
-                      description="How long to cache search results (60-86400)"
+                      label={t("general.download_settings.cache_ttl.label")}
+                      description={t(
+                        "general.download_settings.cache_ttl.description",
+                      )}
                       value={searchCacheTtl}
                       onChange={(val) => setSearchCacheTtl(Number(val) || 300)}
                       min={60}
@@ -1230,7 +1312,7 @@ function SettingsComponent() {
                       updateSettings.isPending || updateSystemConfig.isPending
                     }
                   >
-                    Save Settings
+                    {tCommon("actions.save_settings")}
                   </Button>
                 </Group>
               </Stack>
@@ -1245,10 +1327,10 @@ function SettingsComponent() {
                   <Group justify="space-between">
                     <div>
                       <Title order={3}>
-                        <Group gap="xs">Apprise Notifications</Group>
+                        <Group gap="xs">{t("notifications.title")}</Group>
                       </Title>
                       <Text size="sm" c="dimmed">
-                        Configure push notifications for download events via{" "}
+                        {t("notifications.description")}{" "}
                         <a
                           href="https://github.com/caronc/apprise"
                           target="_blank"
@@ -1263,7 +1345,7 @@ function SettingsComponent() {
                       onChange={(e) =>
                         setAppriseEnabled(e.currentTarget.checked)
                       }
-                      label="Enabled"
+                      label={tCommon("enabled")}
                       size="lg"
                     />
                   </Group>
@@ -1271,11 +1353,11 @@ function SettingsComponent() {
                   {appriseEnabled && (
                     <Stack gap="sm">
                       <TextInput
-                        label="Apprise Server URL"
+                        label={t("notifications.url.label")}
                         placeholder="http://apprise:8111/notify/apprise"
                         value={appriseServerUrl}
                         onChange={(e) => setAppriseServerUrl(e.target.value)}
-                        description="Your Apprise API endpoint URL"
+                        description={t("notifications.url.description")}
                         required
                       />
 
@@ -1283,7 +1365,7 @@ function SettingsComponent() {
                       <Stack gap="xs">
                         <Group justify="space-between">
                           <Text size="sm" fw={500}>
-                            Custom Headers (optional)
+                            {t("notifications.headers.title")}
                           </Text>
                           <Button
                             size="xs"
@@ -1296,13 +1378,13 @@ function SettingsComponent() {
                               ])
                             }
                           >
-                            Add Header
+                            {t("notifications.headers.add")}
                           </Button>
                         </Group>
                         {customHeaders.map((header, index) => (
                           <Group key={index} gap="xs">
                             <TextInput
-                              placeholder="Header name"
+                              placeholder={t("notifications.headers.name")}
                               value={header.key}
                               onChange={(e) => {
                                 const newHeaders = [...customHeaders];
@@ -1315,7 +1397,7 @@ function SettingsComponent() {
                               style={{ flex: 1 }}
                             />
                             <TextInput
-                              placeholder="Header value"
+                              placeholder={t("notifications.headers.value")}
                               value={header.value}
                               onChange={(e) => {
                                 const newHeaders = [...customHeaders];
@@ -1347,17 +1429,21 @@ function SettingsComponent() {
                         {/* Request Notifications */}
                         <Stack gap="xs">
                           <Text size="sm" fw={500}>
-                            Request Notifications
+                            {t("notifications.events.requests.title")}
                           </Text>
                           <Checkbox
-                            label="New download request created"
+                            label={t(
+                              "notifications.events.requests.new_request",
+                            )}
                             checked={notifyOnNewRequest}
                             onChange={(e) =>
                               setNotifyOnNewRequest(e.currentTarget.checked)
                             }
                           />
                           <Checkbox
-                            label="Request fulfilled (automatic search found book)"
+                            label={t(
+                              "notifications.events.requests.request_fulfilled",
+                            )}
                             checked={notifyOnRequestFulfilled}
                             onChange={(e) =>
                               setNotifyOnRequestFulfilled(
@@ -1366,7 +1452,9 @@ function SettingsComponent() {
                             }
                           />
                           <Checkbox
-                            label="Request pending approval"
+                            label={t(
+                              "notifications.events.requests.request_pending",
+                            )}
                             checked={notifyOnRequestPendingApproval}
                             onChange={(e) =>
                               setNotifyOnRequestPendingApproval(
@@ -1375,7 +1463,9 @@ function SettingsComponent() {
                             }
                           />
                           <Checkbox
-                            label="Request approved"
+                            label={t(
+                              "notifications.events.requests.request_approved",
+                            )}
                             checked={notifyOnRequestApproved}
                             onChange={(e) =>
                               setNotifyOnRequestApproved(
@@ -1384,7 +1474,9 @@ function SettingsComponent() {
                             }
                           />
                           <Checkbox
-                            label="Request rejected"
+                            label={t(
+                              "notifications.events.requests.request_rejected",
+                            )}
                             checked={notifyOnRequestRejected}
                             onChange={(e) =>
                               setNotifyOnRequestRejected(
@@ -1397,31 +1489,33 @@ function SettingsComponent() {
                         {/* Download Notifications */}
                         <Stack gap="xs">
                           <Text size="sm" fw={500}>
-                            Download Notifications
+                            {t("notifications.events.downloads.title")}
                           </Text>
                           <Checkbox
-                            label="Book queued for download"
+                            label={t("notifications.events.downloads.queued")}
                             checked={notifyOnBookQueued}
                             onChange={(e) =>
                               setNotifyOnBookQueued(e.currentTarget.checked)
                             }
                           />
                           <Checkbox
-                            label="Download available (moved to final destination)"
+                            label={t(
+                              "notifications.events.downloads.available",
+                            )}
                             checked={notifyOnAvailable}
                             onChange={(e) =>
                               setNotifyOnAvailable(e.currentTarget.checked)
                             }
                           />
                           <Checkbox
-                            label="Download error (max retries reached)"
+                            label={t("notifications.events.downloads.error")}
                             checked={notifyOnDownloadError}
                             onChange={(e) =>
                               setNotifyOnDownloadError(e.currentTarget.checked)
                             }
                           />
                           <Checkbox
-                            label="Download delayed (quota exhausted)"
+                            label={t("notifications.events.downloads.delayed")}
                             checked={notifyOnDelayed}
                             onChange={(e) =>
                               setNotifyOnDelayed(e.currentTarget.checked)
@@ -1432,17 +1526,21 @@ function SettingsComponent() {
                         {/* Integration Notifications */}
                         <Stack gap="xs">
                           <Text size="sm" fw={500}>
-                            Integration Notifications
+                            {t("notifications.events.integrations.title")}
                           </Text>
                           <Checkbox
-                            label="New list created"
+                            label={t(
+                              "notifications.events.integrations.list_created",
+                            )}
                             checked={notifyOnListCreated}
                             onChange={(e) =>
                               setNotifyOnListCreated(e.currentTarget.checked)
                             }
                           />
                           <Checkbox
-                            label="Email recipient added"
+                            label={t(
+                              "notifications.events.integrations.recipient_added",
+                            )}
                             checked={notifyOnEmailRecipientAdded}
                             onChange={(e) =>
                               setNotifyOnEmailRecipientAdded(
@@ -1451,15 +1549,19 @@ function SettingsComponent() {
                             }
                           />
                           <Checkbox
-                            label="Book sent via email"
-                            description="High volume - consider disabling for active users"
+                            label={t(
+                              "notifications.events.integrations.email_sent",
+                            )}
+                            description={t("notifications.events.high_volume")}
                             checked={notifyOnEmailSent}
                             onChange={(e) =>
                               setNotifyOnEmailSent(e.currentTarget.checked)
                             }
                           />
                           <Checkbox
-                            label="Tolino account configured"
+                            label={t(
+                              "notifications.events.integrations.tolino_configured",
+                            )}
                             checked={notifyOnTolinoConfigured}
                             onChange={(e) =>
                               setNotifyOnTolinoConfigured(
@@ -1468,8 +1570,10 @@ function SettingsComponent() {
                             }
                           />
                           <Checkbox
-                            label="Book uploaded to Tolino"
-                            description="High volume - consider disabling for active users"
+                            label={t(
+                              "notifications.events.integrations.tolino_uploaded",
+                            )}
+                            description={t("notifications.events.high_volume")}
                             checked={notifyOnTolinoUploaded}
                             onChange={(e) =>
                               setNotifyOnTolinoUploaded(e.currentTarget.checked)
@@ -1480,10 +1584,10 @@ function SettingsComponent() {
                         {/* System Notifications */}
                         <Stack gap="xs">
                           <Text size="sm" fw={500}>
-                            System Notifications
+                            {t("notifications.events.system.title")}
                           </Text>
                           <Checkbox
-                            label="Update available"
+                            label={t("notifications.events.system.update")}
                             checked={notifyOnUpdateAvailable}
                             onChange={(e) =>
                               setNotifyOnUpdateAvailable(
@@ -1492,7 +1596,7 @@ function SettingsComponent() {
                             }
                           />
                           <Checkbox
-                            label="Service unhealthy (FlareSolverr down)"
+                            label={t("notifications.events.system.unhealthy")}
                             checked={notifyOnServiceUnhealthy}
                             onChange={(e) =>
                               setNotifyOnServiceUnhealthy(
@@ -1501,7 +1605,7 @@ function SettingsComponent() {
                             }
                           />
                           <Checkbox
-                            label="Service recovered (FlareSolverr back up)"
+                            label={t("notifications.events.system.recovered")}
                             checked={notifyOnServiceRecovered}
                             onChange={(e) =>
                               setNotifyOnServiceRecovered(
@@ -1514,10 +1618,12 @@ function SettingsComponent() {
                         {/* Authentication Notifications */}
                         <Stack gap="xs">
                           <Text size="sm" fw={500}>
-                            Authentication Notifications
+                            {t("notifications.events.auth.title")}
                           </Text>
                           <Checkbox
-                            label="New user auto-provisioned via OIDC"
+                            label={t(
+                              "notifications.events.auth.oidc_account_created",
+                            )}
                             checked={notifyOnOidcAccountCreated}
                             onChange={(e) =>
                               setNotifyOnOidcAccountCreated(
@@ -1526,7 +1632,9 @@ function SettingsComponent() {
                             }
                           />
                           <Checkbox
-                            label="User role updated via OIDC groups"
+                            label={t(
+                              "notifications.events.auth.oidc_role_updated",
+                            )}
                             checked={notifyOnOidcRoleUpdated}
                             onChange={(e) =>
                               setNotifyOnOidcRoleUpdated(
@@ -1545,14 +1653,14 @@ function SettingsComponent() {
                           loading={testApprise.isPending}
                           disabled={!appriseServerUrl}
                         >
-                          Send Test Notification
+                          {t("notifications.test_button")}
                         </Button>
                         <Button
                           onClick={handleSaveApprise}
                           disabled={!hasAppriseChanges}
                           loading={updateApprise.isPending}
                         >
-                          Save Settings
+                          {tCommon("actions.save_settings")}
                         </Button>
                       </Group>
                     </Stack>
@@ -1562,9 +1670,7 @@ function SettingsComponent() {
                     <>
                       <Alert icon={<IconInfoCircle size={16} />} color="gray">
                         <Text size="sm">
-                          Apprise notifications are currently disabled. Enable
-                          them above to configure push notifications for
-                          download events.
+                          {t("notifications.disabled_message")}
                         </Text>
                       </Alert>
 
@@ -1575,7 +1681,7 @@ function SettingsComponent() {
                             onClick={handleSaveApprise}
                             loading={updateApprise.isPending}
                           >
-                            Save Settings
+                            {tCommon("actions.save_settings")}
                           </Button>
                         </Group>
                       )}
@@ -1593,9 +1699,9 @@ function SettingsComponent() {
                 <Stack gap="md">
                   <Group justify="space-between">
                     <div>
-                      <Title order={3}>Booklore Integration</Title>
+                      <Title order={3}>{t("booklore.title")}</Title>
                       <Text size="sm" c="dimmed">
-                        Configure automatic upload to your Booklore library
+                        {t("booklore.description")}
                       </Text>
                     </div>
                     <Switch
@@ -1603,7 +1709,7 @@ function SettingsComponent() {
                       onChange={(e) =>
                         setBookloreEnabled(e.currentTarget.checked)
                       }
-                      label="Enabled"
+                      label={tCommon("enabled")}
                       size="lg"
                     />
                   </Group>
@@ -1617,7 +1723,7 @@ function SettingsComponent() {
                           onClick={handleSaveBooklore}
                           loading={updateBooklore.isPending}
                         >
-                          Disable Booklore
+                          {t("booklore.buttons.disable")}
                         </Button>
                       </Group>
                     )}
@@ -1625,7 +1731,7 @@ function SettingsComponent() {
                   {bookloreEnabled && (
                     <Stack gap="sm">
                       <TextInput
-                        label="Base URL"
+                        label={t("booklore.fields.url.label")}
                         placeholder="http://192.168.7.3:6060"
                         value={baseUrl}
                         onChange={(e) => setBaseUrl(e.target.value)}
@@ -1636,8 +1742,10 @@ function SettingsComponent() {
                       {bookloreSettings?.connected && librariesData ? (
                         <>
                           <Select
-                            label="Library"
-                            placeholder="Select a library"
+                            label={t("booklore.fields.library.label")}
+                            placeholder={t(
+                              "booklore.fields.library.placeholder",
+                            )}
                             value={libraryId ? String(libraryId) : null}
                             onChange={(value) =>
                               setLibraryId(value ? Number(value) : "")
@@ -1653,8 +1761,8 @@ function SettingsComponent() {
                           />
 
                           <Select
-                            label="Path"
-                            placeholder="Select a path"
+                            label={t("booklore.fields.path.label")}
+                            placeholder={t("booklore.fields.path.placeholder")}
                             value={pathId ? String(pathId) : null}
                             onChange={(value) =>
                               setPathId(value ? Number(value) : "")
@@ -1678,7 +1786,7 @@ function SettingsComponent() {
                         </>
                       ) : bookloreSettings?.connected && loadingLibraries ? (
                         <Alert icon={<IconInfoCircle size={16} />} color="blue">
-                          <Text size="sm">Loading libraries...</Text>
+                          <Text size="sm">{t("booklore.library.loading")}</Text>
                         </Alert>
                       ) : null}
 
@@ -1691,26 +1799,28 @@ function SettingsComponent() {
                         >
                           <Stack gap="xs">
                             <Text size="sm" fw={500}>
-                              ✓ Connected to Booklore
+                              {t("booklore.status.connected")}
                             </Text>
                             {bookloreSettings.accessTokenExpiresAt && (
                               <Text size="xs" c="dimmed">
-                                Access token expires:{" "}
-                                {formatDate(
-                                  bookloreSettings.accessTokenExpiresAt,
-                                  dateFormat,
-                                  timeFormat,
-                                )}
+                                {t("booklore.status.token_expires", {
+                                  date: formatDate(
+                                    bookloreSettings.accessTokenExpiresAt,
+                                    dateFormat,
+                                    timeFormat,
+                                  ),
+                                })}
                               </Text>
                             )}
                             {bookloreSettings.refreshTokenExpiresAt && (
                               <Text size="xs" c="dimmed">
-                                Refresh token expires:{" "}
-                                {formatDate(
-                                  bookloreSettings.refreshTokenExpiresAt,
-                                  dateFormat,
-                                  timeFormat,
-                                )}
+                                {t("booklore.status.refresh_expires", {
+                                  date: formatDate(
+                                    bookloreSettings.refreshTokenExpiresAt,
+                                    dateFormat,
+                                    timeFormat,
+                                  ),
+                                })}
                               </Text>
                             )}
                             <Button
@@ -1719,7 +1829,7 @@ function SettingsComponent() {
                               onClick={() => setShowAuthForm(true)}
                               mt="xs"
                             >
-                              Re-authenticate
+                              {t("booklore.status.reauthenticate")}
                             </Button>
                           </Stack>
                         </Alert>
@@ -1729,17 +1839,23 @@ function SettingsComponent() {
                       {(showAuthForm || !bookloreSettings?.connected) && (
                         <Stack gap="sm">
                           <TextInput
-                            label="Username"
-                            placeholder="Enter your Booklore username"
+                            label={t("booklore.auth.username.label")}
+                            placeholder={t(
+                              "booklore.auth.username.placeholder",
+                            )}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            description="Credentials are used for authentication only, never stored"
+                            description={t(
+                              "booklore.auth.username.description",
+                            )}
                             required
                           />
 
                           <PasswordInput
-                            label="Password"
-                            placeholder="Enter your Booklore password"
+                            label={t("booklore.auth.password.label")}
+                            placeholder={t(
+                              "booklore.auth.password.placeholder",
+                            )}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -1753,10 +1869,8 @@ function SettingsComponent() {
                         mt="sm"
                       >
                         <Text size="sm">
-                          <strong>Note:</strong> When post-download action is
-                          set to "Upload only" or "Move and Upload", files will
-                          always be uploaded to Booklore automatically if it's
-                          enabled and configured.
+                          <strong>{tCommon("note")}:</strong>{" "}
+                          {t("booklore.note_upload")}
                         </Text>
                       </Alert>
 
@@ -1768,7 +1882,7 @@ function SettingsComponent() {
                           loading={testConnection.isPending}
                           disabled={!bookloreSettings?.connected}
                         >
-                          Test Connection
+                          {t("booklore.test_button")}
                         </Button>
                         <Button
                           onClick={handleSaveBooklore}
@@ -1776,11 +1890,11 @@ function SettingsComponent() {
                           loading={updateBooklore.isPending}
                         >
                           {!bookloreSettings?.connected && username && password
-                            ? "Authenticate"
+                            ? t("booklore.buttons.authenticate")
                             : bookloreSettings?.connected &&
                                 (libraryId || pathId)
-                              ? "Save Library Settings"
-                              : "Save Changes"}
+                              ? t("booklore.buttons.save_lib")
+                              : tCommon("actions.save_settings")}
                         </Button>
                       </Group>
                     </Stack>
@@ -1789,10 +1903,7 @@ function SettingsComponent() {
                   {!bookloreEnabled && (
                     <>
                       <Alert icon={<IconInfoCircle size={16} />} color="gray">
-                        <Text size="sm">
-                          Booklore integration is currently disabled. Enable it
-                          above to configure automatic uploads.
-                        </Text>
+                        <Text size="sm">{t("booklore.disabled_message")}</Text>
                       </Alert>
 
                       {/* Show clear auth button if tokens still exist while disabled */}
@@ -1803,8 +1914,7 @@ function SettingsComponent() {
                         >
                           <Stack gap="xs">
                             <Text size="sm">
-                              Authentication data is still stored. Clear it for
-                              better security.
+                              {t("booklore.clear_auth.message")}
                             </Text>
                             <Button
                               size="xs"
@@ -1817,7 +1927,7 @@ function SettingsComponent() {
                               }}
                               loading={updateBooklore.isPending}
                             >
-                              Clear Authentication Data
+                              {t("booklore.buttons.clear_auth")}
                             </Button>
                           </Stack>
                         </Alert>
@@ -1841,9 +1951,9 @@ function SettingsComponent() {
                   <Stack gap="md">
                     <Group justify="space-between">
                       <div>
-                        <Title order={3}>Email Settings</Title>
+                        <Title order={3}>{t("email.smtp.title")}</Title>
                         <Text size="sm" c="dimmed">
-                          Configure SMTP settings to send books via email
+                          {t("email.smtp.description")}
                         </Text>
                       </div>
                       <Switch
@@ -1851,7 +1961,7 @@ function SettingsComponent() {
                         onChange={(e) =>
                           setEmailEnabled(e.currentTarget.checked)
                         }
-                        label="Enabled"
+                        label={t("email.smtp.enabled")}
                         size="lg"
                       />
                     </Group>
@@ -1860,14 +1970,16 @@ function SettingsComponent() {
                       <Alert
                         icon={<IconAlertTriangle size={16} />}
                         color="orange"
-                        title="File access disabled"
+                        title={t("email.smtp.file_access_warning.title")}
                       >
                         <Text size="sm">
-                          Enable{" "}
-                          <strong>"Keep copy in downloads folder"</strong> in
-                          the General tab under Post-Download Actions to use
-                          email sending. Without this setting, downloaded files
-                          may not be available for email attachments.
+                          <Trans i18nKey="settings.email.smtp.file_access_warning.message">
+                            Enable{" "}
+                            <strong>"Keep copy in downloads folder"</strong> in
+                            the General tab under Post-Download Actions to use
+                            email sending. Without this setting, downloaded
+                            files may not be available for email attachments.
+                          </Trans>
                         </Text>
                       </Alert>
                     )}
@@ -1875,48 +1987,52 @@ function SettingsComponent() {
                     {emailEnabled && (
                       <Stack gap="sm">
                         <TextInput
-                          label="SMTP Host"
-                          placeholder="smtp.gmail.com"
+                          label={t("email.fields.host.label")}
+                          placeholder={t("email.fields.host.placeholder")}
                           value={smtpHost}
                           onChange={(e) => setSmtpHost(e.target.value)}
                           required
                         />
                         <NumberInput
-                          label="SMTP Port"
+                          label={t("email.fields.port.label")}
                           value={smtpPort}
                           onChange={(val) => setSmtpPort(Number(val) || 587)}
                           min={1}
                           max={65535}
                         />
                         <TextInput
-                          label="SMTP Username"
-                          placeholder="user@gmail.com"
+                          label={t("email.fields.username.label")}
+                          placeholder={t("email.fields.username.placeholder")}
                           value={smtpUser}
                           onChange={(e) => setSmtpUser(e.target.value)}
                         />
                         <PasswordInput
-                          label="SMTP Password"
-                          placeholder="Your SMTP password or app password"
+                          label={t("email.fields.password.label")}
+                          placeholder={t("email.fields.password.placeholder")}
                           value={smtpPassword}
                           onChange={(e) => setSmtpPassword(e.target.value)}
                         />
                         <TextInput
-                          label="Sender Email"
-                          placeholder="books@example.com"
+                          label={t("email.fields.sender_email.label")}
+                          placeholder={t(
+                            "email.fields.sender_email.placeholder",
+                          )}
                           value={senderEmail}
                           onChange={(e) => setSenderEmail(e.target.value)}
                           required
                         />
                         <TextInput
-                          label="Sender Name"
-                          placeholder="Book Library"
+                          label={t("email.fields.sender_name.label")}
+                          placeholder={t(
+                            "email.fields.sender_name.placeholder",
+                          )}
                           value={senderName}
                           onChange={(e) => setSenderName(e.target.value)}
                         />
                         <Switch
                           checked={useTls}
                           onChange={(e) => setUseTls(e.currentTarget.checked)}
-                          label="Use TLS/STARTTLS"
+                          label={t("email.fields.tls.label")}
                         />
 
                         <Group justify="flex-end" mt="md">
@@ -1926,14 +2042,14 @@ function SettingsComponent() {
                             loading={testEmail.isPending}
                             disabled={!smtpHost || !senderEmail}
                           >
-                            Test Connection
+                            {t("email.buttons.test")}
                           </Button>
                           <Button
                             onClick={handleSaveEmail}
                             disabled={!hasEmailChanges}
                             loading={updateEmail.isPending}
                           >
-                            Save Settings
+                            {tCommon("actions.save_settings")}
                           </Button>
                         </Group>
                       </Stack>
@@ -1942,10 +2058,7 @@ function SettingsComponent() {
                     {!emailEnabled && (
                       <>
                         <Alert icon={<IconInfoCircle size={16} />} color="gray">
-                          <Text size="sm">
-                            Email sending is currently disabled. Enable it above
-                            to configure SMTP settings.
-                          </Text>
+                          <Text size="sm">{t("email.disabled_message")}</Text>
                         </Alert>
 
                         {/* Show save button if user toggled email off */}
@@ -1955,7 +2068,7 @@ function SettingsComponent() {
                               onClick={handleSaveEmail}
                               loading={updateEmail.isPending}
                             >
-                              Save Settings
+                              {tCommon("actions.save_settings")}
                             </Button>
                           </Group>
                         )}
@@ -1969,11 +2082,11 @@ function SettingsComponent() {
               <Paper p="md" withBorder>
                 <Stack gap="md">
                   <div>
-                    <Title order={3}>Email Recipients</Title>
+                    <Title order={3}>{t("email.recipients.title")}</Title>
                     <Text size="sm" c="dimmed">
                       {isAdmin
-                        ? "Manage email addresses for all users"
-                        : "Manage your email addresses for sending books"}
+                        ? t("email.recipients.description.admin")
+                        : t("email.recipients.description.user")}
                     </Text>
                   </div>
 
@@ -1981,10 +2094,9 @@ function SettingsComponent() {
                   {!isEmailConfigured && (
                     <Alert icon={<IconInfoCircle size={16} />} color="yellow">
                       <Text size="sm">
-                        Email sending is not configured yet.{" "}
-                        {canConfigureEmail
-                          ? "Enable email in the settings above to add recipients."
-                          : "An administrator needs to configure SMTP settings before you can add email recipients."}
+                        {isAdmin
+                          ? t("email.recipients.not_configured.admin")
+                          : t("email.recipients.not_configured.user")}
                       </Text>
                     </Alert>
                   )}
@@ -1994,13 +2106,17 @@ function SettingsComponent() {
                     <>
                       <Group gap="xs">
                         <TextInput
-                          placeholder="recipient@example.com"
+                          placeholder={t(
+                            "email.recipients.form.email_placeholder",
+                          )}
                           value={newRecipientEmail}
                           onChange={(e) => setNewRecipientEmail(e.target.value)}
                           style={{ flex: 2 }}
                         />
                         <TextInput
-                          placeholder="Name (optional)"
+                          placeholder={t(
+                            "email.recipients.form.name_placeholder",
+                          )}
                           value={newRecipientName}
                           onChange={(e) => setNewRecipientName(e.target.value)}
                           style={{ flex: 1 }}
@@ -2011,7 +2127,7 @@ function SettingsComponent() {
                           loading={addRecipient.isPending}
                           disabled={!newRecipientEmail}
                         >
-                          Add
+                          {tCommon("actions.add")}
                         </Button>
                       </Group>
 
@@ -2043,7 +2159,7 @@ function SettingsComponent() {
                               <Group gap="sm">
                                 <Switch
                                   size="xs"
-                                  label="Auto-send"
+                                  label={t("email.recipients.table.auto_send")}
                                   checked={recipient.autoSend}
                                   onChange={(e) =>
                                     updateRecipient.mutate({
@@ -2056,7 +2172,11 @@ function SettingsComponent() {
                                 {isAdmin && allUsers && allUsers.length > 1 && (
                                   <Menu shadow="md" width={200}>
                                     <Menu.Target>
-                                      <Tooltip label="Reassign to user">
+                                      <Tooltip
+                                        label={t(
+                                          "email.recipients.table.reassign",
+                                        )}
+                                      >
                                         <ActionIcon
                                           color="blue"
                                           variant="light"
@@ -2067,7 +2187,11 @@ function SettingsComponent() {
                                       </Tooltip>
                                     </Menu.Target>
                                     <Menu.Dropdown>
-                                      <Menu.Label>Reassign to:</Menu.Label>
+                                      <Menu.Label>
+                                        {t(
+                                          "email.recipients.table.reassign_to",
+                                        )}
+                                      </Menu.Label>
                                       {allUsers
                                         .filter(
                                           (u) => u.id !== recipient.userId,
@@ -2106,7 +2230,7 @@ function SettingsComponent() {
 
                       {(!emailRecipients || emailRecipients.length === 0) && (
                         <Text size="sm" c="dimmed" fs="italic">
-                          No recipients added yet
+                          {t("email.recipients.table.empty")}
                         </Text>
                       )}
                     </>

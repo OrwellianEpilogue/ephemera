@@ -63,6 +63,7 @@ class AppSettingsService {
       bookRetentionDays: 30,
       bookSearchCacheDays: 7,
       requestCheckInterval: "6h",
+      locale: "en",
       timeFormat: "24h",
       dateFormat: "eur",
       libraryUrl: null,

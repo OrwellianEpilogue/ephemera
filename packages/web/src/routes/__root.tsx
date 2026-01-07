@@ -35,8 +35,10 @@ import { useFrontendConfig } from "../hooks/useConfig";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { VersionFooter } from "../components/VersionFooter";
 import { UserMenu } from "../components/UserMenu";
+import { useTranslation } from "react-i18next";
 
 function RootComponent() {
+  const { t } = useTranslation("translation", { keyPrefix: "layout" });
   const [opened, { toggle }] = useDisclosure();
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme("light", {
@@ -113,7 +115,7 @@ function RootComponent() {
               hiddenFrom="sm"
               size="sm"
             />
-            <Title order={3}>Ephemera</Title>
+            <Title order={3}>{t("app_title")}</Title>
           </Group>
           <Group gap="xs">
             {config?.libraryUrl &&
@@ -125,7 +127,7 @@ function RootComponent() {
                   target="_blank"
                   rel="noopener noreferrer"
                   variant="subtle"
-                  aria-label="Library"
+                  aria-label={t("aria.library")}
                 >
                   <IconBook size={20} />
                 </ActionIcon>
@@ -133,7 +135,7 @@ function RootComponent() {
             <ActionIcon
               variant="subtle"
               onClick={toggleColorScheme}
-              aria-label="Toggle color scheme"
+              aria-label={t("aria.toggle_theme")}
             >
               {computedColorScheme === "light" ? (
                 <IconMoon size={20} />
@@ -151,14 +153,14 @@ function RootComponent() {
           <NavLink
             component={Link}
             to="/search"
-            label="Search"
+            label={t("nav.search")}
             leftSection={<IconSearch size={20} />}
             onClick={() => toggle()}
           />
           <NavLink
             component={Link}
             to="/queue"
-            label="Queue"
+            label={t("nav.queue")}
             leftSection={<IconDownload size={20} />}
             rightSection={
               totalActiveCount > 0 ? (
@@ -177,7 +179,7 @@ function RootComponent() {
           <NavLink
             component={Link}
             to="/requests"
-            label="Requests"
+            label={t("nav.requests")}
             leftSection={<IconBookmark size={20} />}
             rightSection={
               activeCount > 0 ||
@@ -211,7 +213,7 @@ function RootComponent() {
           <NavLink
             component={Link}
             to="/lists"
-            label="Lists"
+            label={t("nav.lists")}
             leftSection={<IconList size={20} />}
             onClick={() => toggle()}
           />
@@ -223,7 +225,7 @@ function RootComponent() {
                 href={config.libraryUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                label="Library"
+                label={t("nav.library")}
                 leftSection={<IconBook size={20} />}
                 rightSection={<IconExternalLink size={16} />}
               />
@@ -231,7 +233,7 @@ function RootComponent() {
           <NavLink
             component={Link}
             to="/settings"
-            label="Settings"
+            label={t("nav.settings")}
             leftSection={<IconSettings size={20} />}
             onClick={() => toggle()}
             style={{ marginTop: "auto", marginBottom: 0 }}

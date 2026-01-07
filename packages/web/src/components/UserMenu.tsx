@@ -17,8 +17,12 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { signOut } from "../lib/auth-client";
 import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 export function UserMenu() {
+  const { t } = useTranslation("translation", {
+    keyPrefix: "layout",
+  });
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
@@ -82,7 +86,7 @@ export function UserMenu() {
               </Text>
               {isAdmin && (
                 <Badge size="xs" variant="light" color="blue">
-                  Admin
+                  {t("roles.admin")}
                 </Badge>
               )}
             </Box>
@@ -95,18 +99,18 @@ export function UserMenu() {
       </Menu.Target>
 
       <Menu.Dropdown>
-        <Menu.Label>Account</Menu.Label>
+        <Menu.Label>{t("user_menu.account")}</Menu.Label>
         <Menu.Item disabled>
           <div>
             <Text size="sm" fw={500}>
-              {user.name || "User"}
+              {user.name || t("user_menu.user_fallback")}
             </Text>
             <Text size="xs" c="dimmed">
               {user.email}
             </Text>
             {isAdmin && (
               <Badge size="xs" variant="light" color="blue" mt={4}>
-                Administrator
+                {t("roles.administrator")}
               </Badge>
             )}
           </div>
@@ -114,12 +118,12 @@ export function UserMenu() {
 
         <Menu.Divider />
 
-        <Menu.Label>Actions</Menu.Label>
+        <Menu.Label>{t("user_menu.actions")}</Menu.Label>
         <Menu.Item
           leftSection={<IconUser style={{ width: rem(16), height: rem(16) }} />}
           onClick={() => navigate({ to: "/account" })}
         >
-          Account
+          {t("user_menu.my_account")}
         </Menu.Item>
         <Menu.Item
           leftSection={
@@ -127,7 +131,7 @@ export function UserMenu() {
           }
           onClick={() => navigate({ to: "/settings" })}
         >
-          Settings
+          {t("nav.settings")}
         </Menu.Item>
 
         <Menu.Divider />
@@ -139,7 +143,7 @@ export function UserMenu() {
           }
           onClick={handleSignOut}
         >
-          Sign out
+          {t("user_menu.sign_out")}
         </Menu.Item>
       </Menu.Dropdown>
     </Menu>

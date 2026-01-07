@@ -7,6 +7,7 @@ import { emailSettingsService } from "./email-settings.js";
 import { downloadTracker } from "./download-tracker.js";
 import { bookService } from "./book-service.js";
 import { logger } from "../utils/logger.js";
+import { getFixedT } from "../utils/i18n.js";
 
 /**
  * Email Service
@@ -117,8 +118,15 @@ class EmailService {
 
   /**
    * Send a book to a recipient as email attachment
+   * @param recipientId - ID of the recipient
+   * @param md5 - MD5 of the book
+   * @param locale - Language for the email content
    */
-  async sendBook(recipientId: number, md5: string): Promise<void> {
+  async sendBook(
+    recipientId: number,
+    md5: string,
+    locale: string = "en",
+  ): Promise<void> {
     const settings = await emailSettingsService.getSettings();
     const recipient = await emailSettingsService.getRecipient(recipientId);
 
@@ -140,6 +148,8 @@ class EmailService {
     if (download.status !== "available" && download.status !== "done") {
       throw new Error(`Cannot send book with status: ${download.status}`);
     }
+
+    const t = getFixedT(locale);
 
     // Determine file path - prefer tempPath when it exists (for keepInDownloads mode)
     let filePath: string | null = null;
@@ -187,14 +197,17 @@ class EmailService {
       to: recipient.name
         ? `"${recipient.name}" <${recipient.email}>`
         : recipient.email,
-      subject: `Book: ${title}`,
-      text: `Here is your requested book: ${title}${author ? ` by ${author}` : ""}`,
+      subject: t("email.subject", { title }),
+      text: t("email.text", {
+        title,
+        author: author ? ` ${t("parts.by")}${author}` : "",
+      }),
       html: `
-        <h2>Your Book</h2>
-        <p><strong>Title:</strong> ${escapeHtml(title)}</p>
-        ${author ? `<p><strong>Author:</strong> ${escapeHtml(author)}</p>` : ""}
+        <h2>${t("email.html.title")}</h2>
+        <p><strong>${t("email.html.label_title")}:</strong> ${escapeHtml(title)}</p>
+        ${author ? `<p><strong>${t("email.html.label_author")}:</strong> ${escapeHtml(author)}</p>` : ""}
         ${download.year ? `<p><strong>Year:</strong> ${download.year}</p>` : ""}
-        <p>The book is attached to this email.</p>
+        <p>${t("email.html.footer")}</p>
       `,
       attachments: [
         {
@@ -204,7 +217,7 @@ class EmailService {
       ],
     };
 
-    logger.info(`[Email] Sending "${title}" to ${recipient.email}`);
+    logger.info(`[Email] Sending "${title}" to ${recipient.email} [${locale}]`);
     await transport.sendMail(mailOptions);
     logger.info(`[Email] Successfully sent "${title}" to ${recipient.email}`);
   }
