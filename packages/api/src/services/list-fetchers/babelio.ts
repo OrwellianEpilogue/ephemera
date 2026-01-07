@@ -73,9 +73,9 @@ export class BabelioFetcher implements ListFetcher {
           try {
             const details = await this.fetchBookDetails(book.sourceUrl);
             enrichedBooks.push({ ...book, ...details });
-          } catch (_) {
-            logger.warn(
-              `[Babelio] Impossible d'enrichir ${book.title}, ajout version de base.`,
+          } catch (err) {
+            logger.error(
+              `[Babelio DEBUG] Erreur détails pour "${book.title}": ${err instanceof Error ? err.message : String(err)}`,
             );
             enrichedBooks.push(book);
           }
@@ -106,7 +106,7 @@ export class BabelioFetcher implements ListFetcher {
     const books: ListBook[] = [];
     const $ = cheerio.load(html);
 
-    $(".liste_item").each((_, element) => {
+    $(".liste_item").each((index, element) => {
       const el = $(element);
 
       const titleLink = el.find("a.titre_v2").first();
@@ -116,7 +116,15 @@ export class BabelioFetcher implements ListFetcher {
       const rawTitle = titleLink.text().trim();
       const relativeUrl = titleLink.attr("href");
 
-      if (!relativeUrl) return;
+      if (!relativeUrl) {
+        logger.warn(
+          `[Babelio DEBUG] Bloc #${index}: Titre "${rawTitle}" trouvé mais pas de href`,
+        );
+        return;
+      }
+      logger.debug(
+        `[Babelio DEBUG] Bloc #${index}: Titre="${rawTitle}" <===> URL="${relativeUrl}"`,
+      );
 
       const idMatch = relativeUrl.match(/\/(\d+)$/);
       const sourceBookId = idMatch ? idMatch[1] : "";
@@ -156,17 +164,23 @@ export class BabelioFetcher implements ListFetcher {
         description: description || undefined,
       });
     });
-    return {
-      books,
-      hasNext:
-        html.includes("page=") && !html.includes('class="no_active">Suivant'),
-    };
+
+    const hasNext =
+      $('.pagination a.next, a:contains("Suivant")').length > 0 ||
+      html.includes(`page=`);
+
+    return { books, hasNext };
   }
 
   private async fetchBookDetails(url: string): Promise<Partial<ListBook>> {
     try {
       const response = await this.fetchWithTimeout(url);
-      if (!response.ok) return {};
+      if (!response.ok) {
+        logger.warn(
+          `[Babelio DEBUG] Erreur HTTP ${response.status} pour ${url}`,
+        );
+        return {};
+      }
 
       const html = await this.decodeHtml(response);
       const $ = cheerio.load(html);
@@ -177,6 +191,10 @@ export class BabelioFetcher implements ListFetcher {
       const eanMatch = refsText.match(/EAN\s*:\s*([\dX]{10,13})/i);
       if (eanMatch) {
         details.isbn = eanMatch[1].trim();
+      } else {
+        logger.debug(
+          `[Babelio DEBUG] Pas d'EAN trouvé dans le texte ref pour ${url}`,
+        );
       }
 
       const bodyText = $("body").text();
@@ -196,7 +214,8 @@ export class BabelioFetcher implements ListFetcher {
       }
 
       return details;
-    } catch (_) {
+    } catch (e) {
+      logger.error(`[Babelio DEBUG] Exception dans fetchBookDetails: ${e}`);
       return {};
     }
   }
