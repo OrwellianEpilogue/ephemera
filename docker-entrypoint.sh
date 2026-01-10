@@ -5,11 +5,6 @@ echo "==================================="
 echo "ephemera — book downloader"
 echo "==================================="
 
-if [ -z "$AA_BASE_URL" ]; then
-  echo "ERROR: AA_BASE_URL is required but not set"
-  exit 1
-fi
-
 # Handle PUID/PGID for permission management
 # Set PUID if not set
 if [ -z "$PUID" ]; then
