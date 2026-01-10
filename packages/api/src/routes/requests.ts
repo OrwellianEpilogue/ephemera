@@ -778,4 +778,192 @@ app.openapi(rejectRequestRoute, async (c) => {
   }
 });
 
+// Manually fulfill request route
+const fulfillRequestRoute = createRoute({
+  method: "post",
+  path: "/requests/{id}/fulfill",
+  tags: ["Requests"],
+  summary: "Manually fulfill a request with a specific book",
+  description:
+    "Manually fulfill a request by specifying a book MD5. This queues the book for download and marks the request as fulfilled.",
+  request: {
+    params: z.object({
+      id: z.string().transform(Number).describe("Request ID"),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            bookMd5: z.string().describe("MD5 hash of the book to download"),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Request fulfilled successfully",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean(),
+            message: z.string(),
+            bookMd5: z.string(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: "Request not active or invalid status",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    403: {
+      description: "Forbidden - not owner or lacks permission",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    404: {
+      description: "Request not found",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+    500: {
+      description: "Internal server error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+app.openapi(fulfillRequestRoute, async (c) => {
+  try {
+    const { id } = c.req.valid("param");
+    const user = c.get("user");
+    const { bookMd5 } = await c.req.json();
+
+    if (!bookMd5 || typeof bookMd5 !== "string") {
+      return c.json(
+        {
+          error: "Invalid request",
+          details: "bookMd5 is required",
+        },
+        400,
+      );
+    }
+
+    // Get the request
+    const request = await downloadRequestsService.getRequestById(id);
+
+    if (!request) {
+      return c.json(
+        {
+          error: "Request not found",
+          details: `No request found with ID: ${id}`,
+        },
+        404,
+      );
+    }
+
+    // Check permission - must be owner or have canManageRequests permission
+    const isAdmin = user.role === "admin";
+    const isOwner = request.userId === user.id;
+    const hasManagePermission =
+      isAdmin ||
+      (await permissionsService.canPerform(user.id, "canManageRequests"));
+
+    if (!isOwner && !hasManagePermission) {
+      return c.json(
+        {
+          error: "Forbidden",
+          message: "You do not have permission to fulfill this request",
+        },
+        403,
+      );
+    }
+
+    // Only active or pending_approval requests can be manually fulfilled
+    if (request.status !== "active" && request.status !== "pending_approval") {
+      return c.json(
+        {
+          error: "Invalid status",
+          details: "Only active or pending_approval requests can be fulfilled",
+        },
+        400,
+      );
+    }
+
+    logger.info(
+      `Manually fulfilling request ${id} with book ${bookMd5} by user ${user.id}`,
+    );
+
+    // Import queueManager to add the book to download queue
+    const { queueManager } = await import("../services/queue-manager.js");
+
+    // Add to download queue using the request owner's user ID
+    const queueResult = await queueManager.addToQueue(
+      bookMd5,
+      request.userId || user.id,
+    );
+
+    const successStatuses = [
+      "queued",
+      "already_downloaded",
+      "already_in_queue",
+    ];
+    if (!successStatuses.includes(queueResult.status)) {
+      return c.json(
+        {
+          error: "Failed to queue book",
+          details: `Queue status: ${queueResult.status}`,
+        },
+        400,
+      );
+    }
+
+    // Mark request as fulfilled
+    await requestsManager.markFulfilled(id, bookMd5);
+
+    // Send notification
+    await appriseService.send("request_fulfilled", {
+      query: request.queryParams.q,
+      author: request.queryParams.author,
+      title: request.queryParams.title,
+      bookTitle: request.queryParams.title || "Requested Book",
+      bookMd5,
+    });
+
+    return c.json(
+      {
+        success: true,
+        message: "Request fulfilled and book queued for download",
+        bookMd5,
+      },
+      200,
+    );
+  } catch (error: unknown) {
+    logger.error("Fulfill request error:", error);
+
+    return c.json(
+      {
+        error: "Failed to fulfill request",
+        details: getErrorMessage(error),
+      },
+      500,
+    );
+  }
+});
+
 export default app;

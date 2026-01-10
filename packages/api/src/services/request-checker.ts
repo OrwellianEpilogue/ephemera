@@ -5,11 +5,21 @@ import {
 import { requestsManager } from "./requests-manager.js";
 import { searcherScraper } from "./scraper.js";
 import { queueManager } from "./queue-manager.js";
+import { downloadTracker } from "./download-tracker.js";
 import { appriseService } from "./apprise.js";
 import { bookService } from "./book-service.js";
 import { listSettingsService } from "./list-settings.js";
+import { emailSettingsService } from "./email-settings.js";
+import { emailService } from "./email.js";
+import { tolinoSettingsService } from "./tolino-settings.js";
+import { tolinoUploadService } from "./tolino/uploader.js";
+import { appSettingsService } from "./app-settings.js";
 import { getErrorMessage } from "../utils/logger.js";
-import type { SearchQuery } from "@ephemera/shared";
+import {
+  calculateBookMatchScore,
+  isGoodMatch,
+} from "../utils/string-matching.js";
+import type { SearchQuery, Book } from "@ephemera/shared";
 
 /**
  * Convert RequestQueryParams to SearchQuery
@@ -65,6 +75,180 @@ function createIsbnSearchQuery(params: RequestQueryParams): SearchQuery | null {
     lang: toArray(params.lang),
     desc: params.desc,
   };
+}
+
+/**
+ * Trigger user-specific post-download actions for an already-downloaded book
+ * This sends the book to the user's email recipients and uploads to Tolino if configured
+ */
+async function triggerPostDownloadActionsForUser(
+  md5: string,
+  userId: string,
+  bookTitle: string,
+): Promise<void> {
+  // Check if keepInDownloads is enabled (file must be accessible)
+  const appSettings = await appSettingsService.getSettings();
+  if (!appSettings.postDownloadKeepInDownloads) {
+    console.log(
+      `[Request Checker] Skipping post-download actions - keepInDownloads is disabled`,
+    );
+    return;
+  }
+
+  // Auto-send to the user's email recipients with auto-send enabled
+  try {
+    const isEmailEnabled = await emailSettingsService.isEnabled();
+    if (isEmailEnabled) {
+      const autoSendRecipients =
+        await emailSettingsService.getAutoSendRecipients(userId);
+      for (const recipient of autoSendRecipients) {
+        try {
+          console.log(
+            `[Request Checker] Auto-sending "${bookTitle}" to ${recipient.email}`,
+          );
+          await emailService.sendBook(recipient.id, md5);
+          console.log(
+            `[Request Checker] Successfully sent "${bookTitle}" to ${recipient.email}`,
+          );
+        } catch (emailError) {
+          console.error(
+            `[Request Checker] Failed to send "${bookTitle}" to ${recipient.email}:`,
+            getErrorMessage(emailError),
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error(
+      `[Request Checker] Error checking email settings:`,
+      getErrorMessage(error),
+    );
+  }
+
+  // Auto-upload to Tolino Cloud if user has auto-upload enabled
+  try {
+    const tolinoSettings = await tolinoSettingsService.getSettings(userId);
+    if (tolinoSettings?.autoUpload) {
+      console.log(
+        `[Request Checker] Auto-uploading "${bookTitle}" to Tolino Cloud`,
+      );
+
+      // Get collection name if configured
+      let collectionName: string | undefined =
+        tolinoSettings.autoUploadCollection || undefined;
+
+      const uploadResult = await tolinoUploadService.uploadBook(userId, md5, {
+        collectionName,
+      });
+
+      if (uploadResult.success) {
+        console.log(
+          `[Request Checker] Successfully uploaded "${bookTitle}" to Tolino Cloud`,
+        );
+      } else {
+        console.error(
+          `[Request Checker] Failed to upload "${bookTitle}" to Tolino Cloud:`,
+          uploadResult.message,
+        );
+      }
+    }
+  } catch (error) {
+    console.error(
+      `[Request Checker] Error with Tolino upload:`,
+      getErrorMessage(error),
+    );
+  }
+}
+
+/**
+ * Find the best matching book from search results
+ * Returns the book with the highest match score that hasn't been downloaded yet,
+ * or if all matching books are already downloaded, returns the best match regardless
+ */
+async function findBestMatchingBook(
+  results: Book[],
+  requestTitle: string | undefined,
+  requestAuthor: string | undefined,
+  requestedFormats: string | string[] | undefined,
+): Promise<{
+  book: Book | null;
+  isAlreadyDownloaded: boolean;
+  matchScore: number;
+}> {
+  // Filter by format first if specified
+  let filteredResults = results;
+  const formatsArray = requestedFormats
+    ? Array.isArray(requestedFormats)
+      ? requestedFormats
+      : [requestedFormats]
+    : [];
+
+  if (formatsArray.length > 0) {
+    const formatsUpper = formatsArray.map((f: string) => f.toUpperCase());
+    filteredResults = results.filter(
+      (book) => book.format && formatsUpper.includes(book.format.toUpperCase()),
+    );
+  }
+
+  if (filteredResults.length === 0) {
+    return { book: null, isAlreadyDownloaded: false, matchScore: 0 };
+  }
+
+  // Calculate match scores for all books
+  const booksWithScores = filteredResults.map((book) => ({
+    book,
+    score: calculateBookMatchScore(
+      requestTitle,
+      requestAuthor,
+      book.title,
+      book.authors,
+    ),
+  }));
+
+  // Sort by score descending
+  booksWithScores.sort((a, b) => b.score - a.score);
+
+  // Find the best matching book that's NOT already downloaded
+  for (const { book, score } of booksWithScores) {
+    // Skip books with very low match scores (likely wrong book)
+    if (score < 0.3) continue;
+
+    const downloadRecord = await downloadTracker.getByMd5(book.md5);
+    const isDownloaded = downloadRecord?.status === "available";
+
+    if (!isDownloaded) {
+      // Book not downloaded yet - this is our best candidate
+      return { book, isAlreadyDownloaded: false, matchScore: score };
+    }
+
+    // Book is already downloaded - check if it's a good match
+    if (isGoodMatch(requestTitle, requestAuthor, book.title, book.authors)) {
+      // Already downloaded AND it's a good match - use it
+      console.log(
+        `[Request Checker] Book "${book.title}" is already downloaded and matches request (score: ${score.toFixed(2)})`,
+      );
+      return { book, isAlreadyDownloaded: true, matchScore: score };
+    } else {
+      // Already downloaded but NOT a good match - skip and try next
+      console.log(
+        `[Request Checker] Book "${book.title}" is already downloaded but doesn't match request well (score: ${score.toFixed(2)}), trying next...`,
+      );
+    }
+  }
+
+  // If we get here, all books are either already downloaded (with bad match) or have low scores
+  // Return the best scoring book regardless
+  const best = booksWithScores[0];
+  if (best && best.score >= 0.3) {
+    const downloadRecord = await downloadTracker.getByMd5(best.book.md5);
+    return {
+      book: best.book,
+      isAlreadyDownloaded: downloadRecord?.status === "available",
+      matchScore: best.score,
+    };
+  }
+
+  return { book: null, isAlreadyDownloaded: false, matchScore: 0 };
 }
 
 /**
@@ -154,6 +338,21 @@ class RequestCheckerService {
                 `[Request Checker] Request #${request.id} fulfilled with target book ${request.targetBookMd5} (${queueResult.status})`,
               );
 
+              // If book was already downloaded, trigger post-download actions for this user
+              if (
+                queueResult.status === "already_downloaded" &&
+                request.userId
+              ) {
+                console.log(
+                  `[Request Checker] Triggering post-download actions for already-downloaded target book`,
+                );
+                await triggerPostDownloadActionsForUser(
+                  request.targetBookMd5,
+                  request.userId,
+                  request.queryParams.title || "Requested Book",
+                );
+              }
+
               // Send Apprise notification
               await appriseService.send("request_fulfilled", {
                 query: request.queryParams.q,
@@ -180,6 +379,7 @@ class RequestCheckerService {
           const { searchByIsbnFirst, includeYearInSearch } = listSettings;
 
           let searchResult;
+          const hasYear = !!request.queryParams.year;
 
           // Try ISBN search first if enabled and ISBN is available
           if (searchByIsbnFirst && request.queryParams.isbn) {
@@ -204,55 +404,68 @@ class RequestCheckerService {
 
           // Fall back to title/author search if ISBN didn't find anything
           if (!searchResult || searchResult.results.length === 0) {
-            const searchQuery = convertToSearchQuery(request.queryParams, {
-              includeYear: includeYearInSearch,
-            });
-            searchResult = await searcherScraper.search(searchQuery);
+            // First try with year if enabled and year is present
+            if (includeYearInSearch && hasYear) {
+              const searchQueryWithYear = convertToSearchQuery(
+                request.queryParams,
+                { includeYear: true },
+              );
+              console.log(
+                `[Request Checker] Request #${request.id}: Searching with year filter (${request.queryParams.year})`,
+              );
+              searchResult = await searcherScraper.search(searchQueryWithYear);
+
+              // If no results with year, retry without year
+              if (searchResult.results.length === 0) {
+                console.log(
+                  `[Request Checker] Request #${request.id}: No results with year, retrying without year filter`,
+                );
+                const searchQueryNoYear = convertToSearchQuery(
+                  request.queryParams,
+                  { includeYear: false },
+                );
+                searchResult = await searcherScraper.search(searchQueryNoYear);
+              }
+            } else {
+              // Search without year
+              const searchQuery = convertToSearchQuery(request.queryParams, {
+                includeYear: false,
+              });
+              searchResult = await searcherScraper.search(searchQuery);
+            }
           }
 
           if (searchResult.results.length > 0) {
             // Cache search results so queue has book metadata
             await bookService.upsertBooks(searchResult.results);
 
-            // Filter results by requested formats if specified
-            let filteredResults = searchResult.results;
-            const requestedFormats = request.queryParams.ext;
-            const formatsArray = requestedFormats
-              ? Array.isArray(requestedFormats)
-                ? requestedFormats
-                : [requestedFormats]
-              : [];
-            if (formatsArray.length > 0) {
-              const formatsUpper = formatsArray.map((f: string) =>
-                f.toUpperCase(),
-              );
-              filteredResults = searchResult.results.filter(
-                (book) =>
-                  book.format &&
-                  formatsUpper.includes(book.format.toUpperCase()),
-              );
-              console.log(
-                `[Request Checker] Request #${request.id}: Filtered ${searchResult.results.length} results to ${filteredResults.length} matching formats: ${formatsUpper.join(", ")}`,
-              );
-            }
+            // Find the best matching book (handles format filtering, similarity scoring, and already-downloaded checks)
+            const {
+              book: bestBook,
+              isAlreadyDownloaded,
+              matchScore,
+            } = await findBestMatchingBook(
+              searchResult.results,
+              request.queryParams.title,
+              request.queryParams.author,
+              request.queryParams.ext,
+            );
 
-            if (filteredResults.length === 0) {
+            if (!bestBook) {
               console.log(
-                `[Request Checker] Request #${request.id} - no results matching requested format`,
+                `[Request Checker] Request #${request.id} - no suitable matching book found in ${searchResult.results.length} results`,
               );
               continue;
             }
 
-            // Found results! Queue the first matching one for download
-            const firstBook = filteredResults[0];
             console.log(
-              `[Request Checker] Request #${request.id} found match: "${firstBook.title}" (${firstBook.format || "unknown"})`,
+              `[Request Checker] Request #${request.id} found best match: "${bestBook.title}" by ${bestBook.authors?.join(", ") || "Unknown"} (score: ${matchScore.toFixed(2)}, format: ${bestBook.format || "unknown"}, already downloaded: ${isAlreadyDownloaded})`,
             );
 
             try {
               // Add to download queue using the request owner's user ID
               const queueResult = await queueManager.addToQueue(
-                firstBook.md5,
+                bestBook.md5,
                 request.userId,
               );
 
@@ -270,20 +483,32 @@ class RequestCheckerService {
               }
 
               // Mark request as fulfilled (emits event)
-              await requestsManager.markFulfilled(request.id, firstBook.md5);
+              await requestsManager.markFulfilled(request.id, bestBook.md5);
 
               console.log(
-                `[Request Checker] Request #${request.id} fulfilled with book ${firstBook.md5} (${queueResult.status})`,
+                `[Request Checker] Request #${request.id} fulfilled with book ${bestBook.md5} (${queueResult.status})`,
               );
+
+              // If book was already downloaded, trigger post-download actions for this user
+              if (isAlreadyDownloaded && request.userId) {
+                console.log(
+                  `[Request Checker] Triggering post-download actions for already-downloaded book`,
+                );
+                await triggerPostDownloadActionsForUser(
+                  bestBook.md5,
+                  request.userId,
+                  bestBook.title,
+                );
+              }
 
               // Send Apprise notification
               await appriseService.send("request_fulfilled", {
                 query: request.queryParams.q,
                 author: request.queryParams.author,
                 title: request.queryParams.title,
-                bookTitle: firstBook.title,
-                bookAuthors: firstBook.authors,
-                bookMd5: firstBook.md5,
+                bookTitle: bestBook.title,
+                bookAuthors: bestBook.authors,
+                bookMd5: bestBook.md5,
               });
 
               foundCount++;
@@ -380,6 +605,18 @@ class RequestCheckerService {
             `[Request Checker] Single check: Request #${requestId} fulfilled with target book ${request.targetBookMd5} (queue status: ${queueResult.status})`,
           );
 
+          // If book was already downloaded, trigger post-download actions for this user
+          if (queueResult.status === "already_downloaded" && request.userId) {
+            console.log(
+              `[Request Checker] Single check: Triggering post-download actions for already-downloaded target book`,
+            );
+            await triggerPostDownloadActionsForUser(
+              request.targetBookMd5,
+              request.userId,
+              request.queryParams.title || "Requested Book",
+            );
+          }
+
           return { found: true, bookMd5: request.targetBookMd5 };
         } else {
           console.error(
@@ -395,6 +632,7 @@ class RequestCheckerService {
       const { searchByIsbnFirst, includeYearInSearch } = listSettings;
 
       let searchResult;
+      const hasYear = !!request.queryParams.year;
 
       // Try ISBN search first if enabled and ISBN is available
       if (searchByIsbnFirst && request.queryParams.isbn) {
@@ -415,44 +653,67 @@ class RequestCheckerService {
 
       // Fall back to title/author search if ISBN didn't find anything
       if (!searchResult || searchResult.results.length === 0) {
-        const searchQuery = convertToSearchQuery(request.queryParams, {
-          includeYear: includeYearInSearch,
-        });
-        searchResult = await searcherScraper.search(searchQuery);
+        // First try with year if enabled and year is present
+        if (includeYearInSearch && hasYear) {
+          const searchQueryWithYear = convertToSearchQuery(
+            request.queryParams,
+            { includeYear: true },
+          );
+          console.log(
+            `[Request Checker] Single check: Request #${requestId}: Searching with year filter (${request.queryParams.year})`,
+          );
+          searchResult = await searcherScraper.search(searchQueryWithYear);
+
+          // If no results with year, retry without year
+          if (searchResult.results.length === 0) {
+            console.log(
+              `[Request Checker] Single check: Request #${requestId}: No results with year, retrying without year filter`,
+            );
+            const searchQueryNoYear = convertToSearchQuery(
+              request.queryParams,
+              { includeYear: false },
+            );
+            searchResult = await searcherScraper.search(searchQueryNoYear);
+          }
+        } else {
+          // Search without year
+          const searchQuery = convertToSearchQuery(request.queryParams, {
+            includeYear: false,
+          });
+          searchResult = await searcherScraper.search(searchQuery);
+        }
       }
 
       if (searchResult.results.length > 0) {
         // Cache search results so queue has book metadata
         await bookService.upsertBooks(searchResult.results);
 
-        // Filter results by requested formats if specified
-        let filteredResults = searchResult.results;
-        const requestedFormats = request.queryParams.ext;
-        const formatsArray = requestedFormats
-          ? Array.isArray(requestedFormats)
-            ? requestedFormats
-            : [requestedFormats]
-          : [];
-        if (formatsArray.length > 0) {
-          const formatsUpper = formatsArray.map((f: string) => f.toUpperCase());
-          filteredResults = searchResult.results.filter(
-            (book) =>
-              book.format && formatsUpper.includes(book.format.toUpperCase()),
-          );
-        }
+        // Find the best matching book (handles format filtering, similarity scoring, and already-downloaded checks)
+        const {
+          book: bestBook,
+          isAlreadyDownloaded,
+          matchScore,
+        } = await findBestMatchingBook(
+          searchResult.results,
+          request.queryParams.title,
+          request.queryParams.author,
+          request.queryParams.ext,
+        );
 
-        if (filteredResults.length === 0) {
+        if (!bestBook) {
           return {
             found: false,
-            error: "No results matching requested format",
+            error: `No suitable matching book found in ${searchResult.results.length} results`,
           };
         }
 
-        const firstBook = filteredResults[0];
+        console.log(
+          `[Request Checker] Single check: Request #${requestId} found best match: "${bestBook.title}" (score: ${matchScore.toFixed(2)}, format: ${bestBook.format}, already downloaded: ${isAlreadyDownloaded})`,
+        );
 
         // Add to download queue using the request owner's user ID
         const queueResult = await queueManager.addToQueue(
-          firstBook.md5,
+          bestBook.md5,
           request.userId,
         );
 
@@ -464,13 +725,25 @@ class RequestCheckerService {
         ];
         if (successStatuses.includes(queueResult.status)) {
           // Mark request as fulfilled (emits event)
-          await requestsManager.markFulfilled(requestId, firstBook.md5);
+          await requestsManager.markFulfilled(requestId, bestBook.md5);
 
           console.log(
-            `[Request Checker] Single check: Request #${requestId} fulfilled with book ${firstBook.md5} (format: ${firstBook.format}, queue status: ${queueResult.status})`,
+            `[Request Checker] Single check: Request #${requestId} fulfilled with book ${bestBook.md5} (format: ${bestBook.format}, queue status: ${queueResult.status})`,
           );
 
-          return { found: true, bookMd5: firstBook.md5 };
+          // If book was already downloaded, trigger post-download actions for this user
+          if (isAlreadyDownloaded && request.userId) {
+            console.log(
+              `[Request Checker] Single check: Triggering post-download actions for already-downloaded book`,
+            );
+            await triggerPostDownloadActionsForUser(
+              bestBook.md5,
+              request.userId,
+              bestBook.title,
+            );
+          }
+
+          return { found: true, bookMd5: bestBook.md5 };
         } else {
           console.error(
             `[Request Checker] Failed to queue book for request #${requestId}: ${queueResult.status}`,

@@ -257,6 +257,35 @@ export const useRejectRequest = () => {
   });
 };
 
+// Manually fulfill a request with a specific book
+export const useFulfillRequest = () => {
+  return useMutation({
+    mutationFn: async ({ id, bookMd5 }: { id: number; bookMd5: string }) => {
+      return apiFetch(`/requests/${id}/fulfill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookMd5 }),
+      });
+    },
+    onSuccess: () => {
+      // No need to invalidate queries - SSE will update automatically
+      notifications.show({
+        title: "Request fulfilled",
+        message: "The book has been queued for download",
+        color: "green",
+      });
+    },
+    onError: (error: unknown) => {
+      const errorMessage = getErrorMessage(error);
+      notifications.show({
+        title: "Error",
+        message: errorMessage || "Failed to fulfill request",
+        color: "red",
+      });
+    },
+  });
+};
+
 /**
  * Hook to get a set of MD5 hashes that have pending or active requests
  * Used to show "Already Requested" state on book cards

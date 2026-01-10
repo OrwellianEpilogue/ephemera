@@ -34,6 +34,7 @@ import {
   IconBook,
   IconStar,
   IconSearch,
+  IconHandClick,
 } from "@tabler/icons-react";
 import { useState, useMemo, useCallback } from "react";
 import { useDisclosure } from "@mantine/hooks";
@@ -48,6 +49,7 @@ import {
 import { useAppSettings } from "../hooks/useSettings";
 import { useAuth, usePermissions } from "../hooks/useAuth";
 import { UserBadge } from "../components/UserBadge";
+import { ManualSearchModal } from "../components/ManualSearchModal";
 import { SOURCE_COLORS, type SavedRequestWithMetadata } from "@ephemera/shared";
 
 // Helper function to format check interval for display
@@ -89,6 +91,10 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
   const [
     rejectModalOpened,
     { open: openRejectModal, close: closeRejectModal },
+  ] = useDisclosure(false);
+  const [
+    manualSearchOpened,
+    { open: openManualSearch, close: closeManualSearch },
   ] = useDisclosure(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
@@ -399,6 +405,19 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
             )}
           </Group>
 
+          {/* Manual search button for active requests */}
+          {(request.status === "active" ||
+            request.status === "pending_approval") && (
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<IconHandClick size={14} />}
+              onClick={openManualSearch}
+            >
+              Manual Search
+            </Button>
+          )}
+
           {/* Show rejection reason for rejected requests */}
           {request.status === "rejected" && (
             <Card withBorder bg="var(--mantine-color-red-light)">
@@ -484,6 +503,14 @@ function RequestCard({ request }: { request: SavedRequestWithMetadata }) {
           </Group>
         </Stack>
       </Modal>
+
+      {/* Manual search modal */}
+      <ManualSearchModal
+        opened={manualSearchOpened}
+        onClose={closeManualSearch}
+        requestId={request.id}
+        queryParams={request.queryParams}
+      />
     </Card>
   );
 }
